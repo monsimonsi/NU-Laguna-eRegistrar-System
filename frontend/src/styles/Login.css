@@ -14,26 +14,25 @@ body {
   overflow: hidden;
 }
 
-.alumni-page {
+.login-page {
   position: relative;
   min-height: 100vh;
   width: 100%;
   overflow: hidden;
 }
 
-/* blurred full-screen background */
-.bg-image {
-    position: fixed;
-    inset: 0;
-    background-image:
-        linear-gradient(rgba(191, 194, 230, 0.52), rgba(191, 194, 230, 0.52)),
-        url('../assets/nubg.jpg');
-    background-size: cover;
-    background-position: center;
-    filter: blur(15px);
-    transform: scale(1.1);
-    z-index: 0;
-    pointer-events: none;
+.login-bg {
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(191, 194, 230, 0.52), rgba(191, 194, 230, 0.52)),
+    url('../assets/nubg.jpg');
+  background-size: cover;
+  background-position: center;
+  filter: blur(15px);
+  transform: scale(1.1);
+  z-index: 0;
+  pointer-events: none;
 }
 
 .top-logo {
@@ -49,7 +48,7 @@ body {
   display: block;
 }
 
-.page-content {
+.login-main {
   position: relative;
   z-index: 2;
   width: 100%;
@@ -57,47 +56,33 @@ body {
   padding: 16px 24px 24px;
 }
 
-.page-heading {
+.login-heading {
   text-align: center;
   margin-top: 0;
-  padding-top: 0;
 }
 
-.page-heading h1 {
+.login-heading h1 {
   margin: 0;
   font-size: 58px;
   line-height: 1;
   font-weight: 700;
   color: #3c4da4;
   letter-spacing: -1px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
 }
 
-.page-heading p {
+.login-heading p {
   margin: 8px 0 0;
   font-size: 22px;
   font-weight: 300;
   color: #4a56a8;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.20);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
-.back-link {
-  width: min(1180px, calc(100% - 48px));
-  margin: 22px auto 6px;
-  text-align: right;
-}
-
-.back-link a {
-  text-decoration: none;
-  color: #3d4ea2;
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.registration-card {
+.login-card {
   width: min(1180px, calc(100% - 48px));
   height: 620px; /* was 560px */
-  margin: 0 auto;
+  margin: 49px auto;
   background: #fff;
   border-radius: 20px;
   overflow: hidden;
@@ -114,49 +99,46 @@ body {
   display: block;
 }
 
-.form-side {
+.login-form-panel {
   background: #fbfbfb;
-  padding: 18px 42px 26px;
+  padding: 36px 44px 24px;
 }
 
-.form-side h2 {
-  margin: 0 0 12px;
+.login-form-panel h2 {
+  margin: 0;
   text-align: center;
   color: #4152a5;
   font-size: 31px;
   font-weight: 800;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.14);
 }
 
-.registration-form {
+.login-subtitle {
+  margin: 6px 0 18px;
+  text-align: center;
+  font-size: 18px;
+  color: #1f1f1f;
+}
+
+.login-form {
   display: flex;
   flex-direction: column;
 }
 
-.row {
-  margin-bottom: 12px;
+.form-group {
+  margin-bottom: 10px;
 }
 
-.row.two-cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-}
-
-.field label {
+.form-group label {
+  display: block;
   font-size: 18px;
   font-weight: 500;
   color: #1e1e1e;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 
-.field input,
-.field select {
+.form-group input,
+.form-group select {
   width: 100%;
   height: 38px;
   border: 1.5px solid #bcc3f3;
@@ -168,8 +150,12 @@ body {
   color: #1c1c1c;
 }
 
-.field input:focus,
-.field select:focus {
+.form-group input::placeholder {
+  color: #b8b8b8;
+}
+
+.form-group input:focus,
+.form-group select:focus {
   border-color: #6f7ddb;
   box-shadow: 0 0 0 2px rgba(111, 125, 219, 0.12);
 }
@@ -198,8 +184,35 @@ body {
   padding-right: 42px;
 }
 
-.submit-btn {
-  margin-top: 14px;
+.login-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0 12px;
+  font-size: 14px;
+  color: #666;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.remember-me input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+
+.forgot-link {
+  color: #666;
+  text-decoration: underline;
+}
+
+.signin-btn,
+.register-btn {
   width: 100%;
   height: 37px;
   border: none;
@@ -210,8 +223,39 @@ body {
   font-weight: 700;
   cursor: pointer;
   letter-spacing: 0.5px;
+  text-align: center;
+  line-height: 37px;
+  text-decoration: none;
+  display: block;
 }
 
-.submit-btn:hover {
-  filter: brightness(0.98);
+.signin-btn {
+  margin-top: 2px;
+}
+
+.divider {
+  margin: 16px 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: #777;
+  font-size: 14px;
+}
+
+.divider::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: #ddd;
+  transform: translateY(-50%);
+}
+
+.divider span {
+  position: relative;
+  background: #fbfbfb;
+  padding: 0 12px;
 }

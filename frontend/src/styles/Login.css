@@ -11,7 +11,8 @@ html, body, #root {
 
 body {
   font-family: "Poppins", Arial, sans-serif;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .login-page {
@@ -258,4 +259,162 @@ body {
   position: relative;
   background: #fbfbfb;
   padding: 0 12px;
+}
+
+@media (max-width: 1200px) {
+  .login-card {
+    width: calc(100% - 32px);
+  }
+}
+
+@media (max-width: 992px) {
+  .login-heading h1,
+  .page-heading h1 {
+    font-size: 46px;
+  }
+
+  .login-heading p,
+  .page-heading p {
+    font-size: 18px;
+  }
+
+  .login-card {
+    height: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .login-image-panel {
+    height: 280px;
+  }
+
+  .login-form-panel {
+    padding: 28px 32px 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  .top-logo {
+    top: 10px;
+    left: 10px;
+  }
+
+  .top-logo img {
+    width: 120px;
+  }
+
+  .login-main {
+    padding: 12px 12px 24px;
+  }
+
+  .login-heading h1 {
+    font-size: 36px;
+  }
+
+  .login-heading p {
+    font-size: 15px;
+  }
+
+  .login-card {
+    width: 100%;
+    margin-top: 24px;
+    border-radius: 16px;
+  }
+
+  .login-image-panel {
+    height: 220px;
+  }
+
+  .login-form-panel {
+    padding: 22px 18px 24px;
+  }
+
+  .login-form-panel h2 {
+    font-size: 26px;
+  }
+
+  .login-subtitle {
+    font-size: 15px;
+  }
+
+  .form-group label {
+    font-size: 15px;
+  }
+
+  .login-options {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-heading h1 {
+    font-size: 30px;
+  }
+
+  .login-heading p {
+    font-size: 14px;
+  }
+
+  .login-image-panel {
+    height: 180px;
+  }
+
+  .login-form-panel h2 {
+    font-size: 22px;
+  }
+
+  .form-group input,
+  .form-group select,
+  .signin-btn,
+  .register-btn {
+    height: 40px;
+  }
+
+  .signin-btn,
+  .register-btn {
+    line-height: 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .top-logo {
+    top: 8px;
+    left: 8px;
+  }
+
+  .top-logo img {
+    width: 86px;
+  }
+
+  .login-main {
+    padding-top: 72px;
+  }
+
+  .login-heading {
+    margin-top: 6px;
+  }
+
+  .login-heading h1 {
+    font-size: 32px;
+    line-height: 1.05;
+  }
+
+  .login-heading p {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-logo img {
+    width: 74px;
+  }
+
+  .login-main {
+    padding-top: 78px;
+  }
+
+  .login-heading h1 {
+    font-size: 28px;
+  }
 }

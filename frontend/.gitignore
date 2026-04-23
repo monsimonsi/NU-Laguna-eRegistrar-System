@@ -1,0 +1,123 @@
+# =========================
+# Dependencies
+# =========================
+node_modules/
+.pnp/
+.pnp.js
+
+# =========================
+# Build / Production
+# =========================
+/build/
+/dist/
+/out/
+/.next/
+
+# =========================
+# Coverage / Testing
+# =========================
+coverage/
+.nyc_output/
+
+# =========================
+# Environment Variables (VERY IMPORTANT)
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Database / Local Data
+# =========================
+*.db
+*.sqlite
+*.sqlite3
+mongodb-data/
+dump/
+
+# =========================
+# Uploads / User Files
+# =========================
+uploads/
+public/uploads/
+files/
+
+# =========================
+# Cache
+# =========================
+.cache/
+.parcel-cache/
+.eslintcache
+
+# =========================
+# Temporary Files
+# =========================
+*.tmp
+*.temp
+
+# =========================
+# TypeScript
+# =========================
+*.tsbuildinfo
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# System Files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Security / Keys
+# =========================
+*.pem
+*.key
+*.cert
+*.crt
+
+# =========================
+# Nodemailer (optional logs or test files)
+# =========================
+mail-logs/
+email-templates/temp/
+
+# =========================
+# Payment Gateway (PayMongo)
+# =========================
+paymongo-logs/
+payment-debug/
+
+# =========================
+# JWT / Auth (if stored locally for testing)
+# =========================
+tokens/
+sessions/
+
+# =========================
+# Design Files (optional)
+# =========================
+*.fig
+*.sketch
+
+# =========================
+# Misc
+# =========================
+.env.local.backup
+.env.backup

@@ -1,0 +1,382 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  font-family: "Poppins", Arial, sans-serif;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.alumni-page {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* blurred full-screen background */
+.bg-image {
+    position: fixed;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(191, 194, 230, 0.52), rgba(191, 194, 230, 0.52)),
+        url('../assets/nubg.jpg');
+    background-size: cover;
+    background-position: center;
+    filter: blur(15px);
+    transform: scale(1.1);
+    z-index: 0;
+    pointer-events: none;
+}
+
+.top-logo {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 3;
+}
+
+.top-logo img {
+  width: 150px;
+  height: auto;
+  display: block;
+}
+
+.page-content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  min-height: 100vh;
+  padding: 16px 24px 24px;
+}
+
+.page-heading {
+  text-align: center;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.page-heading h1 {
+  margin: 0;
+  font-size: 58px;
+  line-height: 1;
+  font-weight: 700;
+  color: #3c4da4;
+  letter-spacing: -1px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+.page-heading p {
+  margin: 8px 0 0;
+  font-size: 22px;
+  font-weight: 300;
+  color: #4a56a8;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.20);
+}
+
+.back-link {
+  width: min(1180px, calc(100% - 48px));
+  margin: 22px auto 6px;
+  text-align: right;
+}
+
+.back-link a {
+  text-decoration: none;
+  color: #3d4ea2;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.registration-card {
+  width: min(1180px, calc(100% - 48px));
+  height: 620px; /* was 560px */
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  box-shadow: 0 6px 18px rgba(44, 53, 108, 0.18);
+}
+
+.featured-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 25% center; /* moves the crop to show more of the left side */
+  display: block;
+}
+
+.form-side {
+  background: #fbfbfb;
+  padding: 18px 42px 26px;
+}
+
+.form-side h2 {
+  margin: 0 0 12px;
+  text-align: center;
+  color: #4152a5;
+  font-size: 31px;
+  font-weight: 800;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.registration-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  margin-bottom: 12px;
+}
+
+.row.two-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+.field label {
+  font-size: 18px;
+  font-weight: 500;
+  color: #1e1e1e;
+  margin-bottom: 4px;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  height: 38px;
+  border: 1.5px solid #bcc3f3;
+  border-radius: 13px;
+  outline: none;
+  padding: 0 14px;
+  font-size: 15px;
+  background: #fff;
+  color: #1c1c1c;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: #6f7ddb;
+  box-shadow: 0 0 0 2px rgba(111, 125, 219, 0.12);
+}
+
+.select-wrap {
+  position: relative;
+}
+
+.select-wrap::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-right: 3px solid #3f4e9d;
+  border-bottom: 3px solid #3f4e9d;
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+.select-wrap select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 42px;
+}
+
+.submit-btn {
+  margin-top: 14px;
+  width: 100%;
+  height: 37px;
+  border: none;
+  border-radius: 13px;
+  background: #a0a6d7;
+  color: #36479e;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+}
+
+.submit-btn:hover {
+  filter: brightness(0.98);
+}
+
+@media (max-width: 1200px) {
+  .registration-card,
+  .back-link {
+    width: calc(100% - 32px);
+  }
+}
+
+@media (max-width: 992px) {
+  .page-heading h1 {
+    font-size: 46px;
+  }
+
+  .page-heading p {
+    font-size: 18px;
+  }
+
+  .registration-card {
+    height: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .featured-image {
+    height: 280px;
+  }
+
+  .form-side {
+    padding: 28px 32px 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  .top-logo {
+    top: 10px;
+    left: 10px;
+  }
+
+  .top-logo img {
+    width: 120px;
+  }
+
+  .page-content {
+    padding: 12px 12px 24px;
+  }
+
+  .page-heading h1 {
+    font-size: 36px;
+  }
+
+  .page-heading p {
+    font-size: 15px;
+  }
+
+  .back-link {
+    margin-top: 16px;
+    text-align: left;
+  }
+
+  .back-link a {
+    font-size: 15px;
+  }
+
+  .registration-card {
+    width: 100%;
+    margin-top: 10px;
+    border-radius: 16px;
+  }
+
+  .featured-image {
+    height: 220px;
+  }
+
+  .form-side {
+    padding: 22px 18px 24px;
+  }
+
+  .form-side h2 {
+    font-size: 26px;
+  }
+
+  .row.two-cols {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .field label {
+    font-size: 15px;
+  }
+
+  .field input,
+  .field select,
+  .submit-btn {
+    height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-heading h1 {
+    font-size: 30px;
+  }
+
+  .page-heading p {
+    font-size: 14px;
+  }
+
+  .featured-image {
+    height: 180px;
+  }
+
+  .form-side h2 {
+    font-size: 22px;
+  }
+
+  .field input,
+  .field select {
+    font-size: 14px;
+  }
+
+  .submit-btn {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 768px) {
+  .top-logo {
+    top: 8px;
+    left: 8px;
+  }
+
+  .top-logo img {
+    width: 86px;
+  }
+
+  .page-content {
+    padding-top: 72px;
+  }
+
+  .page-heading {
+    margin-top: 6px;
+  }
+
+  .page-heading h1 {
+    font-size: 32px;
+    line-height: 1.05;
+  }
+
+  .page-heading p {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-logo img {
+    width: 74px;
+  }
+
+  .page-content {
+    padding-top: 78px;
+  }
+
+  .page-heading h1 {
+    font-size: 28px;
+  }
+}

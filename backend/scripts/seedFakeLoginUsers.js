@@ -9,29 +9,36 @@ dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 const fakeUsers = [
   {
+    full_name: 'John Simon Ray Umadac',
+    email: 'umadacjc@students.nu-laguna.edu.ph',
+    password: '123456',
+    role: 'student',
+    status: 'active'
+  },
+  {
     full_name: 'Admin One',
-    email: 'admin1@nu-laguna.edu.ph',
+    email: 'admin1@registrar.nu-laguna.edu.ph',
     password: 'Admin123!',
     role: 'admin',
     status: 'active'
   },
   {
     full_name: 'Admin Two',
-    email: 'admin2@nu-laguna.edu.ph',
+    email: 'admin2@registrar.nu-laguna.edu.ph',
     password: 'Registrar456!',
     role: 'admin',
     status: 'active'
   },
   {
     full_name: 'Student One',
-    email: 'student1@nu-laguna.edu.ph',
+    email: 'student1@students.nu-laguna.edu.ph',
     password: 'Student123!',
     role: 'student',
     status: 'active'
   },
   {
     full_name: 'Student Two',
-    email: 'student2@nu-laguna.edu.ph',
+    email: 'student2@students.nu-laguna.edu.ph',
     password: 'NUStudent456!',
     role: 'student',
     status: 'active'

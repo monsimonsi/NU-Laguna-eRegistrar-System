@@ -42,6 +42,13 @@ const fakeUsers = [
     password: 'NUStudent456!',
     role: 'student',
     status: 'active'
+  },
+  {
+    full_name: 'Student Three',
+    email: 'student3@students.nu-laguna.edu.ph',
+    password: 'NUStudent789!',
+    role: 'student',
+    status: 'active'
   }
 ];
 

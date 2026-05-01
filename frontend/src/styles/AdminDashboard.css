@@ -556,6 +556,11 @@ body {
   color: #2c8b28;
 }
 
+.status-pill.out-for-delivery {
+  background: #ffd9a6;
+  color: #a65b00;
+}
+
 .status-pill.completed {
   background: #c9c9c9;
   color: #6a6a6a;

@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "seed:login-users": "node scripts/seedFakeLoginUsers.js"
+    "seed:login-users": "node scripts/seedFakeLoginUsers.js",
+    "migrate:statuses": "node scripts/migrateStatuses.js"
   },
   "dependencies": {
     "cors": "^2.8.6",

@@ -1,19 +1,18 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/nu-logo-left.png';
 import bg from '../assets/nubg.jpg';
 import '../styles/Login.css';
 
 const Login = () => {
+  const navigate = useNavigate();
   const [role, setRole] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage('');
     setIsError(false);
 
     try {
@@ -27,16 +26,35 @@ const Login = () => {
 
       if (!response.ok) {
         setIsError(true);
-        setMessage(data.message || 'Login failed.');
+        console.log(data.message || 'Login failed.');
         return;
       }
 
       setIsError(false);
-      setMessage(data.message || 'Login successful.');
       console.log('Logged in user:', data.user);
+      // persist user for subsequent requests
+      try {
+        localStorage.setItem('user', JSON.stringify(data.user));
+      } catch (e) {
+        console.warn('Failed to persist user in localStorage', e);
+      }
+
+      const loggedInRole = String(data.user?.role || role).trim().toLowerCase();
+
+      if (loggedInRole === 'admin') {
+        navigate('/admin-dashboard');
+        return;
+      }
+
+      if (loggedInRole === 'student' || loggedInRole === 'alumni') {
+        navigate('/document-request');
+        return;
+      }
+
+      setIsError(true);
     } catch (error) {
       setIsError(true);
-      setMessage('Cannot connect to server.');
+      console.log('Cannot connect to server.');
     }
   };
 
@@ -115,9 +133,9 @@ const Login = () => {
                 SIGN IN
               </button>
 
-              {message && (
-                <p style={{ marginTop: '10px', color: isError ? 'red' : 'green' }}>
-                  {message}
+              {isError && (
+                <p style={{ marginTop: '10px', color: 'red' }}>
+                  Login failed. Please try again.
                 </p>
               )}
 

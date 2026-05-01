@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import '../styles/AdminDashboard.css';
 import logo from '../assets/NU_shield.png';
 import {
@@ -26,8 +26,45 @@ const alumniRequests = [
   { name: 'Ilocos A. Empanada', id: '2019-12395', program: 'BS Psychology', year: 'Year: 2023' },
 ];
 
+const STATUS_OPTIONS = ['Pending', 'Processing', 'Ready for Pickup', 'Out for Delivery', 'Completed'];
+
 const AdminDashboard = () => {
   const [profileOpen, setProfileOpen] = useState(false);
+  const [requests, setRequests] = useState([]);
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const fetchRequests = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/requests');
+      const data = await res.json();
+      if (res.ok) {
+        setRequests(data.requests || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch requests', err);
+    }
+  };
+
+  const updateStatus = async (id, newStatus) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/requests/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setRequests((prev) => prev.map(r => (r._id === id ? data.request : r)));
+      } else {
+        console.error('Update failed', data.message);
+      }
+    } catch (err) {
+      console.error('Update error', err);
+    }
+  };
 
   return (
     <div className="admin-page">
@@ -142,45 +179,24 @@ const AdminDashboard = () => {
               </div>
 
               <div className="request-list request-list-small">
-                <div className="small-request-card">
-                  <div className="small-request-info">
-                    <strong>Juan Dela Cruz</strong>
-                    <span>Transcript of Records</span>
-                    <span>TRK 2026-0409-001</span>
-                  </div>
+                {requests.slice(0, 6).map((r) => (
+                  <div className="small-request-card" key={r._id}>
+                    <div className="small-request-info">
+                      <strong>{r.full_name}</strong>
+                      <span>{r.documentType}</span>
+                      <span>{r._id}</span>
+                    </div>
 
-                  <div className="status-row">
-                    <label>Status:</label>
-                    <div className="select-wrap">
-                      <select defaultValue="Ready">
-                        <option>Pending</option>
-                        <option>Processing</option>
-                        <option>Ready</option>
-                        <option>Completed</option>
-                      </select>
+                    <div className="status-row">
+                      <label>Status:</label>
+                      <div className="select-wrap">
+                        <select value={r.status} onChange={(e) => updateStatus(r._id, e.target.value)}>
+                          {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <div className="small-request-card">
-                  <div className="small-request-info">
-                    <strong>Dubai Chewy A. Cookie</strong>
-                    <span>Diploma</span>
-                    <span>TRK 2026-0408-002</span>
-                  </div>
-
-                  <div className="status-row">
-                    <label>Status:</label>
-                    <div className="select-wrap">
-                      <select defaultValue="Pending">
-                        <option>Pending</option>
-                        <option>Processing</option>
-                        <option>Ready</option>
-                        <option>Completed</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
             </article>
           </section>
@@ -199,47 +215,23 @@ const AdminDashboard = () => {
                   <tr>
                     <th>Name</th>
                     <th>Document Type</th>
+                    <th>Address</th>
                     <th>Status</th>
                     <th>Tracking Number</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>Juan Dela Cruz</td>
-                    <td>Transcript of Records</td>
-                    <td><span className="status-pill pending">pending</span></td>
-                    <td>NUL 2026-0409-001</td>
-                  </tr>
-                  <tr>
-                    <td>Dubai Chewy E. Cookie</td>
-                    <td>Diploma</td>
-                    <td><span className="status-pill processing">processing</span></td>
-                    <td>NUL 2026-0408-002</td>
-                  </tr>
-                  <tr>
-                    <td>Ilocos A. Empanada</td>
-                    <td>Certificate of Good Moral Character</td>
-                    <td><span className="status-pill ready">ready</span></td>
-                    <td>NUL 2026-0407-003</td>
-                  </tr>
-                  <tr>
-                    <td>Frank Dagat</td>
-                    <td>Certificate of Registration</td>
-                    <td><span className="status-pill completed">completed</span></td>
-                    <td>NUL 2026-0406-002</td>
-                  </tr>
-                  <tr>
-                    <td>Sabrina Karpintero</td>
-                    <td>Certificates</td>
-                    <td><span className="status-pill completed">completed</span></td>
-                    <td>NUL 2026-0405-001</td>
-                  </tr>
-                  <tr>
-                    <td>Chappell Roan</td>
-                    <td>Diploma</td>
-                    <td><span className="status-pill ready">ready</span></td>
-                    <td>NUL 2026-0404-099</td>
-                  </tr>
+                  {requests.map((r) => (
+                    <tr key={r._id}>
+                      <td>{r.full_name}</td>
+                      <td>{r.documentType}</td>
+                      <td>{r.address || '-'}</td>
+                      <td>
+                        <div className={`status-pill ${r.status.toLowerCase().replace(/ /g, '-')}`}>{r.status}</div>
+                      </td>
+                      <td>{r._id}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

@@ -1,0 +1,452 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Poppins", Arial, sans-serif;
+  overflow-x: hidden;
+  background: #e8ebf3;
+}
+
+.doc-page {
+  min-height: 100vh;
+  background: #e8ebf3;
+  color: #222;
+}
+
+/* TOP BAR */
+.doc-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 66px;
+  background: #ffd21a;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.18);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  z-index: 20;
+}
+
+.doc-menu-btn {
+  border: 0;
+  background: transparent;
+  color: #4052a6;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  margin-right: 16px;
+}
+
+.doc-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.doc-logo {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  display: block;
+}
+
+.doc-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #4052a6;
+  letter-spacing: -0.4px;
+}
+
+/* MAIN LAYOUT */
+.doc-main {
+  min-height: 100vh;
+  padding: 140px 24px 40px;
+}
+
+.doc-back-row {
+  width: min(870px, calc(100% - 8px));
+  margin: 0 auto 10px;
+  text-align: right;
+}
+
+.doc-back-link {
+  text-decoration: none;
+  color: #4456aa;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.doc-card {
+  width: min(870px, 100%);
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid #aeb8e6;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(59, 70, 120, 0.12);
+  padding: 18px 20px 22px;
+}
+
+/* CARD HEADER */
+.doc-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.doc-card-icon {
+  color: #6a76b7;
+  flex: 0 0 auto;
+}
+
+.doc-card-header h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111;
+}
+
+.doc-card-header p {
+  margin: 4px 0 0;
+  font-size: 16px;
+  font-style: italic;
+  color: #6e6e6e;
+}
+
+/* FORM */
+.doc-form {
+  width: 100%;
+}
+
+.doc-grid-top {
+  display: grid;
+  grid-template-columns: 1.4fr 1.4fr 0.8fr;
+  gap: 34px;
+  align-items: start;
+  margin-top: 18px;
+}
+
+.doc-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.doc-field label {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1d1d1d;
+  margin-bottom: 10px;
+}
+
+.select-wrap {
+  position: relative;
+}
+
+.select-wrap::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  border-right: 3px solid #4052a6;
+  border-bottom: 3px solid #4052a6;
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+.select-wrap select {
+  width: 100%;
+  height: 36px;
+  border: 1.5px solid #b5bdf0;
+  border-radius: 12px;
+  background: #fff;
+  padding: 0 42px 0 14px;
+  font-size: 14px;
+  color: #111;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  outline: none;
+}
+
+.select-wrap select:focus {
+  border-color: #6f7ddb;
+  box-shadow: 0 0 0 2px rgba(111, 125, 219, 0.12);
+}
+
+.copies-field {
+  align-self: end;
+}
+
+.copies-control {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  border: 1.5px solid #6f7ddb;
+  border-radius: 8px;
+  overflow: hidden;
+  width: 100%;
+  background: #9ea5d7;
+}
+
+.copies-btn {
+  width: 36px;
+  height: 100%;
+  border: 0;
+  background: #9ea5d7;
+  color: #33468f;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.copies-value {
+  flex: 1;
+  text-align: center;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.doc-section {
+  margin-top: 16px;
+}
+
+.section-title {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1d1d1d;
+  margin-bottom: 8px;
+}
+
+.radio-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 0;
+  font-size: 15px;
+  color: #222;
+  cursor: pointer;
+}
+
+.radio-row input {
+  width: 17px;
+  height: 17px;
+  accent-color: #4052a6;
+  margin: 0;
+}
+
+.notes-field {
+  margin-top: 8px;
+}
+
+.notes-field textarea {
+  width: 100%;
+  min-height: 42px;
+  resize: vertical;
+  border: 1.5px solid #b5bdf0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #111;
+  outline: none;
+  background: #fff;
+}
+
+.notes-field textarea::placeholder {
+  color: #8d8d8d;
+  font-style: italic;
+}
+
+.notes-field textarea:focus {
+  border-color: #6f7ddb;
+  box-shadow: 0 0 0 2px rgba(111, 125, 219, 0.12);
+}
+
+/* BUTTONS */
+.doc-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  margin-top: 30px;
+  align-items: center;
+}
+
+.cancel-btn,
+.submit-btn {
+  width: 100%;
+  height: 36px;
+  border: 0;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cancel-btn {
+  background: #dde2ec;
+  color: #4052a6;
+}
+
+.submit-btn {
+  background: #9ca4d7;
+  color: #4052a6;
+  margin-top: auto;
+}
+
+.cancel-btn:hover,
+.submit-btn:hover {
+  filter: brightness(0.98);
+}
+
+/* RESPONSIVE */
+@media (max-width: 992px) {
+  .doc-main {
+    padding-top: 120px;
+  }
+
+  .doc-card {
+    width: min(870px, calc(100% - 24px));
+  }
+
+  .doc-grid-top {
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+
+  .copies-field {
+    grid-column: 1 / -1;
+    width: 220px;
+  }
+}
+
+@media (max-width: 768px) {
+  .doc-topbar {
+    height: 58px;
+    padding: 0 12px;
+  }
+
+  .doc-logo {
+    width: 34px;
+    height: 34px;
+  }
+
+  .doc-title {
+    font-size: 18px;
+  }
+
+  .doc-main {
+    padding: 104px 12px 28px;
+  }
+
+  .doc-back-row {
+    width: 100%;
+  }
+
+  .doc-back-link {
+    font-size: 15px;
+  }
+
+  .doc-card {
+    width: 100%;
+    padding: 16px 14px 18px;
+    border-radius: 12px;
+  }
+
+  .doc-card-header h1 {
+    font-size: 16px;
+  }
+
+  .doc-card-header p {
+    font-size: 14px;
+  }
+
+  .doc-grid-top {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .copies-field {
+    width: 100%;
+    grid-column: auto;
+  }
+
+  .doc-field label,
+  .section-title {
+    font-size: 14px;
+  }
+
+  .radio-row {
+    font-size: 14px;
+    align-items: flex-start;
+  }
+
+  .doc-actions {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 22px;
+  }
+
+  .cancel-btn,
+  .submit-btn {
+    width: 100%;
+    height: 42px;
+  }
+}
+
+@media (max-width: 480px) {
+  .doc-title {
+    font-size: 15px;
+  }
+
+  .doc-card {
+    padding: 14px 12px 16px;
+  }
+
+  .select-wrap select,
+  .notes-field textarea {
+    font-size: 13px;
+  }
+
+  .copies-control {
+    height: 34px;
+  }
+
+  .copies-btn {
+    width: 34px;
+  }
+
+  .copies-value {
+    font-size: 20px;
+  }
+
+  .radio-row {
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  .cancel-btn,
+  .submit-btn {
+    height: 44px;
+  }
+}

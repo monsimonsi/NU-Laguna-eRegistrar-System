@@ -4,7 +4,7 @@ import { Menu, FileText } from 'lucide-react';
 import logo from '../assets/NU_shield.png';
 import '../styles/DocumentRequest.css';
 
-const DocumentRequest = () => {
+const DocumentRequest = ({ onBack }) => {
   const [copies, setCopies] = useState(1);
   const [succeedingPages, setSucceedingPages] = useState(0);
   const [documentType, setDocumentType] = useState('');
@@ -121,9 +121,15 @@ const DocumentRequest = () => {
 
       <main className="doc-main">
         <div className="doc-back-row">
-          <Link to="/admin-dashboard" className="doc-back-link">
-            &lsaquo; Back to Dashboard
-          </Link>
+          {onBack ? (
+            <button onClick={onBack} className="doc-back-link" style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0}}>
+              &lsaquo; Back to Dashboard
+            </button>
+          ) : (
+            <Link to="/dashboard" className="doc-back-link">
+              &lsaquo; Back to Dashboard
+            </Link>
+          )}
         </div>
 
         <section className="doc-card">
@@ -293,7 +299,7 @@ const DocumentRequest = () => {
             <div style={{display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 18}}>
               <button
                 type="button"
-                onClick={() => navigate('/admin-dashboard')}
+                onClick={() => onBack ? onBack() : navigate('/dashboard')}
                 style={{background: '#dde2ec', border: 0, padding: '8px 12px', borderRadius: 8, cursor: 'pointer'}}
               >
                 Go to Dashboard

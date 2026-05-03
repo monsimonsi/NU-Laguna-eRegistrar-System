@@ -1,5 +1,14 @@
 const mongoose = require('mongoose');
 
+/** Matches registrar workflow: Released = claimed / closed (was previously "Completed").
+const REQUEST_STATUSES = [
+  'Pending',
+  'Processing',
+  'Ready for Pickup',
+  'Out for Delivery',
+  'Released'
+];
+
 const DocumentRequestSchema = new mongoose.Schema({
   requesterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
   full_name: { type: String, required: true },
@@ -14,10 +23,12 @@ const DocumentRequestSchema = new mongoose.Schema({
   notes: { type: String },
   status: {
     type: String,
-    enum: ['Pending', 'Processing', 'Ready for Pickup', 'Out for Delivery', 'Completed'],
+    enum: REQUEST_STATUSES,
     default: 'Pending'
   },
   trackingNumber: { type: String },
 }, { timestamps: true });
 
-module.exports = mongoose.model('DocumentRequest', DocumentRequestSchema);
+const DocumentRequest = mongoose.model('DocumentRequest', DocumentRequestSchema);
+DocumentRequest.REQUEST_STATUSES = REQUEST_STATUSES;
+module.exports = DocumentRequest; */

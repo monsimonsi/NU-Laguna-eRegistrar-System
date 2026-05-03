@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/nu-logo-left.png';
 import bg from '../assets/nubg.jpg';
+import { API_BASE } from '../api';
 import '../styles/Login.css';
 
 const Login = () => {
@@ -10,13 +11,15 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isError, setIsError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsError(false);
+    setErrorMessage('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/login', {
+      const response = await fetch(`${API_BASE}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role, email, password })
@@ -26,17 +29,20 @@ const Login = () => {
 
       if (!response.ok) {
         setIsError(true);
+        setErrorMessage(data.message || 'Login failed. Please try again.');
         console.log(data.message || 'Login failed.');
         return;
       }
 
       setIsError(false);
       console.log('Logged in user:', data.user);
-      // persist user for subsequent requests
       try {
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+        }
         localStorage.setItem('user', JSON.stringify(data.user));
       } catch (e) {
-        console.warn('Failed to persist user in localStorage', e);
+        console.warn('Failed to persist session in localStorage', e);
       }
 
       const loggedInRole = String(data.user?.role || role).trim().toLowerCase();
@@ -54,6 +60,7 @@ const Login = () => {
       setIsError(true);
     } catch (error) {
       setIsError(true);
+      setErrorMessage('Cannot connect to server.');
       console.log('Cannot connect to server.');
     }
   };
@@ -135,7 +142,7 @@ const Login = () => {
 
               {isError && (
                 <p style={{ marginTop: '10px', color: 'red' }}>
-                  Login failed. Please try again.
+                  {errorMessage || 'Login failed. Please try again.'}
                 </p>
               )}
 

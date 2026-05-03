@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, FileText } from 'lucide-react';
 import logo from '../assets/NU_shield.png';
+import { API_BASE, authHeaders } from '../api';
 import '../styles/DocumentRequest.css';
 
 const DocumentRequest = () => {
@@ -73,9 +74,9 @@ const DocumentRequest = () => {
     }
 
     try {
-      const res = await fetch('http://localhost:5000/api/requests', {
+      const res = await fetch(`${API_BASE}/api/requests`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(true),
         body: JSON.stringify(payload)
       });
 
@@ -121,8 +122,8 @@ const DocumentRequest = () => {
 
       <main className="doc-main">
         <div className="doc-back-row">
-          <Link to="/admin-dashboard" className="doc-back-link">
-            &lsaquo; Back to Dashboard
+          <Link to="/my-requests" className="doc-back-link">
+            &lsaquo; My requests
           </Link>
         </div>
 
@@ -284,7 +285,7 @@ const DocumentRequest = () => {
             <p style={{color: '#444', marginTop: 8}}>Your document request was created successfully.</p>
             {createdRequest && (
               <div style={{marginTop: 8, fontSize: 13, color: '#222'}}>
-                <div><strong>ID:</strong> {createdRequest._id}</div>
+                <div><strong>Tracking #:</strong> {createdRequest.trackingNumber || '—'}</div>
                 <div><strong>Document:</strong> {createdRequest.documentType}</div>
                 <div><strong>Status:</strong> {createdRequest.status}</div>
               </div>
@@ -293,10 +294,10 @@ const DocumentRequest = () => {
             <div style={{display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 18}}>
               <button
                 type="button"
-                onClick={() => navigate('/admin-dashboard')}
+                onClick={() => navigate('/my-requests')}
                 style={{background: '#dde2ec', border: 0, padding: '8px 12px', borderRadius: 8, cursor: 'pointer'}}
               >
-                Go to Dashboard
+                View my requests
               </button>
 
               <button
@@ -304,7 +305,7 @@ const DocumentRequest = () => {
                 onClick={() => { setShowModal(false); setCreatedRequest(null); setMessage(''); }}
                 style={{background: '#9ca4d7', color: '#16307a', border: 0, padding: '8px 12px', borderRadius: 8, cursor: 'pointer'}}
               >
-                New Request
+                New request
               </button>
             </div>
           </div>

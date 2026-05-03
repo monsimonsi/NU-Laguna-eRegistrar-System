@@ -566,6 +566,11 @@ body {
   color: #6a6a6a;
 }
 
+.status-pill.released {
+  background: #c9c9c9;
+  color: #6a6a6a;
+}
+
 /* RESPONSIVE */
 @media (max-width: 1100px) {
   .stats-grid {

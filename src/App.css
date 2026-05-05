@@ -1,38 +1,90 @@
-.App {
-  text-align: center;
+body, html { width: 100%; height: 100%; font-family: 'Inter', sans-serif; background-color: #f0f2f5; overflow-x: hidden; }
+
+.app-container {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.main-header {
+    background-color: #ffd400;
+    height: 70px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 30px;
+    position: sticky;
+    top: 0;
+    z-index: 2000;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.header-left { display: flex; align-items: center; gap: 15px; }
+.menu-burger { font-size: 30px; cursor: pointer; color: #35408f; padding: 5px; font-weight: 900; }
+.nav-logo { height: 45px; }
+.system-name { color: #35408f; font-weight: 600; font-size: 21px; }
+
+.content-area { 
+  margin-top: 70px; 
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+.sidebar {
+  position: fixed;
+  left: -400px;
+  top: 70px;
+  width: 400px;
+  height: calc(100vh - 70px);
+  background-color: #9096c9;
+  transition: 0.3s ease-in-out;
+  z-index: 1500;
+  box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+  
   display: flex;
   flex-direction: column;
+}
+.sidebar-content {
+  flex-grow: 1;
+  overflow-y: auto;
+}
+.sidebar-footer {
+  margin-top: auto;
+  border-top: 1px solid #35408f;
+  background-color: #6a71a3;
+}
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  padding-top: 100px; 
+  gap: 10px;
+}
+.logout-sidebar {
+  padding: 15px 25px;
+  color: #35408f;
+  background-color: #6a71a3;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  gap: 10px;
 }
-
-.App-link {
-  color: #61dafb;
+.logout-sidebar:hover {
+  background-color: #ffd400;
 }
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.sidebar-icon { width: 40px; height: auto; object-fit: contain; }
+.sidebar.active { left: 0; }
+.sidebar-nav .sidebar-link {
+  padding: 15px 25px;
+  color: #35408f;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  transition: all 0.3s ease;
+  margin: 0 10px;
+  border-radius: 25px;
 }
+.sidebar-nav .sidebar-link:hover {
+  background-color: #ffd400;
+  color: #35408f;
+}
+.active-link { background-color: #f8f9fa; border-left: 6px solid #35408f; }

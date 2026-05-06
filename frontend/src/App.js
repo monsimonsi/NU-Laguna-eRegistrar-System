@@ -4,6 +4,7 @@ import AlumniRegistration from './pages/AlumniRegistration';
 import AdminDashboard from './pages/AdminDashboard';
 import Dashboard from './pages/Dashboard';
 import DocumentRequest from './pages/DocumentRequest';
+import PaymentPage from './pages/PaymentPage';
 import RequestTracking from './pages/RequestTracking';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -29,6 +30,24 @@ function App() {
           element={
             <ProtectedRoute roles={['student', 'alumni']}>
               <DocumentRequest />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute roles={['student', 'alumni']}>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/payment"
+          element={
+            <ProtectedRoute roles={['student', 'alumni']}>
+              <PaymentPage />
             </ProtectedRoute>
           }
         />

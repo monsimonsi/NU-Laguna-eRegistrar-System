@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import logo from '../assets/nu-logo-left.png';
 import bg from '../assets/nubg.jpg';
-import { API_BASE } from '../api';
 import '../styles/AlumniRegistration.css';
 
 const YEAR_OPTIONS = ['2020', '2021', '2022', '2023', '2024', '2025', '2026'];
@@ -151,13 +150,11 @@ const AlumniRegistration = () => {
                   <div className="select-wrap">
                     <select value={yearGraduated} onChange={(e) => setYearGraduated(e.target.value)} required>
                       <option value="" disabled></option>
-                      <option>2020</option>
-                      <option>2021</option>
-                      <option>2022</option>
-                      <option>2023</option>
-                      <option>2024</option>
-                      <option>2025</option>
-                      <option>2026</option>
+                      {YEAR_OPTIONS.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -169,11 +166,11 @@ const AlumniRegistration = () => {
                   <div className="select-wrap">
                     <select value={course} onChange={(e) => setCourse(e.target.value)} required>
                       <option value="" disabled></option>
-                      <option>BS Computer Science</option>
-                      <option>BS Information Technology</option>
-                      <option>BS Information Systems</option>
-                      <option>BS Business Administration</option>
-                      <option>Other</option>
+                      {PROGRAM_OPTIONS.map((program) => (
+                        <option key={program} value={program}>
+                          {program}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -215,15 +212,8 @@ const AlumniRegistration = () => {
                 </div>
               </div>
 
-              {error && (
-                <p style={{ color: '#b91c1c', marginBottom: '0.5rem' }}>{error}</p>
-              )}
-              {success && (
-                <p style={{ color: '#15803d', marginBottom: '0.5rem' }}>{success}</p>
-              )}
-
-              <button type="submit" className="submit-btn" disabled={submitting}>
-                {submitting ? 'SUBMITTING…' : 'SUBMIT REGISTRATION'}
+              <button type="submit" className="submit-btn">
+                SUBMIT REGISTRATION
               </button>
 
               {message && (

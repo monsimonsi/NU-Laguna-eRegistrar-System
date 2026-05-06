@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-/** Matches registrar workflow: Released = claimed / closed (was previously "Completed").
+// Matches registrar workflow: Released = claimed / closed (was previously "Completed").
 const REQUEST_STATUSES = [
   'Pending',
   'Processing',
@@ -36,4 +36,4 @@ const DocumentRequestSchema = new mongoose.Schema({
 
 const DocumentRequest = mongoose.model('DocumentRequest', DocumentRequestSchema);
 DocumentRequest.REQUEST_STATUSES = REQUEST_STATUSES;
-module.exports = DocumentRequest; */
+module.exports = DocumentRequest;

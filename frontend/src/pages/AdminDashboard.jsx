@@ -41,6 +41,11 @@ const AdminDashboard = () => {
     fetchAlumniRegistrations();
   }, []);
 
+  const handleLogout = () => {
+    clearSession();
+    navigate('/login');
+  };
+
   const fetchRequests = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/requests`, {
@@ -132,7 +137,6 @@ const AdminDashboard = () => {
       const data = await res.json();
       if (res.ok) {
         setRequests((prev) => prev.map((r) => (r._id === id ? data.request : r)));
-        await fetchStats();
       } else {
         console.error('Update failed', data.message);
       }
@@ -208,7 +212,7 @@ const AdminDashboard = () => {
           </section>
 
           <section className="stats-grid">
-            {STAT_ITEMS.map((item) => (
+            {stats.map((item) => (
               <article key={item.label} className={`stat-card ${item.colorClass}`}>
                 <div className="stat-top">
                   <h2>{item.label}</h2>
@@ -216,7 +220,7 @@ const AdminDashboard = () => {
                     {item.icon}
                   </span>
                 </div>
-                <div className="stat-value">{statsData[item.key]}</div>
+                <div className="stat-value">{item.value}</div>
                 <div className="stat-sub">{item.sub}</div>
               </article>
             ))}

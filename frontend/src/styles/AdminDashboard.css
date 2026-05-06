@@ -387,6 +387,38 @@ body {
   color: #b0b5cf;
 }
 
+.alumni-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: lowercase;
+}
+
+.alumni-status.pending {
+  background: #f4cf7d;
+  color: #8b5d00;
+}
+
+.alumni-status.approved {
+  background: #b9efae;
+  color: #2c8b28;
+}
+
+.alumni-status.rejected {
+  background: #f6b5b5;
+  color: #9b1c1c;
+}
+
+.alumni-reason {
+  color: #9b1c1c;
+  font-size: 10px;
+}
+
 .request-actions {
   display: flex;
   justify-content: center;
@@ -394,6 +426,13 @@ body {
   gap: 18px;
   margin-top: 10px;
   padding-bottom: 2px;
+}
+
+.request-card-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
 }
 
 .approve-btn,
@@ -416,6 +455,20 @@ body {
 
 .reject-btn {
   background: #e51c1c;
+}
+
+.alumni-message {
+  margin-top: 8px;
+  font-size: 11px;
+  text-align: center;
+}
+
+.alumni-message.success {
+  color: #2e7d32;
+}
+
+.alumni-message.error {
+  color: #c0392b;
 }
 
 .request-list-small .small-request-card {

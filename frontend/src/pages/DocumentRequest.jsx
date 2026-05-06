@@ -122,7 +122,7 @@ const DocumentRequest = ({ onBack }) => {
       <main className="doc-main">
         <div className="doc-back-row">
           {onBack ? (
-            <button onClick={onBack} className="doc-back-link" style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0}}>
+            <button onClick={onBack} className="doc-back-link doc-back-button">
               &lsaquo; Back to Dashboard
             </button>
           ) : (
@@ -152,6 +152,7 @@ const DocumentRequest = ({ onBack }) => {
                     <option>Certificate of Registration (COR)</option>
                     <option>Certificates</option>
                     <option>Certificate of Good Moral Character</option>
+                    <option>Completion of Grades</option>
                     <option>Copy of Grades</option>
                     <option>Course Curriculum</option>
                     <option>Course Description 1st Page</option>
@@ -207,7 +208,7 @@ const DocumentRequest = ({ onBack }) => {
             </div>
 
             {documentType === 'Course Description 1st Page' && (
-              <div className="doc-grid-top" style={{marginTop: 18}}>
+              <div className="doc-grid-top doc-grid-top--spaced">
                 <div className="doc-field copies-field">
                   <label>Succeeding Pages</label>
                   <div className="copies-control">
@@ -265,11 +266,23 @@ const DocumentRequest = ({ onBack }) => {
             </div>
 
             <div className="doc-actions">
-              <button type="button" className="cancel-btn" onClick={() => {
-                setDocumentType(''); setPurpose(''); setCopies(1); setSucceedingPages(0); setDeliveryMethod('pickup'); setNotes(''); setAddress(''); setMessage('');
-              }}>
-                CANCEL
-              </button>
+              <button
+  type="button"
+  className="cancel-btn"
+  onClick={() => {
+    setDocumentType('');
+    setPurpose('');
+    setCopies(1);
+    setSucceedingPages(0);
+    setDeliveryMethod('pickup');
+    setNotes('');
+    setAddress('');
+    setMessage('');
+    if (onBack) onBack();
+  }}
+>
+  CANCEL
+</button>
               <button type="submit" className="submit-btn">
                 SUBMIT REQUEST
               </button>
@@ -278,29 +291,29 @@ const DocumentRequest = ({ onBack }) => {
         </section>
       </main>
       {message && (
-        <div className={`doc-message ${isError ? 'error' : 'success'}`} style={{margin: '16px'}}>
+        <div className={`doc-message ${isError ? 'error' : 'success'} doc-message--spaced`}>
           {message}
         </div>
       )}
 
       {showModal && (
-        <div style={{position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'grid', placeItems: 'center', zIndex: 60}}>
-          <div style={{width: 'min(560px, 94%)', background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 8px 30px rgba(0,0,0,0.25)'}}>
-            <h3 style={{margin: 0, fontSize: 18}}>Request Submitted</h3>
-            <p style={{color: '#444', marginTop: 8}}>Your document request was created successfully.</p>
+        <div className="doc-modal-overlay">
+          <div className="doc-modal">
+            <h3 className="doc-modal-title">Request Submitted</h3>
+            <p className="doc-modal-subtitle">Your document request was created successfully.</p>
             {createdRequest && (
-              <div style={{marginTop: 8, fontSize: 13, color: '#222'}}>
+              <div className="doc-modal-details">
                 <div><strong>ID:</strong> {createdRequest._id}</div>
                 <div><strong>Document:</strong> {createdRequest.documentType}</div>
                 <div><strong>Status:</strong> {createdRequest.status}</div>
               </div>
             )}
 
-            <div style={{display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 18}}>
+            <div className="doc-modal-actions">
               <button
                 type="button"
                 onClick={() => onBack ? onBack() : navigate('/dashboard')}
-                style={{background: '#dde2ec', border: 0, padding: '8px 12px', borderRadius: 8, cursor: 'pointer'}}
+                className="doc-modal-btn doc-modal-btn--secondary"
               >
                 Go to Dashboard
               </button>
@@ -308,7 +321,7 @@ const DocumentRequest = ({ onBack }) => {
               <button
                 type="button"
                 onClick={() => { setShowModal(false); setCreatedRequest(null); setMessage(''); }}
-                style={{background: '#9ca4d7', color: '#16307a', border: 0, padding: '8px 12px', borderRadius: 8, cursor: 'pointer'}}
+                className="doc-modal-btn doc-modal-btn--primary"
               >
                 New Request
               </button>

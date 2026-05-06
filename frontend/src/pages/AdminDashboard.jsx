@@ -13,27 +13,29 @@ import {
   UsersRound,
 } from 'lucide-react';
 
-const stats = [
-  { label: 'Total Requests', value: '156', sub: 'All-Time', icon: <FileText size={16} strokeWidth={2.2} />, colorClass: 'violet' },
-  { label: 'Pending', value: '16', sub: 'Awaiting Action', icon: <Clock3 size={16} strokeWidth={2.2} />, colorClass: 'yellow' },
-  { label: 'Approved Alumni', value: '67', sub: 'Verified', icon: <BadgeCheck size={16} strokeWidth={2.2} />, colorClass: 'green' },
-  { label: 'Pending Alumni', value: '13', sub: 'Needs Verification', icon: <UsersRound size={16} strokeWidth={2.2} />, colorClass: 'orange' },
-];
-
-const alumniRequests = [
-  { name: 'Juan Dela Cruz', id: '2022-80123', program: 'BS Computer Science', year: 'Year: 2024' },
-  { name: 'Dubai Chewy E. Cookie', id: '2019-88161', program: 'BS Civil Engineering', year: 'Year: 2023' },
-  { name: 'Ilocos A. Empanada', id: '2019-12395', program: 'BS Psychology', year: 'Year: 2023' },
-];
-
 const STATUS_OPTIONS = ['Pending', 'Processing', 'Ready for Pickup', 'Out for Delivery', 'Completed'];
 
 const AdminDashboard = () => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [requests, setRequests] = useState([]);
+  const [alumniRegistrations, setAlumniRegistrations] = useState([]);
+  const [alumniMessage, setAlumniMessage] = useState('');
+  const [alumniIsError, setAlumniIsError] = useState(false);
+
+  const pendingRequests = requests.filter((r) => r.status === 'Pending').length;
+  const approvedAlumni = alumniRegistrations.filter((r) => r.verificationStatus === 'approved').length;
+  const pendingAlumni = alumniRegistrations.filter((r) => r.verificationStatus === 'pending').length;
+
+  const stats = [
+    { label: 'Total Requests', value: String(requests.length), sub: 'All-Time', icon: <FileText size={16} strokeWidth={2.2} />, colorClass: 'violet' },
+    { label: 'Pending', value: String(pendingRequests), sub: 'Awaiting Action', icon: <Clock3 size={16} strokeWidth={2.2} />, colorClass: 'yellow' },
+    { label: 'Approved Alumni', value: String(approvedAlumni), sub: 'Verified', icon: <BadgeCheck size={16} strokeWidth={2.2} />, colorClass: 'green' },
+    { label: 'Pending Alumni', value: String(pendingAlumni), sub: 'Needs Verification', icon: <UsersRound size={16} strokeWidth={2.2} />, colorClass: 'orange' },
+  ];
 
   useEffect(() => {
     fetchRequests();
+    fetchAlumniRegistrations();
   }, []);
 
   const fetchRequests = async () => {
@@ -45,6 +47,73 @@ const AdminDashboard = () => {
       }
     } catch (err) {
       console.error('Failed to fetch requests', err);
+    }
+  };
+
+  const getCurrentAdminId = () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      return user?.id || null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const fetchAlumniRegistrations = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/alumni-registrations');
+      const data = await res.json();
+      if (res.ok) {
+        setAlumniRegistrations(data.registrations || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch alumni registrations', err);
+    }
+  };
+
+  const updateAlumniStatus = async (id, newStatus) => {
+    setAlumniMessage('');
+    setAlumniIsError(false);
+
+    let rejectionReason = '';
+    if (newStatus === 'rejected') {
+      const reason = window.prompt('Enter rejection reason');
+      if (reason === null) {
+        return;
+      }
+      rejectionReason = String(reason).trim();
+      if (!rejectionReason) {
+        setAlumniIsError(true);
+        setAlumniMessage('Rejection reason is required.');
+        return;
+      }
+    }
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/alumni-registrations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          verificationStatus: newStatus,
+          reviewedBy: getCurrentAdminId(),
+          rejectionReason
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setAlumniIsError(true);
+        setAlumniMessage(data.message || 'Failed to update status.');
+        return;
+      }
+
+      setAlumniRegistrations((prev) => prev.map((r) => (r._id === id ? data.registration : r)));
+      setAlumniIsError(false);
+      setAlumniMessage('Verification status updated.');
+    } catch (err) {
+      console.error('Update alumni status error', err);
+      setAlumniIsError(true);
+      setAlumniMessage('Cannot connect to server.');
     }
   };
 
@@ -151,22 +220,40 @@ const AdminDashboard = () => {
               </div>
 
               <div className="request-list">
-                {alumniRequests.map((item) => (
-                  <div className="request-card" key={item.name}>
+                {alumniRegistrations.map((item) => (
+                  <div className="request-card" key={item._id}>
                     <div className="request-info">
-                      <strong>{item.name}</strong>
-                      <span>{item.id}</span>
-                      <span>{item.program}</span>
-                      <span>{item.year}</span>
+                      <strong>{item.full_name}</strong>
+                      <span>{item.student_id}</span>
+                      <span>{item.course}</span>
+                      <span>Year: {item.year_graduated}</span>
+                      <span className={`alumni-status ${item.verificationStatus}`}>{item.verificationStatus}</span>
+                      {item.verificationStatus === 'rejected' && item.rejectionReason && (
+                        <span className="alumni-reason">Reason: {item.rejectionReason}</span>
+                      )}
                     </div>
 
-                    <div className="request-actions">
-                      <button className="approve-btn">Approve</button>
-                      <button className="reject-btn">Reject</button>
-                    </div>
+                    {item.verificationStatus === 'pending' && (
+                      <div className="request-actions">
+                        <button className="approve-btn" onClick={() => updateAlumniStatus(item._id, 'approved')}>Approve</button>
+                        <button className="reject-btn" onClick={() => updateAlumniStatus(item._id, 'rejected')}>Reject</button>
+                      </div>
+                    )}
                   </div>
                 ))}
+                {alumniRegistrations.length === 0 && (
+                  <div className="request-card request-card-empty">
+                    <div className="request-info">
+                      <strong>No alumni registrations yet.</strong>
+                    </div>
+                  </div>
+                )}
               </div>
+              {alumniMessage && (
+                <div className={`alumni-message ${alumniIsError ? 'error' : 'success'}`}>
+                  {alumniMessage}
+                </div>
+              )}
             </article>
 
             <article className="panel-card">

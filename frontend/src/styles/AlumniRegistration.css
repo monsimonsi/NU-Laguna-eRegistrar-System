@@ -217,6 +217,20 @@ body {
   filter: brightness(0.98);
 }
 
+.registration-message {
+  margin-top: 10px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.registration-message.success {
+  color: #2e7d32;
+}
+
+.registration-message.error {
+  color: #c0392b;
+}
+
 @media (max-width: 1200px) {
   .registration-card,
   .back-link {

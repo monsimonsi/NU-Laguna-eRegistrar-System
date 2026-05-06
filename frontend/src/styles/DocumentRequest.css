@@ -87,6 +87,13 @@ body {
   font-weight: 500;
 }
 
+.doc-back-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
 .doc-card {
   width: min(870px, 100%);
   margin: 0 auto;
@@ -134,6 +141,10 @@ body {
   grid-template-columns: 1.4fr 1.4fr 0.8fr;
   gap: 34px;
   align-items: start;
+  margin-top: 18px;
+}
+
+.doc-grid-top--spaced {
   margin-top: 18px;
 }
 
@@ -286,6 +297,66 @@ body {
   gap: 28px;
   margin-top: 30px;
   align-items: center;
+}
+
+.doc-message--spaced {
+  margin: 16px;
+}
+
+.doc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: grid;
+  place-items: center;
+  z-index: 60;
+}
+
+.doc-modal {
+  width: min(560px, 94%);
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+
+.doc-modal-title {
+  margin: 0;
+  font-size: 18px;
+}
+
+.doc-modal-subtitle {
+  color: #444;
+  margin-top: 8px;
+}
+
+.doc-modal-details {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #222;
+}
+
+.doc-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.doc-modal-btn {
+  border: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.doc-modal-btn--secondary {
+  background: #dde2ec;
+}
+
+.doc-modal-btn--primary {
+  background: #9ca4d7;
+  color: #16307a;
 }
 
 .cancel-btn,

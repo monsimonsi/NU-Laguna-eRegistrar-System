@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import '../styles/Dashboard.css'
 import DocumentRequest from './DocumentRequest'
 import logo from '../assets/NU_shield.png'
@@ -11,10 +11,125 @@ import logoutlogo from '../assets/logout-icon.png'
 function App() {
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState('dashboard');
+  const [requests, setRequests] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const STATUS_OPTIONS = [
+    'Pending',
+    'Processing',
+    'Ready for Pickup',
+    'Out for Delivery',
+    'Completed'
+  ];
 
   const toggleSidebar = (e) => {
     e.stopPropagation();
     setIsOpen(!isOpen);
+  };
+
+  const getUser = () => {
+    try {
+      return JSON.parse(localStorage.getItem('user'));
+    } catch (err) {
+      return null;
+    }
+  };
+
+  const fetchRequests = async () => {
+    const user = getUser();
+    if (!user || !user.email) {
+      setError('You must be logged in to view your requests.');
+      setRequests([]);
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/requests?email=${encodeURIComponent(user.email)}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || 'Failed to load requests.');
+        setRequests([]);
+        return;
+      }
+
+      setRequests(Array.isArray(data.requests) ? data.requests : []);
+    } catch (err) {
+      setError('Cannot connect to server.');
+      setRequests([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (view === 'dashboard') {
+      fetchRequests();
+    }
+  }, [view]);
+
+  const stats = useMemo(() => {
+    const base = {
+      total: requests.length,
+      Pending: 0,
+      Processing: 0,
+      'Ready for Pickup': 0,
+      'Out for Delivery': 0,
+      Completed: 0
+    };
+
+    requests.forEach((req) => {
+      if (base[req.status] !== undefined) {
+        base[req.status] += 1;
+      }
+    });
+
+    return base;
+  }, [requests]);
+
+  const filteredRequests = useMemo(() => {
+    const term = String(searchTerm || '').trim().toLowerCase();
+    const status = String(statusFilter || '').trim();
+
+    return requests.filter((req) => {
+      const matchesStatus = status ? req.status === status : true;
+      if (!term) return matchesStatus;
+
+      const haystack = [req._id, req.documentType, req.status]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return matchesStatus && haystack.includes(term);
+    });
+  }, [requests, searchTerm, statusFilter]);
+
+  const formatDate = (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+  };
+
+  const formatCurrency = (value) => {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return '-';
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      minimumFractionDigits: 2
+    }).format(amount);
+  };
+
+  const formatDeliveryMethod = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) return '-';
+    return normalized === 'delivery' ? 'Delivery (₱150 fee)' : 'Pickup';
   };
 
   return (
@@ -75,21 +190,37 @@ function App() {
           </div>
 
           <div className="status-grid">
-            <div className="stat-card"><span className="stat-label">Total Requests</span><span className="stat-value blue">0</span></div>
-            <div className="stat-card"><span className="stat-label">Pending</span><span className="stat-value red">0</span></div>
-            <div className="stat-card"><span className="stat-label">Processing</span><span className="stat-value orange">0</span></div>
-            <div className="stat-card"><span className="stat-label">Ready</span><span className="stat-value green">0</span></div>
-            <div className="stat-card"><span className="stat-label">Completed</span><span className="stat-value yellow">0</span></div>
+            <div className="stat-card"><span className="stat-label">Total Requests</span><span className="stat-value blue">{stats.total}</span></div>
+            <div className="stat-card"><span className="stat-label">Pending</span><span className="stat-value red">{stats.Pending}</span></div>
+            <div className="stat-card"><span className="stat-label">Processing</span><span className="stat-value orange">{stats.Processing}</span></div>
+            <div className="stat-card"><span className="stat-label">Ready for Pickup</span><span className="stat-value green">{stats['Ready for Pickup']}</span></div>
+            <div className="stat-card"><span className="stat-label">Out for Delivery</span><span className="stat-value teal">{stats['Out for Delivery']}</span></div>
+            <div className="stat-card"><span className="stat-label">Completed</span><span className="stat-value yellow">{stats.Completed}</span></div>
           </div>
 
           <div className="table-controls-row">
             <div className="control-item">
               <label>Search:</label>
-              <input type="text" className="search-input" />
+              <input
+                type="text"
+                className="search-input"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search requests"
+              />
             </div>
             <div className="control-item">
               <label>Filter by:</label>
-              <select className="filter-select"><option></option></select>
+              <select
+                className="filter-select"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="">All Statuses</option>
+                {STATUS_OPTIONS.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -101,17 +232,39 @@ function App() {
                     <th className="check-column-head"></th>
                     <th>Request ID</th>
                     <th>Document Type</th>
-                    <th>Document Fee</th>
                     <th>Copies</th>
+                    <th>Delivery Method</th>
+                    <th>Total Fee</th>
                     <th>Date Requested</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[...Array(8)].map((_, i) => (
-                    <tr key={i}>
+                  {isLoading && (
+                    <tr>
+                      <td className="table-loading" colSpan="8">Loading requests...</td>
+                    </tr>
+                  )}
+                  {!isLoading && error && (
+                    <tr>
+                      <td className="table-error" colSpan="8">{error}</td>
+                    </tr>
+                  )}
+                  {!isLoading && !error && filteredRequests.length === 0 && (
+                    <tr>
+                      <td className="table-empty" colSpan="8">No requests found.</td>
+                    </tr>
+                  )}
+                  {!isLoading && !error && filteredRequests.map((req) => (
+                    <tr key={req._id}>
                       <td className="check-column-cell"><input type="checkbox" /></td>
-                      <td></td><td></td><td></td><td></td><td></td><td></td>
+                      <td>{req._id}</td>
+                      <td>{req.documentType || '-'}</td>
+                      <td>{req.copies ?? '-'}</td>
+                      <td>{formatDeliveryMethod(req.deliveryMethod)}</td>
+                      <td>{formatCurrency(req.totalFee)}</td>
+                      <td>{formatDate(req.createdAt)}</td>
+                      <td>{req.status || '-'}</td>
                     </tr>
                   ))}
                 </tbody>

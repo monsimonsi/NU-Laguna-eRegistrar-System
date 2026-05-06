@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, FileText } from 'lucide-react';
 import logo from '../assets/NU_shield.png';
+import { API_BASE, authHeaders } from '../api';
 import '../styles/DocumentRequest.css';
 
 const DocumentRequest = ({ onBack }) => {
@@ -73,9 +74,9 @@ const DocumentRequest = ({ onBack }) => {
     }
 
     try {
-      const res = await fetch('http://localhost:5000/api/requests', {
+      const res = await fetch(`${API_BASE}/api/requests`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(true),
         body: JSON.stringify(payload)
       });
 
@@ -315,7 +316,7 @@ const DocumentRequest = ({ onBack }) => {
                 onClick={() => onBack ? onBack() : navigate('/dashboard')}
                 className="doc-modal-btn doc-modal-btn--secondary"
               >
-                Go to Dashboard
+                View my requests
               </button>
 
               <button
@@ -323,7 +324,7 @@ const DocumentRequest = ({ onBack }) => {
                 onClick={() => { setShowModal(false); setCreatedRequest(null); setMessage(''); }}
                 className="doc-modal-btn doc-modal-btn--primary"
               >
-                New Request
+                New request
               </button>
             </div>
           </div>

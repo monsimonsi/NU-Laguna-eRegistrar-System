@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../styles/AdminDashboard.css';
 import logo from '../assets/NU_shield.png';
 import {
@@ -12,10 +13,12 @@ import {
   BadgeCheck,
   UsersRound,
 } from 'lucide-react';
+import { API_BASE, authHeaders, clearSession } from '../api';
 
 const STATUS_OPTIONS = ['Pending', 'Processing', 'Ready for Pickup', 'Out for Delivery', 'Completed'];
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
   const [requests, setRequests] = useState([]);
   const [alumniRegistrations, setAlumniRegistrations] = useState([]);
@@ -40,7 +43,9 @@ const AdminDashboard = () => {
 
   const fetchRequests = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/requests');
+      const res = await fetch(`${API_BASE}/api/requests`, {
+        headers: authHeaders(false)
+      });
       const data = await res.json();
       if (res.ok) {
         setRequests(data.requests || []);
@@ -119,14 +124,15 @@ const AdminDashboard = () => {
 
   const updateStatus = async (id, newStatus) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/requests/${id}`, {
+      const res = await fetch(`${API_BASE}/api/requests/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(true),
         body: JSON.stringify({ status: newStatus })
       });
       const data = await res.json();
       if (res.ok) {
-        setRequests((prev) => prev.map(r => (r._id === id ? data.request : r)));
+        setRequests((prev) => prev.map((r) => (r._id === id ? data.request : r)));
+        await fetchStats();
       } else {
         console.error('Update failed', data.message);
       }
@@ -134,6 +140,11 @@ const AdminDashboard = () => {
       console.error('Update error', err);
     }
   };
+
+  const statusPillClass = (status) =>
+    `status-pill ${String(status || '')
+      .toLowerCase()
+      .replace(/ /g, '-')}`;
 
   return (
     <div className="admin-page">
@@ -154,7 +165,7 @@ const AdminDashboard = () => {
           </button>
         </nav>
 
-        <button className="logout-btn" aria-label="Logout">
+        <button type="button" className="logout-btn" aria-label="Logout" onClick={handleLogout}>
           <LogOut size={20} strokeWidth={2.2} />
         </button>
       </aside>
@@ -182,7 +193,9 @@ const AdminDashboard = () => {
               <div className="profile-dropdown">
                 <button type="button" className="profile-item">Profile</button>
                 <button type="button" className="profile-item">Settings</button>
-                <button type="button" className="profile-item">Logout</button>
+                <button type="button" className="profile-item" onClick={handleLogout}>
+                  Logout
+                </button>
               </div>
             )}
           </div>
@@ -195,7 +208,7 @@ const AdminDashboard = () => {
           </section>
 
           <section className="stats-grid">
-            {stats.map((item) => (
+            {STAT_ITEMS.map((item) => (
               <article key={item.label} className={`stat-card ${item.colorClass}`}>
                 <div className="stat-top">
                   <h2>{item.label}</h2>
@@ -203,7 +216,7 @@ const AdminDashboard = () => {
                     {item.icon}
                   </span>
                 </div>
-                <div className="stat-value">{item.value}</div>
+                <div className="stat-value">{statsData[item.key]}</div>
                 <div className="stat-sub">{item.sub}</div>
               </article>
             ))}
@@ -216,7 +229,7 @@ const AdminDashboard = () => {
                   <h3>Alumni Verification</h3>
                   <p>Pending Alumni Verification Requests</p>
                 </div>
-                <button className="view-all-btn">View All</button>
+                <button type="button" className="view-all-btn">View All</button>
               </div>
 
               <div className="request-list">
@@ -262,7 +275,7 @@ const AdminDashboard = () => {
                   <h3>Request Management</h3>
                   <p>Recent Document Requests</p>
                 </div>
-                <button className="view-all-btn">View All</button>
+                <button type="button" className="view-all-btn">View All</button>
               </div>
 
               <div className="request-list request-list-small">
@@ -271,13 +284,16 @@ const AdminDashboard = () => {
                     <div className="small-request-info">
                       <strong>{r.full_name}</strong>
                       <span>{r.documentType}</span>
-                      <span>{r._id}</span>
+                      <span>{r.trackingNumber || r._id}</span>
                     </div>
 
                     <div className="status-row">
                       <label>Status:</label>
                       <div className="select-wrap">
-                        <select value={r.status} onChange={(e) => updateStatus(r._id, e.target.value)}>
+                        <select
+                          value={STATUS_OPTIONS.includes(r.status) ? r.status : 'Pending'}
+                          onChange={(e) => updateStatus(r._id, e.target.value)}
+                        >
                           {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </div>
@@ -314,9 +330,9 @@ const AdminDashboard = () => {
                       <td>{r.documentType}</td>
                       <td>{r.address || '-'}</td>
                       <td>
-                        <div className={`status-pill ${r.status.toLowerCase().replace(/ /g, '-')}`}>{r.status}</div>
+                        <div className={statusPillClass(r.status)}>{r.status}</div>
                       </td>
-                      <td>{r._id}</td>
+                      <td>{r.trackingNumber || '—'}</td>
                     </tr>
                   ))}
                 </tbody>

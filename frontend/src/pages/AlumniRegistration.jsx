@@ -2,7 +2,18 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import logo from '../assets/nu-logo-left.png';
 import bg from '../assets/nubg.jpg';
+import { API_BASE } from '../api';
 import '../styles/AlumniRegistration.css';
+
+const YEAR_OPTIONS = ['2020', '2021', '2022', '2023', '2024', '2025', '2026'];
+
+const PROGRAM_OPTIONS = [
+  'BS Computer Science',
+  'BS Information Technology',
+  'BS Information Systems',
+  'BS Business Administration',
+  'Other'
+];
 
 const AlumniRegistration = () => {
   const [firstName, setFirstName] = useState('');
@@ -204,8 +215,15 @@ const AlumniRegistration = () => {
                 </div>
               </div>
 
-              <button type="submit" className="submit-btn">
-                SUBMIT REGISTRATION
+              {error && (
+                <p style={{ color: '#b91c1c', marginBottom: '0.5rem' }}>{error}</p>
+              )}
+              {success && (
+                <p style={{ color: '#15803d', marginBottom: '0.5rem' }}>{success}</p>
+              )}
+
+              <button type="submit" className="submit-btn" disabled={submitting}>
+                {submitting ? 'SUBMITTING…' : 'SUBMIT REGISTRATION'}
               </button>
 
               {message && (

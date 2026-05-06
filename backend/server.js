@@ -8,6 +8,13 @@ const User = require('./models/User');
 const AlumniRegistration = require('./models/AlumniRegistration');
 const DocumentRequest = require('./models/DocumentRequest');
 const DocumentPrice = require('./models/DocumentPrice');
+const AlumniVerification = require('./models/AlumniVerification');
+const {
+  signToken,
+  authMiddleware,
+  requireAdmin,
+  requireStudentOrAlumni
+} = require('./middleware/auth');
 
 const app = express();
 
@@ -18,6 +25,23 @@ dns.setServers(['8.8.8.8', '1.1.1.1']); // Uses public DNS to resolve Atlas SRV 
 app.use(cors());
 app.use(express.json());
 
+const ALLOWED_STATUSES = DocumentRequest.REQUEST_STATUSES || [
+  'Pending',
+  'Processing',
+  'Ready for Pickup',
+  'Out for Delivery',
+  'Released'
+];
+
+function makeTrackingNumber() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `NUL-${y}${m}${day}-${rand}`;
+}
+
 // Login API
 app.post('/api/login', async (req, res) => {
   try {
@@ -26,7 +50,6 @@ app.post('/api/login', async (req, res) => {
     const normalizedPassword = String(password || '');
     const normalizedRole = String(role || '').trim().toLowerCase();
 
-    // Basic validation
     if (!normalizedEmail || !normalizedPassword || !normalizedRole) {
       return res.status(400).json({
         approved: false,
@@ -34,24 +57,47 @@ app.post('/api/login', async (req, res) => {
       });
     }
 
-    // Exact-match login: email + password + role + active status.
     const user = await User.findOne({
       email: normalizedEmail,
-      password: normalizedPassword,
-      role: normalizedRole,
-      status: 'active'
+      role: normalizedRole
     });
 
-    if (!user) {
+    if (!user || user.password !== normalizedPassword) {
       return res.status(401).json({
         approved: false,
-        message: 'Login rejected. Invalid email, password, role, or inactive account.'
+        message: 'Login rejected. Invalid email, password, or role.'
       });
     }
+
+    if (user.status === 'pending') {
+      return res.status(403).json({
+        approved: false,
+        message:
+          'Your alumni account is pending registrar verification. You cannot log in yet.'
+      });
+    }
+
+    if (user.status === 'rejected') {
+      return res.status(403).json({
+        approved: false,
+        message:
+          'Your alumni registration was not approved. Please register again with corrected information.'
+      });
+    }
+
+    if (user.status !== 'active') {
+      return res.status(403).json({
+        approved: false,
+        message: 'This account is inactive.'
+      });
+    }
+
+    const token = signToken(user);
 
     return res.status(200).json({
       approved: true,
       message: 'Login successful.',
+      token,
       user: {
         id: user._id,
         full_name: user.full_name,
@@ -257,9 +303,9 @@ app.post('/api/requests', async (req, res) => {
     const totalFee = subtotal + deliveryFee;
 
     const newRequest = new DocumentRequest({
-      requesterId: requesterId || undefined,
+      requesterId: requesterId ? requesterId : req.auth.sub,
       full_name,
-      email,
+      email: emailNorm,
       role,
       documentType: normalizedDocumentType,
       purpose,
@@ -325,14 +371,13 @@ app.get('/api/requests', async (req, res) => {
   }
 });
 
-// Update request status
-app.patch('/api/requests/:id', async (req, res) => {
+// Update request status (registrar)
+app.patch('/api/requests/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
-    const allowed = ['Pending', 'Processing', 'Ready for Pickup', 'Out for Delivery', 'Completed'];
-    if (!allowed.includes(status)) {
+    if (!ALLOWED_STATUSES.includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
 
@@ -347,11 +392,20 @@ app.patch('/api/requests/:id', async (req, res) => {
 });
 
 // DB connect + server start
-mongoose.connect(process.env.MONGO_URI, {
-  dbName: process.env.DB_NAME
-})
-  .then(() => {
+mongoose
+  .connect(process.env.MONGO_URI, {
+    dbName: process.env.DB_NAME
+  })
+  .then(async () => {
     console.log('Connected to MongoDB database:', process.env.DB_NAME);
+    // Migrate legacy status label to spec-aligned "Released"
+    const legacy = await DocumentRequest.updateMany(
+      { status: 'Completed' },
+      { $set: { status: 'Released' } }
+    );
+    if (legacy.modifiedCount > 0) {
+      console.log('Migrated request statuses: Completed → Released (', legacy.modifiedCount, 'docs)');
+    }
     app.listen(process.env.PORT, () => {
       console.log('Server is running on port', process.env.PORT);
     });

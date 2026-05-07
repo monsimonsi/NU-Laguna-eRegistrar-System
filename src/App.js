@@ -12,7 +12,7 @@ function App() {
   };
 
   return (
-    <div className="app-container" onClick={() => setIsOpen(false)}>
+    <div className={`app-container ${isOpen ? 'sidebar-open' : ''}`} onClick={() => setIsOpen(false)}>
       <header className="main-header">
         <div className="header-left">
           <div className="menu-burger" onClick={toggleSidebar}>☰</div>

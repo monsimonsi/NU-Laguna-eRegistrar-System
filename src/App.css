@@ -4,6 +4,7 @@ body, html { width: 100%; height: 100%; font-family: 'Inter', sans-serif; backgr
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  position: relative;
 }
 
 .main-header {
@@ -88,3 +89,112 @@ body, html { width: 100%; height: 100%; font-family: 'Inter', sans-serif; backgr
   color: #35408f;
 }
 .active-link { background-color: #f8f9fa; border-left: 6px solid #35408f; }
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .main-header {
+    padding: 0 20px;
+  }
+  
+  .sidebar {
+    width: 350px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .main-header {
+    padding: 0 18px;
+  }
+  
+  .sidebar {
+    width: 320px;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-header {
+    padding: 0 15px;
+    height: 60px;
+  }
+  
+  .header-left {
+    gap: 10px;
+  }
+  
+  .menu-burger {
+    font-size: 24px;
+  }
+  
+  .nav-logo {
+    height: 35px;
+  }
+  
+  .system-name {
+    font-size: 16px;
+  }
+  
+  .sidebar {
+    width: 100vw;
+    left: -100vw;
+    z-index: 2000;
+  }
+  
+  .sidebar.active {
+    left: 0;
+  }
+  
+  .content-area {
+    margin-top: 60px;
+  }
+  
+  /* Add backdrop for mobile sidebar */
+  .app-container::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    pointer-events: none;
+  }
+  
+  .app-container.sidebar-open::before {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-header {
+    padding: 0 10px;
+  }
+  
+  .system-name {
+    font-size: 14px;
+  }
+  
+  .nav-logo {
+    height: 30px;
+  }
+  
+  /* Improve touch targets on mobile */
+  .menu-burger {
+    padding: 8px;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .sidebar-link {
+    min-height: 48px;
+    padding: 12px 20px;
+  }
+}

@@ -227,7 +227,7 @@ const AdminDashboard = () => {
           </section>
 
           <section className="panel-grid">
-            <article className="panel-card">
+            <article className="panel-card alumni-panel">
               <div className="panel-header">
                 <div>
                   <h3>Alumni Verification</h3>
@@ -273,7 +273,7 @@ const AdminDashboard = () => {
               )}
             </article>
 
-            <article className="panel-card">
+            <article className="panel-card request-panel">
               <div className="panel-header">
                 <div>
                   <h3>Request Management</h3>
@@ -288,7 +288,10 @@ const AdminDashboard = () => {
                     <div className="small-request-info">
                       <strong>{r.full_name}</strong>
                       <span>{r.documentType}</span>
-                      <span>{r.trackingNumber || r._id}</span>
+                      <span>Copies: {r.copies ?? 1}</span>
+                      {r.documentType === 'Course Description 1st Page' && (
+                        <span>Succeeding Pages: {r.succeedingPages ?? 0}</span>
+                      )}
                     </div>
 
                     <div className="status-row">
@@ -336,7 +339,7 @@ const AdminDashboard = () => {
                       <td>
                         <div className={statusPillClass(r.status)}>{r.status}</div>
                       </td>
-                      <td>{r.trackingNumber || '—'}</td>
+                      <td>{r.trackingNumber || r._id || '—'}</td>
                     </tr>
                   ))}
                 </tbody>

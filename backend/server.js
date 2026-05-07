@@ -8,7 +8,6 @@ const User = require('./models/User');
 const AlumniRegistration = require('./models/AlumniRegistration');
 const DocumentRequest = require('./models/DocumentRequest');
 const DocumentPrice = require('./models/DocumentPrice');
-const AlumniVerification = require('./models/AlumniVerification');
 const {
   signToken,
   authMiddleware,
@@ -276,6 +275,7 @@ app.post('/api/requests', async (req, res) => {
     } = req.body;
 
     const normalizedDocumentType = String(documentType || '').trim();
+    const normalizedEmail = String(email || '').trim().toLowerCase();
 
     if (!full_name || !email || !role || !normalizedDocumentType) {
       return res.status(400).json({ message: 'Missing required fields.' });
@@ -305,7 +305,7 @@ app.post('/api/requests', async (req, res) => {
     const newRequest = new DocumentRequest({
       requesterId: requesterId ? requesterId : req.auth.sub,
       full_name,
-      email: emailNorm,
+      email: normalizedEmail,
       role,
       documentType: normalizedDocumentType,
       purpose,

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import '../styles/Dashboard.css'
 import DocumentRequest from './DocumentRequest'
+import { clearSession } from '../api'
 import logo from '../assets/NU_shield.png'
 import settingslogo from '../assets/settings-icon.png'
 import tracklogo from '../assets/track-icon.png'
@@ -9,6 +11,7 @@ import submitlogo from '../assets/submit-icon.png'
 import logoutlogo from '../assets/logout-icon.png'
 
 function App() {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState('dashboard');
   const [requests, setRequests] = useState([]);
@@ -132,6 +135,11 @@ function App() {
     return normalized === 'delivery' ? 'Delivery (₱150 fee)' : 'Pickup';
   };
 
+  const handleLogout = () => {
+    clearSession();
+    navigate('/login');
+  };
+
   return (
     <div className={`app-container ${isOpen ? 'sidebar-open' : ''}`} onClick={() => setIsOpen(false)}>
       
@@ -154,7 +162,7 @@ function App() {
           {/* Sidebar */}
           <div className={`sidebar ${isOpen ? 'active' : ''}`} onClick={(e) => e.stopPropagation()}>
         <nav className="sidebar-nav">
-          <div className="sidebar-link" onClick={() => { setView('dashboard'); setIsOpen(false); }}>
+          <div className="sidebar-link" onClick={() => { setView('new-request'); setIsOpen(false); }}>
             <img src={submitlogo} alt="Submit Logo" className="sidebar-icon" />
             <span className="sidebar-label">Submit Document Requests</span>
           </div>
@@ -169,7 +177,7 @@ function App() {
         </nav>
         
         <div className="sidebar-footer">
-          <div className="sidebar-link logout-sidebar" onClick={() => { /* Logout Logic */ }}>
+          <div className="sidebar-link logout-sidebar" onClick={handleLogout}>
             <img src={logoutlogo} alt="Logout Logo" className="sidebar-icon" />
             <span className="sidebar-label">LOG OUT</span>
           </div>
@@ -182,10 +190,10 @@ function App() {
       {view === 'dashboard' ? (
         <main className="dashboard-wrapper" key="dashboard">
           <div className="dashboard-header-row">
-            <h2 className="page-title">Document Requests List</h2>
+            <h2 className="page-title">Document Requests Dashboard</h2>
             <button className="new-request-btn" onClick={() => setView('new-request')}>
               <img src={pluslogo} alt="Plus Logo" className="btn-plus-asset" />
-              NEW REQUEST
+              REQUEST A DOCUMENT
             </button>
           </div>
 
@@ -274,13 +282,12 @@ function App() {
 
           {/* New Action Buttons Section */}
           <div className="dashboard-footer-actions">
-            <button className="action-btn back-btn">BACK</button>
-  {/* Wrap the right-side buttons in a sub-container */}
-  <div className="right-actions">
-            <button className="action-btn view-btn">VIEW</button>
-            <button className="action-btn delete-btn">DELETE</button>
+            {/* Wrap the right-side buttons in a sub-container */}
+            <div className="right-actions">
+              <button className="action-btn view-btn">VIEW DETAILS</button>
+              <button className="action-btn delete-btn">DELETE</button>
+            </div>
           </div>
-</div>
         </main>
       ) : (
         <DocumentRequest onBack={() => setView('dashboard')} />

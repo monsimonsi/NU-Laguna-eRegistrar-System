@@ -37,6 +37,11 @@ body {
   z-index: 20;
 }
 
+.doc-sidebar {
+  top: 66px;
+  height: calc(100vh - 66px);
+}
+
 .doc-menu-btn {
   border: 0;
   background: transparent;

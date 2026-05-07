@@ -78,6 +78,11 @@ body, html { width: 100%; height: 100%; font-family: 'Inter', sans-serif; backgr
 }
 .logout-sidebar:hover {
   background-color: #ffd400;
+  border-radius: 0;
+  margin: 0;
+  width: 100%;
+  padding-left: 26px;
+  padding-right: 26px;
 }
 .sidebar-icon { width: 32px; height: auto; object-fit: contain; flex-shrink: 0; }
 .sidebar.active { left: 0; }
@@ -94,6 +99,8 @@ body, html { width: 100%; height: 100%; font-family: 'Inter', sans-serif; backgr
   border-radius: 12px;
   justify-content: flex-start;
   text-align: left;
+  width: calc(100% - 16px);
+  box-sizing: border-box;
 }
 .sidebar-label {
   display: block;
@@ -251,6 +258,7 @@ label {
 .right-actions {
   display: flex;
   gap: 15px;
+  margin-left: auto;
 }
 .back-btn {
   background: #35408f;

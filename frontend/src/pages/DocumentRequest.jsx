@@ -2,10 +2,16 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, FileText } from 'lucide-react';
 import logo from '../assets/NU_shield.png';
-import { API_BASE, authHeaders } from '../api';
+import settingslogo from '../assets/settings-icon.png';
+import tracklogo from '../assets/track-icon.png';
+import submitlogo from '../assets/submit-icon.png';
+import logoutlogo from '../assets/logout-icon.png';
+import { API_BASE, authHeaders, clearSession } from '../api';
+import '../styles/Dashboard.css';
 import '../styles/DocumentRequest.css';
 
 const DocumentRequest = ({ onBack }) => {
+  const [isOpen, setIsOpen] = useState(false);
   const [copies, setCopies] = useState(1);
   const [succeedingPages, setSucceedingPages] = useState(0);
   const [documentType, setDocumentType] = useState('');
@@ -33,6 +39,28 @@ const DocumentRequest = ({ onBack }) => {
 
   const increaseSucceedingPages = () => {
     setSucceedingPages((prev) => prev + 1);
+  };
+
+  const toggleSidebar = (e) => {
+    e.stopPropagation();
+    setIsOpen((prev) => !prev);
+  };
+
+  const closeSidebar = () => {
+    setIsOpen(false);
+  };
+
+  const goToDashboard = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+    navigate('/dashboard');
+  };
+
+  const handleLogout = () => {
+    clearSession();
+    navigate('/login');
   };
 
   const handleSubmit = async (e) => {
@@ -108,9 +136,14 @@ const DocumentRequest = ({ onBack }) => {
   };
 
   return (
-    <div className="doc-page">
+    <div className={`doc-page ${isOpen ? 'sidebar-open' : ''}`} onClick={closeSidebar}>
       <header className="doc-topbar">
-        <button className="doc-menu-btn" aria-label="Menu">
+        <button
+          className="doc-menu-btn"
+          aria-label="Menu"
+          aria-expanded={isOpen}
+          onClick={toggleSidebar}
+        >
           <Menu size={30} strokeWidth={2.5} />
         </button>
 
@@ -119,6 +152,30 @@ const DocumentRequest = ({ onBack }) => {
           <span className="doc-title">NU Laguna e-Registrar</span>
         </div>
       </header>
+
+      <div className={`sidebar doc-sidebar ${isOpen ? 'active' : ''}`} onClick={(e) => e.stopPropagation()}>
+        <nav className="sidebar-nav">
+          <div className="sidebar-link" onClick={() => { setIsOpen(false); }}>
+            <img src={submitlogo} alt="Submit Logo" className="sidebar-icon" />
+            <span className="sidebar-label">Submit Document Requests</span>
+          </div>
+          <div className="sidebar-link" onClick={() => { setIsOpen(false); goToDashboard(); }}>
+            <img src={tracklogo} alt="" className="sidebar-icon" />
+            <span className="sidebar-label">Track Document Requests</span>
+          </div>
+          <div className="sidebar-link" onClick={() => { setIsOpen(false); goToDashboard(); }}>
+            <img src={settingslogo} alt="" className="sidebar-icon" />
+            <span className="sidebar-label">Account Settings</span>
+          </div>
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="sidebar-link logout-sidebar" onClick={handleLogout}>
+            <img src={logoutlogo} alt="Logout Logo" className="sidebar-icon" />
+            <span className="sidebar-label">LOG OUT</span>
+          </div>
+        </div>
+      </div>
 
       <main className="doc-main">
         <div className="doc-back-row">

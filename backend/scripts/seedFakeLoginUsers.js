@@ -3,6 +3,7 @@ require('dotenv').config();
 const dns = require('dns');
 const mongoose = require('mongoose');
 const User = require('../models/User');
+const { hashPassword } = require('../services/passwords');
 
 // Force reliable DNS resolvers for Atlas SRV lookups on restricted networks.
 dns.setServers(['8.8.8.8', '1.1.1.1']);
@@ -58,7 +59,14 @@ async function seedFakeLoginUsers() {
       dbName: process.env.DB_NAME
     });
 
-    const bulkOperations = fakeUsers.map((user) => ({
+    const usersToWrite = await Promise.all(
+      fakeUsers.map(async (user) => ({
+        ...user,
+        password: await hashPassword(user.password)
+      }))
+    );
+
+    const bulkOperations = usersToWrite.map((user) => ({
       updateOne: {
         filter: { email: user.email },
         update: { $set: user },

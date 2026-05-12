@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-/** Matches registrar workflow: Released = claimed / closed (was previously "Completed").
+/** Matches registrar workflow: Released = claimed / closed (was previously "Completed"). */
 const REQUEST_STATUSES = [
   'Pending',
   'Processing',
@@ -27,8 +27,10 @@ const DocumentRequestSchema = new mongoose.Schema({
     default: 'Pending'
   },
   trackingNumber: { type: String },
+  /** When false, the registrar queue hides this row until PayMongo reports a successful payment. */
+  paymentConfirmed: { type: Boolean, default: false }
 }, { timestamps: true });
 
 const DocumentRequest = mongoose.model('DocumentRequest', DocumentRequestSchema);
 DocumentRequest.REQUEST_STATUSES = REQUEST_STATUSES;
-module.exports = DocumentRequest; */
+module.exports = DocumentRequest;

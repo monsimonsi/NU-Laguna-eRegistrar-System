@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
 import AlumniRegistration from './pages/AlumniRegistration';
 import AdminDashboard from './pages/AdminDashboard';
+import Dashboard from './pages/Dashboard';
 import DocumentRequest from './pages/DocumentRequest';
 import RequestTracking from './pages/RequestTracking';
 import ProtectedRoute from './components/ProtectedRoute';

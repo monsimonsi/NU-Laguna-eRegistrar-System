@@ -5,7 +5,7 @@ import logo from '../assets/NU_shield.png';
 import { API_BASE, authHeaders } from '../api';
 import '../styles/DocumentRequest.css';
 
-const DocumentRequest = () => {
+const DocumentRequest = ({ onBack }) => {
   const [copies, setCopies] = useState(1);
   const [succeedingPages, setSucceedingPages] = useState(0);
   const [documentType, setDocumentType] = useState('');

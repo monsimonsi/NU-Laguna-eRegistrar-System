@@ -15,7 +15,20 @@ import {
 } from 'lucide-react';
 import { API_BASE, authHeaders, clearSession } from '../api';
 
-const STATUS_OPTIONS = ['Pending', 'Processing', 'Ready for Pickup', 'Out for Delivery', 'Completed'];
+const STAT_ITEMS = [
+  { label: 'Total Requests', key: 'totalRequests', sub: 'All-Time', icon: <FileText size={16} strokeWidth={2.2} />, colorClass: 'violet' },
+  { label: 'Pending', key: 'pendingRequests', sub: 'Awaiting Action', icon: <Clock3 size={16} strokeWidth={2.2} />, colorClass: 'yellow' },
+  { label: 'Approved Alumni', key: 'approvedAlumni', sub: 'Verified', icon: <BadgeCheck size={16} strokeWidth={2.2} />, colorClass: 'green' },
+  { label: 'Pending Alumni', key: 'pendingAlumni', sub: 'Needs Verification', icon: <UsersRound size={16} strokeWidth={2.2} />, colorClass: 'orange' },
+];
+
+function statusOptionsForRequest(request) {
+  const method = String(request?.deliveryMethod || 'pickup').toLowerCase();
+  if (method === 'delivery') {
+    return ['Pending', 'Processing', 'Out for Delivery', 'Released'];
+  }
+  return ['Pending', 'Processing', 'Ready for Pickup', 'Released'];
+}
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -284,6 +297,10 @@ const AdminDashboard = () => {
 
               <div className="request-list request-list-small">
                 {requests.slice(0, 6).map((r) => (
+                  (() => {
+                    const options = statusOptionsForRequest(r);
+                    const selected = options.includes(r.status) ? r.status : options[0];
+                    return (
                   <div className="small-request-card" key={r._id}>
                     <div className="small-request-info">
                       <strong>{r.full_name}</strong>
@@ -298,14 +315,16 @@ const AdminDashboard = () => {
                       <label>Status:</label>
                       <div className="select-wrap">
                         <select
-                          value={STATUS_OPTIONS.includes(r.status) ? r.status : 'Pending'}
+                          value={selected}
                           onChange={(e) => updateStatus(r._id, e.target.value)}
                         >
-                          {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                          {options.map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </div>
                     </div>
                   </div>
+                    );
+                  })()
                 ))}
               </div>
             </article>

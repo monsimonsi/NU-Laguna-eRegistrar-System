@@ -53,7 +53,7 @@ const Login = () => {
       }
 
       if (loggedInRole === 'student' || loggedInRole === 'alumni') {
-        navigate('/document-request');
+        navigate('/dashboard');
         return;
       }
 

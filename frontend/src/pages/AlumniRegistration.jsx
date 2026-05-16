@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import logo from '../assets/nu-logo-left.png';
 import bg from '../assets/nubg.jpg';
-import { API_BASE } from '../api';
 import '../styles/AlumniRegistration.css';
 
 const YEAR_OPTIONS = ['2020', '2021', '2022', '2023', '2024', '2025', '2026'];
@@ -16,58 +15,73 @@ const PROGRAM_OPTIONS = [
 ];
 
 const AlumniRegistration = () => {
-  const navigate = useNavigate();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [studentNumber, setStudentNumber] = useState('');
+  const [studentId, setStudentId] = useState('');
   const [yearGraduated, setYearGraduated] = useState('');
-  const [program, setProgram] = useState('');
+  const [course, setCourse] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
+  const [isError, setIsError] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+    setMessage('');
+    setIsError(false);
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+    const fullName = `${String(firstName).trim()} ${String(lastName).trim()}`.trim();
+
+    if (!fullName) {
+      setIsError(true);
+      setMessage('First name and last name are required.');
       return;
     }
 
-    setSubmitting(true);
+    if (password !== confirmPassword) {
+      setIsError(true);
+      setMessage('Passwords do not match.');
+      return;
+    }
+
+    const payload = {
+      full_name: fullName,
+      email,
+      password,
+      confirm_password: confirmPassword,
+      student_id: studentId,
+      year_graduated: yearGraduated,
+      course
+    };
+
     try {
-      const res = await fetch(`${API_BASE}/api/alumni/register`, {
+      const response = await fetch('http://localhost:5000/api/alumni-registrations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName,
-          lastName,
-          studentNumber,
-          yearGraduated,
-          program,
-          email,
-          password
-        })
+        body: JSON.stringify(payload)
       });
 
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        setError(data.message || 'Registration failed. Please try again.');
+      const data = await response.json();
+      if (!response.ok) {
+        setIsError(true);
+        setMessage(data.message || 'Registration failed.');
         return;
       }
 
-      setSuccess(data.message || 'Registration submitted.');
-      setTimeout(() => navigate('/login'), 2500);
-    } catch (err) {
-      setError('Cannot reach the server. Is the backend running?');
-    } finally {
-      setSubmitting(false);
+      setIsError(false);
+      setMessage('Registration submitted. Please wait for verification.');
+      setFirstName('');
+      setLastName('');
+      setStudentId('');
+      setYearGraduated('');
+      setCourse('');
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      setIsError(true);
+      setMessage('Cannot connect to server.');
     }
   };
 
@@ -125,8 +139,8 @@ const AlumniRegistration = () => {
                   <label>Student ID: *</label>
                   <input
                     type="text"
-                    value={studentNumber}
-                    onChange={(e) => setStudentNumber(e.target.value)}
+                    value={studentId}
+                    onChange={(e) => setStudentId(e.target.value)}
                     required
                   />
                 </div>
@@ -134,17 +148,11 @@ const AlumniRegistration = () => {
                 <div className="field">
                   <label>Year Graduated: *</label>
                   <div className="select-wrap">
-                    <select
-                      value={yearGraduated}
-                      onChange={(e) => setYearGraduated(e.target.value)}
-                      required
-                    >
-                      <option value="" disabled>
-                        Select year
-                      </option>
-                      {YEAR_OPTIONS.map((y) => (
-                        <option key={y} value={y}>
-                          {y}
+                    <select value={yearGraduated} onChange={(e) => setYearGraduated(e.target.value)} required>
+                      <option value="" disabled></option>
+                      {YEAR_OPTIONS.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
                         </option>
                       ))}
                     </select>
@@ -156,17 +164,11 @@ const AlumniRegistration = () => {
                 <div className="field full">
                   <label>Program: *</label>
                   <div className="select-wrap">
-                    <select
-                      value={program}
-                      onChange={(e) => setProgram(e.target.value)}
-                      required
-                    >
-                      <option value="" disabled>
-                        Select program
-                      </option>
-                      {PROGRAM_OPTIONS.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
+                    <select value={course} onChange={(e) => setCourse(e.target.value)} required>
+                      <option value="" disabled></option>
+                      {PROGRAM_OPTIONS.map((program) => (
+                        <option key={program} value={program}>
+                          {program}
                         </option>
                       ))}
                     </select>
@@ -193,7 +195,6 @@ const AlumniRegistration = () => {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    minLength={6}
                     required
                   />
                 </div>
@@ -206,22 +207,20 @@ const AlumniRegistration = () => {
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    minLength={6}
                     required
                   />
                 </div>
               </div>
 
-              {error && (
-                <p style={{ color: '#b91c1c', marginBottom: '0.5rem' }}>{error}</p>
-              )}
-              {success && (
-                <p style={{ color: '#15803d', marginBottom: '0.5rem' }}>{success}</p>
-              )}
-
-              <button type="submit" className="submit-btn" disabled={submitting}>
-                {submitting ? 'SUBMITTING…' : 'SUBMIT REGISTRATION'}
+              <button type="submit" className="submit-btn">
+                SUBMIT REGISTRATION
               </button>
+
+              {message && (
+                <p className={`registration-message ${isError ? 'error' : 'success'}`}>
+                  {message}
+                </p>
+              )}
             </form>
           </div>
         </section>

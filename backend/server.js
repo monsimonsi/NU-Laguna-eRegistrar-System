@@ -5,6 +5,7 @@ const dns = require('dns'); // Lets Node use custom DNS resolvers.
 const mongoose = require('mongoose');
 const cors = require('cors');
 const User = require('./models/User');
+const AlumniRegistration = require('./models/AlumniRegistration');
 const DocumentRequest = require('./models/DocumentRequest');
 const Payment = require('./models/Payment');
 const AlumniVerification = require('./models/AlumniVerification');
@@ -14,6 +15,7 @@ const {
   listForUser: listNotificationsForUser,
   markRead: markNotificationRead
 } = require('./services/notifications');
+const DocumentPrice = require('./models/DocumentPrice');
 const {
   signToken,
   authMiddleware,
@@ -86,6 +88,16 @@ function makeTrackingNumber() {
   const day = String(d.getDate()).padStart(2, '0');
   const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
   return `NUL-${y}${m}${day}-${rand}`;
+}
+
+function isRequestOwner(req, request) {
+  const authEmail = String(req.auth?.email || '').trim().toLowerCase();
+  const requestEmail = String(request.email || '').trim().toLowerCase();
+  if (authEmail && requestEmail && authEmail === requestEmail) return true;
+
+  const authId = String(req.auth?.sub || '');
+  const requesterId = request.requesterId ? String(request.requesterId) : '';
+  return Boolean(authId && requesterId && authId === requesterId);
 }
 
 // Login API
@@ -189,65 +201,47 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-/**
- * Alumni self-registration — creates User (pending) + AlumniVerification (pending).
- * Rejected alumni may reapply with the same email (updates record, resets to pending).
- */
-app.post('/api/alumni/register', async (req, res) => {
+// Alumni registration
+app.post('/api/alumni-registrations', async (req, res) => {
   try {
     const {
-      firstName,
-      lastName,
-      studentNumber,
-      yearGraduated,
-      program,
+      full_name,
       email,
-      password
+      password,
+      confirm_password,
+      student_id,
+      year_graduated,
+      course
     } = req.body;
 
-    const first = String(firstName || '').trim();
-    const last = String(lastName || '').trim();
-    const student_number = String(studentNumber || '').trim();
-    const year_graduated = String(yearGraduated || '').trim();
-    const course = String(program || '').trim();
+    const normalizedFullName = String(full_name || '').trim();
     const normalizedEmail = String(email || '').trim().toLowerCase();
-    const plainPassword = String(password || '');
+    const normalizedPassword = String(password || '');
+    const normalizedConfirm = String(confirm_password || '');
+    const normalizedStudentId = String(student_id || '').trim();
+    const normalizedCourse = String(course || '').trim();
+    const normalizedYear = Number(year_graduated);
 
-    if (!first || !last || !student_number || !year_graduated || !course || !normalizedEmail || !plainPassword) {
-      return res.status(400).json({
-        message: 'All fields are required.'
-      });
+    if (!normalizedFullName || !normalizedEmail || !normalizedPassword || !normalizedStudentId || !normalizedCourse) {
+      return res.status(400).json({ message: 'Missing required fields.' });
     }
 
-    if (plainPassword.length < 6) {
-      return res.status(400).json({
-        message: 'Password must be at least 6 characters.'
-      });
+    if (!Number.isFinite(normalizedYear)) {
+      return res.status(400).json({ message: 'Year graduated must be a number.' });
     }
 
-    const full_name = `${first} ${last}`.trim();
+    if (normalizedPassword !== normalizedConfirm) {
+      return res.status(400).json({ message: 'Passwords do not match.' });
+    }
 
-    const existing = await User.findOne({ email: normalizedEmail });
+    const existingUser = await User.findOne({ email: normalizedEmail }).lean();
+    if (existingUser) {
+      return res.status(409).json({ message: 'Email is already registered.' });
+    }
 
-    if (existing) {
-      if (existing.role !== 'alumni') {
-        return res.status(409).json({
-          message: 'This email is already registered under a different account type.'
-        });
-      }
-
-      if (existing.status === 'pending') {
-        return res.status(409).json({
-          message:
-            'You already have a pending alumni registration. Please wait for the registrar to verify your account.'
-        });
-      }
-
-      if (existing.status === 'active') {
-        return res.status(409).json({
-          message: 'This alumni account is already active. Please log in.'
-        });
-      }
+    const existingRegistration = await AlumniRegistration.findOne({
+      $or: [{ email: normalizedEmail }, { student_id: normalizedStudentId }]
+    }).lean();
 
       // rejected — reapplication
       existing.full_name = full_name;
@@ -291,21 +285,26 @@ app.post('/api/alumni/register', async (req, res) => {
       });
     }
 
-    const user = new User({
-      full_name,
+    const newUser = new User({
+      full_name: normalizedFullName,
       email: normalizedEmail,
       password: await hashPassword(plainPassword),
       role: 'alumni',
       status: 'pending'
     });
-    await user.save();
 
-    await AlumniVerification.create({
-      user_id: user._id,
-      student_number,
-      course,
-      year_graduated,
-      verification_status: 'pending'
+    await newUser.save();
+
+    const newRegistration = new AlumniRegistration({
+      userId: newUser._id,
+      full_name: normalizedFullName,
+      email: normalizedEmail,
+      student_id: normalizedStudentId,
+      year_graduated: normalizedYear,
+      course: normalizedCourse,
+      verificationStatus: 'pending',
+      reviewedBy: null,
+      rejectionReason: ''
     });
 
     void Promise.all([
@@ -323,79 +322,58 @@ app.post('/api/alumni/register', async (req, res) => {
         isReapplication: false
       })
     ]);
+    await newRegistration.save();
 
     return res.status(201).json({
-      message: 'Registration submitted. Your account is pending registrar verification.',
-      userId: user._id
+      message: 'Alumni registration submitted.',
+      registration: newRegistration
     });
   } catch (error) {
-    console.error('Alumni register error:', error);
-    if (error.code === 11000) {
-      return res.status(409).json({ message: 'Email or verification record already exists.' });
-    }
-    return res.status(500).json({ message: 'Server error' });
+    console.error('Alumni registration error:', error);
+    return res.status(500).json({ message: 'Server error.' });
   }
 });
 
-// Pending alumni verifications (registrar)
-app.get('/api/alumni/pending-verifications', authMiddleware, requireAdmin, async (req, res) => {
+// List alumni registrations (admin)
+app.get('/api/alumni-registrations', async (req, res) => {
   try {
-    const rows = await AlumniVerification.find({ verification_status: 'pending' })
-      .populate('user_id', 'full_name email status role')
+    const registrations = await AlumniRegistration.find()
       .sort({ createdAt: -1 })
       .lean();
-
-    const list = rows
-      .filter((r) => r.user_id && r.user_id.role === 'alumni' && r.user_id.status === 'pending')
-      .map((r) => ({
-        _id: r._id,
-        userId: r.user_id._id,
-        full_name: r.user_id.full_name,
-        email: r.user_id.email,
-        student_number: r.student_number,
-        course: r.course,
-        year_graduated: r.year_graduated,
-        submittedAt: r.createdAt
-      }));
-
-    return res.status(200).json({ pending: list });
+    return res.status(200).json({ registrations });
   } catch (error) {
-    console.error('Pending verifications error:', error);
-    return res.status(500).json({ message: 'Server error' });
+    console.error('List alumni registrations error:', error);
+    return res.status(500).json({ message: 'Server error.' });
   }
 });
 
-// Approve or reject alumni (registrar) — uses JWT; reviewed_by = authenticated admin
-app.patch('/api/alumni/:userId/verify', authMiddleware, requireAdmin, async (req, res) => {
+// Update alumni verification status (admin)
+app.patch('/api/alumni-registrations/:id', async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { action, rejectionReason } = req.body;
+    const { id } = req.params;
+    const { verificationStatus, reviewedBy, rejectionReason } = req.body;
 
-    const admin = await User.findById(req.auth.sub);
-    if (!admin || admin.role !== 'admin') {
-      return res.status(403).json({ message: 'Registrar account invalid.' });
+    const normalizedStatus = String(verificationStatus || '').trim().toLowerCase();
+    const normalizedReason = String(rejectionReason || '').trim();
+
+    const allowed = ['pending', 'approved', 'rejected'];
+    if (!allowed.includes(normalizedStatus)) {
+      return res.status(400).json({ message: 'Invalid verification status.' });
     }
 
-    if (action !== 'approve' && action !== 'reject') {
-      return res.status(400).json({ message: 'action must be "approve" or "reject".' });
+    if (normalizedStatus === 'rejected' && !normalizedReason) {
+      return res.status(400).json({ message: 'Rejection reason is required.' });
     }
 
-    if (action === 'reject') {
-      const reason = String(rejectionReason || '').trim();
-      if (!reason) {
-        return res.status(400).json({ message: 'rejectionReason is required when rejecting.' });
-      }
+    const existing = await AlumniRegistration.findById(id).lean();
+    if (!existing) {
+      return res.status(404).json({ message: 'Registration not found.' });
     }
 
-    const alum = await User.findById(userId);
-    if (!alum || alum.role !== 'alumni') {
-      return res.status(404).json({ message: 'Alumni user not found.' });
-    }
-
-    const verification = await AlumniVerification.findOne({ user_id: userId });
-    if (!verification) {
-      return res.status(404).json({ message: 'Verification record not found.' });
-    }
+    const update = {
+      verificationStatus: normalizedStatus,
+      rejectionReason: normalizedStatus === 'rejected' ? normalizedReason : ''
+    };
 
     if (action === 'approve') {
       alum.status = 'active';
@@ -448,21 +426,31 @@ app.get('/api/admin/stats', authMiddleware, requireAdmin, async (req, res) => {
       User.countDocuments({ role: 'alumni', status: 'active' }),
       User.countDocuments({ role: 'alumni', status: 'pending' })
     ]);
+    if (reviewedBy) {
+      update.reviewedBy = reviewedBy;
+    }
+
+    const updated = await AlumniRegistration.findByIdAndUpdate(id, update, { new: true });
+    if (!updated) {
+      return res.status(404).json({ message: 'Registration not found.' });
+    }
+
+    if (normalizedStatus === 'approved') {
+      await User.findByIdAndUpdate(updated.userId, { status: 'active' });
+    }
 
     return res.status(200).json({
-      totalRequests,
-      pendingRequests,
-      approvedAlumni,
-      pendingAlumni
+      message: 'Verification status updated.',
+      registration: updated
     });
   } catch (error) {
-    console.error('Admin stats error:', error);
-    return res.status(500).json({ message: 'Server error' });
+    console.error('Update alumni registration error:', error);
+    return res.status(500).json({ message: 'Server error.' });
   }
 });
 
-// Create a new document request (student / alumni only)
-app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+// Create a new document request
+app.post('/api/requests', async (req, res) => {
   try {
     const {
       requesterId,
@@ -478,22 +466,33 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
       notes
     } = req.body;
 
-    if (!full_name || !email || !role || !documentType) {
+    const normalizedDocumentType = String(documentType || '').trim();
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+
+    if (!full_name || !email || !role || !normalizedDocumentType) {
       return res.status(400).json({ message: 'Missing required fields.' });
     }
 
-    const emailNorm = String(email).trim().toLowerCase();
-    if (emailNorm !== String(req.auth.email).trim().toLowerCase()) {
-      return res.status(403).json({ message: 'Email must match your logged-in account.' });
+    const price = await DocumentPrice.findOne({
+      documentType: normalizedDocumentType,
+      active: true
+    }).lean();
+
+    if (!price) {
+      return res.status(400).json({ message: 'No pricing found for this document type.' });
     }
 
-    if (requesterId && String(requesterId) !== String(req.auth.sub)) {
-      return res.status(403).json({ message: 'Requester does not match your account.' });
-    }
+    const normalizedCopies = Math.max(1, Number(copies) || 1);
+    const normalizedSucceedingPages = normalizedDocumentType === 'Course Description 1st Page'
+      ? Math.max(0, Number(succeedingPages) || 0)
+      : 0;
 
-    if (String(role).toLowerCase() !== String(req.auth.role).toLowerCase()) {
-      return res.status(403).json({ message: 'Role must match your logged-in account.' });
-    }
+    const basePrice = Number(price.basePrice) || 0;
+    const perSucceedingPageFee = Number(price.perSucceedingPageFee) || 0;
+    const succeedingPagesFee = normalizedSucceedingPages * perSucceedingPageFee;
+    const subtotal = (basePrice + succeedingPagesFee) * normalizedCopies;
+    const deliveryFee = deliveryMethod === 'delivery' ? Number(price.deliveryFee) || 150 : 0;
+    const totalFee = subtotal + deliveryFee;
 
     // #region agent log
     fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H1',location:'server.js:/api/requests:before-duplicate-check',message:'Starting duplicate request check',data:{userId:String(req.auth.sub),role:String(req.auth.role),documentType:String(documentType||'')},timestamp:Date.now()})}).catch(()=>{});
@@ -548,17 +547,22 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
     const newRequest = new DocumentRequest({
       requesterId: requesterId ? requesterId : req.auth.sub,
       full_name,
-      email: emailNorm,
+      email: normalizedEmail,
       role,
-      documentType,
+      documentType: normalizedDocumentType,
       purpose,
-      copies: copies ? Number(copies) : 1,
+      copies: normalizedCopies,
       deliveryMethod: deliveryMethod || 'pickup',
       address: address || '',
-      succeedingPages: succeedingPages ? Number(succeedingPages) : 0,
+      succeedingPages: normalizedSucceedingPages,
       notes: notes || '',
       trackingNumber: makeTrackingNumber(),
       paymentConfirmed: skipOnlinePayment
+      basePrice,
+      perSucceedingPageFee,
+      succeedingPagesFee,
+      deliveryFee,
+      totalFee
     });
 
     await newRequest.save();
@@ -633,16 +637,28 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
   }
 });
 
-// Current user's requests (student / alumni)
-app.get('/api/me/requests', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+// Get all document prices
+app.get('/api/prices', async (req, res) => {
   try {
-    const email = String(req.auth.email).trim().toLowerCase();
-    const requests = await DocumentRequest.find({ email })
-      .sort({ createdAt: -1 })
+    const prices = await DocumentPrice.find({ active: true })
+      .sort({ documentType: 1 })
       .lean();
-    return res.status(200).json({ requests });
+    return res.status(200).json({ prices });
   } catch (error) {
-    console.error('List my requests error:', error);
+    console.error('List prices error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get price by document type
+app.get('/api/prices/:documentType', async (req, res) => {
+  try {
+    const documentType = String(req.params.documentType || '').trim();
+    const price = await DocumentPrice.findOne({ documentType, active: true }).lean();
+    if (!price) return res.status(404).json({ message: 'Price not found' });
+    return res.status(200).json({ price });
+  } catch (error) {
+    console.error('Get price error:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 });
@@ -733,6 +749,47 @@ app.get('/api/requests', authMiddleware, requireAdmin, async (req, res) => {
     return res.status(200).json({ requests });
   } catch (error) {
     console.error('List requests error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get a single request (student/alumni only)
+app.get('/api/requests/:id', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await DocumentRequest.findById(id).lean();
+    if (!request) return res.status(404).json({ message: 'Request not found' });
+
+    if (!isRequestOwner(req, request)) {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    return res.status(200).json({ request });
+  } catch (error) {
+    console.error('Get request error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete a request (student/alumni only, pending status)
+app.delete('/api/requests/:id', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await DocumentRequest.findById(id).lean();
+    if (!request) return res.status(404).json({ message: 'Request not found' });
+
+    if (!isRequestOwner(req, request)) {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    if (request.status !== 'Pending') {
+      return res.status(409).json({ message: 'Only pending requests can be deleted.' });
+    }
+
+    await DocumentRequest.findByIdAndDelete(id);
+    return res.status(200).json({ message: 'Request deleted.' });
+  } catch (error) {
+    console.error('Delete request error:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 });

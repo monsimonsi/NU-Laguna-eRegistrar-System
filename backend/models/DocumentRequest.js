@@ -21,6 +21,11 @@ const DocumentRequestSchema = new mongoose.Schema({
   address: { type: String },
   succeedingPages: { type: Number, default: 0 },
   notes: { type: String },
+  basePrice: { type: Number, default: 0 },
+  perSucceedingPageFee: { type: Number, default: 0 },
+  succeedingPagesFee: { type: Number, default: 0 },
+  deliveryFee: { type: Number, default: 0 },
+  totalFee: { type: Number, default: 0 },
   status: {
     type: String,
     enum: REQUEST_STATUSES,

@@ -111,6 +111,11 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
 }
 
 .admin-logo {
@@ -317,6 +322,132 @@ body {
   padding: 10px 10px 12px;
 }
 
+/* EMPHASIS PANELS */
+.alumni-panel,
+.request-panel {
+  padding: 14px 14px 16px;
+}
+
+.alumni-panel .panel-header h3,
+.request-panel .panel-header h3 {
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.alumni-panel .panel-header p,
+.request-panel .panel-header p {
+  font-size: 13px;
+  color: #8e98c5;
+}
+
+.alumni-panel .view-all-btn,
+.request-panel .view-all-btn {
+  height: 28px;
+  font-size: 12px;
+  padding: 0 16px;
+}
+
+.alumni-panel .request-list,
+.request-panel .request-list {
+  gap: 14px;
+}
+
+.alumni-panel .request-card {
+  min-height: 140px;
+  padding: 14px;
+}
+
+.alumni-panel .request-card-empty {
+  min-height: 96px;
+}
+
+.alumni-panel .request-info {
+  gap: 4px;
+}
+
+.alumni-panel .request-info strong {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.alumni-panel .request-info span:not(.alumni-status):not(.alumni-reason) {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: #7f88b3;
+}
+
+.alumni-panel .alumni-status {
+  font-size: 11px;
+  padding: 3px 10px;
+  letter-spacing: 0.2px;
+}
+
+.alumni-panel .alumni-reason {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.alumni-panel .request-actions {
+  margin-top: 12px;
+  gap: 16px;
+  padding-bottom: 4px;
+}
+
+.alumni-panel .approve-btn,
+.alumni-panel .reject-btn {
+  min-width: 96px;
+  height: 28px;
+  font-size: 12px;
+  line-height: 28px;
+}
+
+.alumni-panel .alumni-message {
+  font-size: 12px;
+}
+
+.request-panel .request-list-small .small-request-card {
+  min-height: 124px;
+  padding: 14px;
+}
+
+.request-panel .small-request-info {
+  gap: 4px;
+}
+
+.request-panel .small-request-info strong {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.request-panel .small-request-info span {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: #7f88b3;
+}
+
+.request-panel .status-row {
+  margin-top: 12px;
+  grid-template-columns: 58px 1fr;
+  gap: 10px;
+}
+
+.request-panel .status-row label {
+  font-size: 12px;
+}
+
+.request-panel .select-wrap::after {
+  width: 9px;
+  height: 9px;
+}
+
+.request-panel .select-wrap select {
+  height: 30px;
+  font-size: 12px;
+  padding: 0 28px 0 12px;
+}
+
 .panel-header {
   display: flex;
   align-items: flex-start;
@@ -387,6 +518,38 @@ body {
   color: #b0b5cf;
 }
 
+.alumni-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: lowercase;
+}
+
+.alumni-status.pending {
+  background: #f4cf7d;
+  color: #8b5d00;
+}
+
+.alumni-status.approved {
+  background: #b9efae;
+  color: #2c8b28;
+}
+
+.alumni-status.rejected {
+  background: #f6b5b5;
+  color: #9b1c1c;
+}
+
+.alumni-reason {
+  color: #9b1c1c;
+  font-size: 10px;
+}
+
 .request-actions {
   display: flex;
   justify-content: center;
@@ -394,6 +557,13 @@ body {
   gap: 18px;
   margin-top: 10px;
   padding-bottom: 2px;
+}
+
+.request-card-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
 }
 
 .approve-btn,
@@ -416,6 +586,20 @@ body {
 
 .reject-btn {
   background: #e51c1c;
+}
+
+.alumni-message {
+  margin-top: 8px;
+  font-size: 11px;
+  text-align: center;
+}
+
+.alumni-message.success {
+  color: #2e7d32;
+}
+
+.alumni-message.error {
+  color: #c0392b;
 }
 
 .request-list-small .small-request-card {
@@ -645,6 +829,96 @@ body {
     min-height: 90px;
   }
 
+  .alumni-panel,
+  .request-panel {
+    padding: 12px 12px 14px;
+  }
+
+  .alumni-panel .panel-header h3,
+  .request-panel .panel-header h3 {
+    font-size: 20px;
+  }
+
+  .alumni-panel .panel-header p,
+  .request-panel .panel-header p {
+    font-size: 12px;
+  }
+
+  .alumni-panel .view-all-btn,
+  .request-panel .view-all-btn {
+    height: 26px;
+    font-size: 11px;
+    padding: 0 14px;
+  }
+
+  .alumni-panel .request-list,
+  .request-panel .request-list {
+    gap: 12px;
+  }
+
+  .alumni-panel .request-card {
+    min-height: 124px;
+    padding: 12px;
+  }
+
+  .alumni-panel .request-info strong {
+    font-size: 15px;
+  }
+
+  .alumni-panel .request-info span:not(.alumni-status):not(.alumni-reason) {
+    font-size: 11px;
+  }
+
+  .alumni-panel .alumni-status {
+    font-size: 10px;
+  }
+
+  .alumni-panel .alumni-reason {
+    font-size: 11px;
+  }
+
+  .alumni-panel .approve-btn,
+  .alumni-panel .reject-btn {
+    min-width: 84px;
+    height: 26px;
+    font-size: 11px;
+    line-height: 26px;
+  }
+
+  .request-panel .request-list-small .small-request-card {
+    min-height: 112px;
+    padding: 12px;
+  }
+
+  .request-panel .small-request-info strong {
+    font-size: 15px;
+  }
+
+  .request-panel .small-request-info span {
+    font-size: 11px;
+  }
+
+  .request-panel .status-row {
+    margin-top: 10px;
+    grid-template-columns: 54px 1fr;
+    gap: 8px;
+  }
+
+  .request-panel .status-row label {
+    font-size: 11px;
+  }
+
+  .request-panel .select-wrap::after {
+    width: 8px;
+    height: 8px;
+  }
+
+  .request-panel .select-wrap select {
+    height: 28px;
+    font-size: 11px;
+    padding: 0 26px 0 10px;
+  }
+
   .request-actions {
     gap: 16px;
   }
@@ -666,6 +940,101 @@ body {
   .panel-card,
   .table-card {
     border-radius: 10px;
+  }
+
+  .alumni-panel,
+  .request-panel {
+    padding: 12px;
+  }
+
+  .alumni-panel .panel-header h3,
+  .request-panel .panel-header h3 {
+    font-size: 18px;
+  }
+
+  .alumni-panel .panel-header p,
+  .request-panel .panel-header p {
+    font-size: 11px;
+  }
+
+  .alumni-panel .view-all-btn,
+  .request-panel .view-all-btn {
+    height: 24px;
+    font-size: 10px;
+    padding: 0 12px;
+  }
+
+  .alumni-panel .request-list,
+  .request-panel .request-list {
+    gap: 10px;
+  }
+
+  .alumni-panel .request-card {
+    min-height: 112px;
+    padding: 10px;
+  }
+
+  .alumni-panel .request-info strong {
+    font-size: 14px;
+  }
+
+  .alumni-panel .request-info span:not(.alumni-status):not(.alumni-reason) {
+    font-size: 10px;
+  }
+
+  .alumni-panel .alumni-status {
+    font-size: 9px;
+    padding: 2px 8px;
+  }
+
+  .alumni-panel .alumni-reason {
+    font-size: 10px;
+  }
+
+  .alumni-panel .approve-btn,
+  .alumni-panel .reject-btn {
+    min-width: 76px;
+    height: 24px;
+    font-size: 10px;
+    line-height: 24px;
+  }
+
+  .alumni-panel .alumni-message {
+    font-size: 11px;
+  }
+
+  .request-panel .request-list-small .small-request-card {
+    min-height: 104px;
+    padding: 10px;
+  }
+
+  .request-panel .small-request-info strong {
+    font-size: 14px;
+  }
+
+  .request-panel .small-request-info span {
+    font-size: 10px;
+  }
+
+  .request-panel .status-row {
+    margin-top: 8px;
+    grid-template-columns: 50px 1fr;
+    gap: 6px;
+  }
+
+  .request-panel .status-row label {
+    font-size: 10px;
+  }
+
+  .request-panel .select-wrap::after {
+    width: 7px;
+    height: 7px;
+  }
+
+  .request-panel .select-wrap select {
+    height: 26px;
+    font-size: 10px;
+    padding: 0 24px 0 9px;
   }
 
   .panel-header h3,

@@ -2,10 +2,16 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, FileText } from 'lucide-react';
 import logo from '../assets/NU_shield.png';
-import { API_BASE, authHeaders } from '../api';
+import settingslogo from '../assets/settings-icon.png';
+import tracklogo from '../assets/track-icon.png';
+import submitlogo from '../assets/submit-icon.png';
+import logoutlogo from '../assets/logout-icon.png';
+import { API_BASE, authHeaders, clearSession } from '../api';
+import '../styles/Dashboard.css';
 import '../styles/DocumentRequest.css';
 
 const DocumentRequest = ({ onBack }) => {
+  const [isOpen, setIsOpen] = useState(false);
   const [copies, setCopies] = useState(1);
   const [succeedingPages, setSucceedingPages] = useState(0);
   const [documentType, setDocumentType] = useState('');
@@ -33,6 +39,28 @@ const DocumentRequest = ({ onBack }) => {
 
   const increaseSucceedingPages = () => {
     setSucceedingPages((prev) => prev + 1);
+  };
+
+  const toggleSidebar = (e) => {
+    e.stopPropagation();
+    setIsOpen((prev) => !prev);
+  };
+
+  const closeSidebar = () => {
+    setIsOpen(false);
+  };
+
+  const goToDashboard = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+    navigate('/dashboard');
+  };
+
+  const handleLogout = () => {
+    clearSession();
+    navigate('/login');
   };
 
   const handleSubmit = async (e) => {
@@ -108,23 +136,58 @@ const DocumentRequest = ({ onBack }) => {
   };
 
   return (
-    <div className="doc-page">
+    <div className={`doc-page ${isOpen ? 'sidebar-open' : ''}`} onClick={closeSidebar}>
       <header className="doc-topbar">
-        <button className="doc-menu-btn" aria-label="Menu">
+        <button
+          className="doc-menu-btn"
+          aria-label="Menu"
+          aria-expanded={isOpen}
+          onClick={toggleSidebar}
+        >
           <Menu size={30} strokeWidth={2.5} />
         </button>
 
-        <div className="doc-brand">
+        <button type="button" className="doc-brand" onClick={goToDashboard}>
           <img src={logo} alt="NU Logo" className="doc-logo" />
           <span className="doc-title">NU Laguna e-Registrar</span>
-        </div>
+        </button>
       </header>
+
+      <div className={`sidebar doc-sidebar ${isOpen ? 'active' : ''}`} onClick={(e) => e.stopPropagation()}>
+        <nav className="sidebar-nav">
+          <div className="sidebar-link" onClick={() => { setIsOpen(false); }}>
+            <img src={submitlogo} alt="Submit Logo" className="sidebar-icon" />
+            <span className="sidebar-label">Submit Document Requests</span>
+          </div>
+          <div className="sidebar-link" onClick={() => { setIsOpen(false); goToDashboard(); }}>
+            <img src={tracklogo} alt="" className="sidebar-icon" />
+            <span className="sidebar-label">Track Document Requests</span>
+          </div>
+          <div className="sidebar-link" onClick={() => { setIsOpen(false); goToDashboard(); }}>
+            <img src={settingslogo} alt="" className="sidebar-icon" />
+            <span className="sidebar-label">Account Settings</span>
+          </div>
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="sidebar-link logout-sidebar" onClick={handleLogout}>
+            <img src={logoutlogo} alt="Logout Logo" className="sidebar-icon" />
+            <span className="sidebar-label">LOG OUT</span>
+          </div>
+        </div>
+      </div>
 
       <main className="doc-main">
         <div className="doc-back-row">
-          <Link to="/my-requests" className="doc-back-link">
-            &lsaquo; My requests
-          </Link>
+          {onBack ? (
+            <button onClick={onBack} className="doc-back-link doc-back-button">
+              &lsaquo; Back to Dashboard
+            </button>
+          ) : (
+            <Link to="/dashboard" className="doc-back-link">
+              &lsaquo; Back to Dashboard
+            </Link>
+          )}
         </div>
 
         <section className="doc-card">
@@ -147,6 +210,7 @@ const DocumentRequest = ({ onBack }) => {
                     <option>Certificate of Registration (COR)</option>
                     <option>Certificates</option>
                     <option>Certificate of Good Moral Character</option>
+                    <option>Completion of Grades</option>
                     <option>Copy of Grades</option>
                     <option>Course Curriculum</option>
                     <option>Course Description 1st Page</option>
@@ -202,7 +266,7 @@ const DocumentRequest = ({ onBack }) => {
             </div>
 
             {documentType === 'Course Description 1st Page' && (
-              <div className="doc-grid-top" style={{marginTop: 18}}>
+              <div className="doc-grid-top doc-grid-top--spaced">
                 <div className="doc-field copies-field">
                   <label>Succeeding Pages</label>
                   <div className="copies-control">
@@ -260,11 +324,23 @@ const DocumentRequest = ({ onBack }) => {
             </div>
 
             <div className="doc-actions">
-              <button type="button" className="cancel-btn" onClick={() => {
-                setDocumentType(''); setPurpose(''); setCopies(1); setSucceedingPages(0); setDeliveryMethod('pickup'); setNotes(''); setAddress(''); setMessage('');
-              }}>
-                CANCEL
-              </button>
+              <button
+  type="button"
+  className="cancel-btn"
+  onClick={() => {
+    setDocumentType('');
+    setPurpose('');
+    setCopies(1);
+    setSucceedingPages(0);
+    setDeliveryMethod('pickup');
+    setNotes('');
+    setAddress('');
+    setMessage('');
+    if (onBack) onBack();
+  }}
+>
+  CANCEL
+</button>
               <button type="submit" className="submit-btn">
                 SUBMIT REQUEST
               </button>
@@ -273,29 +349,29 @@ const DocumentRequest = ({ onBack }) => {
         </section>
       </main>
       {message && (
-        <div className={`doc-message ${isError ? 'error' : 'success'}`} style={{margin: '16px'}}>
+        <div className={`doc-message ${isError ? 'error' : 'success'} doc-message--spaced`}>
           {message}
         </div>
       )}
 
       {showModal && (
-        <div style={{position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'grid', placeItems: 'center', zIndex: 60}}>
-          <div style={{width: 'min(560px, 94%)', background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 8px 30px rgba(0,0,0,0.25)'}}>
-            <h3 style={{margin: 0, fontSize: 18}}>Request Submitted</h3>
-            <p style={{color: '#444', marginTop: 8}}>Your document request was created successfully.</p>
+        <div className="doc-modal-overlay">
+          <div className="doc-modal">
+            <h3 className="doc-modal-title">Request Submitted</h3>
+            <p className="doc-modal-subtitle">Your document request was created successfully.</p>
             {createdRequest && (
-              <div style={{marginTop: 8, fontSize: 13, color: '#222'}}>
-                <div><strong>Tracking #:</strong> {createdRequest.trackingNumber || '—'}</div>
+              <div className="doc-modal-details">
+                <div><strong>ID:</strong> {createdRequest._id}</div>
                 <div><strong>Document:</strong> {createdRequest.documentType}</div>
                 <div><strong>Status:</strong> {createdRequest.status}</div>
               </div>
             )}
 
-            <div style={{display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 18}}>
+            <div className="doc-modal-actions">
               <button
                 type="button"
-                onClick={() => navigate('/my-requests')}
-                style={{background: '#dde2ec', border: 0, padding: '8px 12px', borderRadius: 8, cursor: 'pointer'}}
+                onClick={() => onBack ? onBack() : navigate('/dashboard')}
+                className="doc-modal-btn doc-modal-btn--secondary"
               >
                 View my requests
               </button>
@@ -303,7 +379,7 @@ const DocumentRequest = ({ onBack }) => {
               <button
                 type="button"
                 onClick={() => { setShowModal(false); setCreatedRequest(null); setMessage(''); }}
-                style={{background: '#9ca4d7', color: '#16307a', border: 0, padding: '8px 12px', borderRadius: 8, cursor: 'pointer'}}
+                className="doc-modal-btn doc-modal-btn--primary"
               >
                 New request
               </button>

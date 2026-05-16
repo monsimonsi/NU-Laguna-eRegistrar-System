@@ -34,19 +34,30 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
   const [requests, setRequests] = useState([]);
-  const [pendingAlumni, setPendingAlumni] = useState([]);
-  const [statsData, setStatsData] = useState({
-    totalRequests: 0,
-    pendingRequests: 0,
-    approvedAlumni: 0,
-    pendingAlumni: 0
-  });
+  const [alumniRegistrations, setAlumniRegistrations] = useState([]);
+  const [alumniMessage, setAlumniMessage] = useState('');
+  const [alumniIsError, setAlumniIsError] = useState(false);
+
+  const pendingRequests = requests.filter((r) => r.status === 'Pending').length;
+  const approvedAlumni = alumniRegistrations.filter((r) => r.verificationStatus === 'approved').length;
+  const pendingAlumni = alumniRegistrations.filter((r) => r.verificationStatus === 'pending').length;
+
+  const stats = [
+    { label: 'Total Requests', value: String(requests.length), sub: 'All-Time', icon: <FileText size={16} strokeWidth={2.2} />, colorClass: 'violet' },
+    { label: 'Pending', value: String(pendingRequests), sub: 'Awaiting Action', icon: <Clock3 size={16} strokeWidth={2.2} />, colorClass: 'yellow' },
+    { label: 'Approved Alumni', value: String(approvedAlumni), sub: 'Verified', icon: <BadgeCheck size={16} strokeWidth={2.2} />, colorClass: 'green' },
+    { label: 'Pending Alumni', value: String(pendingAlumni), sub: 'Needs Verification', icon: <UsersRound size={16} strokeWidth={2.2} />, colorClass: 'orange' },
+  ];
 
   useEffect(() => {
     fetchRequests();
-    fetchPendingAlumni();
-    fetchStats();
+    fetchAlumniRegistrations();
   }, []);
+
+  const handleLogout = () => {
+    clearSession();
+    navigate('/login');
+  };
 
   const fetchRequests = async () => {
     try {
@@ -62,79 +73,71 @@ const AdminDashboard = () => {
     }
   };
 
-  const fetchStats = async () => {
+  const getCurrentAdminId = () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/stats`, {
-        headers: authHeaders(false)
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setStatsData({
-          totalRequests: data.totalRequests ?? 0,
-          pendingRequests: data.pendingRequests ?? 0,
-          approvedAlumni: data.approvedAlumni ?? 0,
-          pendingAlumni: data.pendingAlumni ?? 0
-        });
-      }
-    } catch (err) {
-      console.error('Failed to fetch stats', err);
+      const user = JSON.parse(localStorage.getItem('user'));
+      return user?.id || null;
+    } catch (e) {
+      return null;
     }
   };
 
-  const fetchPendingAlumni = async () => {
+  const fetchAlumniRegistrations = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/alumni/pending-verifications`, {
-        headers: authHeaders(false)
-      });
+      const res = await fetch('http://localhost:5000/api/alumni-registrations');
       const data = await res.json();
       if (res.ok) {
-        setPendingAlumni(data.pending || []);
+        setAlumniRegistrations(data.registrations || []);
       }
     } catch (err) {
-      console.error('Failed to fetch pending alumni', err);
+      console.error('Failed to fetch alumni registrations', err);
     }
   };
 
-  const handleLogout = () => {
-    clearSession();
-    navigate('/login');
-  };
+  const updateAlumniStatus = async (id, newStatus) => {
+    setAlumniMessage('');
+    setAlumniIsError(false);
 
-  const verifyAlumni = async (userId, action, rejectionReason) => {
-    try {
-      const body = { action };
-      if (action === 'reject' && rejectionReason) {
-        body.rejectionReason = rejectionReason;
+    let rejectionReason = '';
+    if (newStatus === 'rejected') {
+      const reason = window.prompt('Enter rejection reason');
+      if (reason === null) {
+        return;
       }
-      const res = await fetch(`${API_BASE}/api/alumni/${userId}/verify`, {
+      rejectionReason = String(reason).trim();
+      if (!rejectionReason) {
+        setAlumniIsError(true);
+        setAlumniMessage('Rejection reason is required.');
+        return;
+      }
+    }
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/alumni-registrations/${id}`, {
         method: 'PATCH',
-        headers: authHeaders(true),
-        body: JSON.stringify(body)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          verificationStatus: newStatus,
+          reviewedBy: getCurrentAdminId(),
+          rejectionReason
+        })
       });
+
       const data = await res.json();
-      if (res.ok) {
-        await fetchPendingAlumni();
-        await fetchStats();
-      } else {
-        window.alert(data.message || 'Update failed');
+      if (!res.ok) {
+        setAlumniIsError(true);
+        setAlumniMessage(data.message || 'Failed to update status.');
+        return;
       }
+
+      setAlumniRegistrations((prev) => prev.map((r) => (r._id === id ? data.registration : r)));
+      setAlumniIsError(false);
+      setAlumniMessage('Verification status updated.');
     } catch (err) {
-      console.error('Verify alumni error', err);
+      console.error('Update alumni status error', err);
+      setAlumniIsError(true);
+      setAlumniMessage('Cannot connect to server.');
     }
-  };
-
-  const handleApprove = (userId) => {
-    verifyAlumni(userId, 'approve');
-  };
-
-  const handleReject = (userId) => {
-    const reason = window.prompt('Reason for rejection (required):');
-    if (reason === null) return;
-    if (!String(reason).trim()) {
-      window.alert('A reason is required.');
-      return;
-    }
-    verifyAlumni(userId, 'reject', String(reason).trim());
   };
 
   const updateStatus = async (id, newStatus) => {
@@ -147,7 +150,6 @@ const AdminDashboard = () => {
       const data = await res.json();
       if (res.ok) {
         setRequests((prev) => prev.map((r) => (r._id === id ? data.request : r)));
-        await fetchStats();
       } else {
         console.error('Update failed', data.message);
       }
@@ -187,10 +189,10 @@ const AdminDashboard = () => {
 
       <div className="admin-shell">
         <header className="admin-topbar">
-          <div className="admin-brand">
+          <button type="button" className="admin-brand" onClick={() => navigate('/admin-dashboard')}>
             <img src={logo} alt="NU Logo" className="admin-logo" />
             <span className="admin-title">ADMIN DASHBOARD</span>
-          </div>
+          </button>
 
           <div className="admin-profile-wrap">
             <button
@@ -223,7 +225,7 @@ const AdminDashboard = () => {
           </section>
 
           <section className="stats-grid">
-            {STAT_ITEMS.map((item) => (
+            {stats.map((item) => (
               <article key={item.label} className={`stat-card ${item.colorClass}`}>
                 <div className="stat-top">
                   <h2>{item.label}</h2>
@@ -231,14 +233,14 @@ const AdminDashboard = () => {
                     {item.icon}
                   </span>
                 </div>
-                <div className="stat-value">{statsData[item.key]}</div>
+                <div className="stat-value">{item.value}</div>
                 <div className="stat-sub">{item.sub}</div>
               </article>
             ))}
           </section>
 
           <section className="panel-grid">
-            <article className="panel-card">
+            <article className="panel-card alumni-panel">
               <div className="panel-header">
                 <div>
                   <h3>Alumni Verification</h3>
@@ -248,43 +250,43 @@ const AdminDashboard = () => {
               </div>
 
               <div className="request-list">
-                {pendingAlumni.length === 0 && (
-                  <p className="empty-hint" style={{ padding: '1rem', color: '#64748b' }}>
-                    No pending alumni verifications.
-                  </p>
-                )}
-                {pendingAlumni.map((item) => (
-                  <div className="request-card" key={item.userId}>
+                {alumniRegistrations.map((item) => (
+                  <div className="request-card" key={item._id}>
                     <div className="request-info">
                       <strong>{item.full_name}</strong>
-                      <span>{item.student_number}</span>
+                      <span>{item.student_id}</span>
                       <span>{item.course}</span>
                       <span>Year: {item.year_graduated}</span>
-                      <span style={{ fontSize: '0.85em', color: '#64748b' }}>{item.email}</span>
+                      <span className={`alumni-status ${item.verificationStatus}`}>{item.verificationStatus}</span>
+                      {item.verificationStatus === 'rejected' && item.rejectionReason && (
+                        <span className="alumni-reason">Reason: {item.rejectionReason}</span>
+                      )}
                     </div>
 
-                    <div className="request-actions">
-                      <button
-                        type="button"
-                        className="approve-btn"
-                        onClick={() => handleApprove(item.userId)}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        className="reject-btn"
-                        onClick={() => handleReject(item.userId)}
-                      >
-                        Reject
-                      </button>
-                    </div>
+                    {item.verificationStatus === 'pending' && (
+                      <div className="request-actions">
+                        <button className="approve-btn" onClick={() => updateAlumniStatus(item._id, 'approved')}>Approve</button>
+                        <button className="reject-btn" onClick={() => updateAlumniStatus(item._id, 'rejected')}>Reject</button>
+                      </div>
+                    )}
                   </div>
                 ))}
+                {alumniRegistrations.length === 0 && (
+                  <div className="request-card request-card-empty">
+                    <div className="request-info">
+                      <strong>No alumni registrations yet.</strong>
+                    </div>
+                  </div>
+                )}
               </div>
+              {alumniMessage && (
+                <div className={`alumni-message ${alumniIsError ? 'error' : 'success'}`}>
+                  {alumniMessage}
+                </div>
+              )}
             </article>
 
-            <article className="panel-card">
+            <article className="panel-card request-panel">
               <div className="panel-header">
                 <div>
                   <h3>Request Management</h3>
@@ -303,7 +305,10 @@ const AdminDashboard = () => {
                     <div className="small-request-info">
                       <strong>{r.full_name}</strong>
                       <span>{r.documentType}</span>
-                      <span>{r.trackingNumber || r._id}</span>
+                      <span>Copies: {r.copies ?? 1}</span>
+                      {r.documentType === 'Course Description 1st Page' && (
+                        <span>Succeeding Pages: {r.succeedingPages ?? 0}</span>
+                      )}
                     </div>
 
                     <div className="status-row">
@@ -353,7 +358,7 @@ const AdminDashboard = () => {
                       <td>
                         <div className={statusPillClass(r.status)}>{r.status}</div>
                       </td>
-                      <td>{r.trackingNumber || '—'}</td>
+                      <td>{r.trackingNumber || r._id || '—'}</td>
                     </tr>
                   ))}
                 </tbody>

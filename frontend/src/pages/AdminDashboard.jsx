@@ -176,10 +176,10 @@ const AdminDashboard = () => {
 
       <div className="admin-shell">
         <header className="admin-topbar">
-          <div className="admin-brand">
+          <button type="button" className="admin-brand" onClick={() => navigate('/admin-dashboard')}>
             <img src={logo} alt="NU Logo" className="admin-logo" />
             <span className="admin-title">ADMIN DASHBOARD</span>
-          </div>
+          </button>
 
           <div className="admin-profile-wrap">
             <button

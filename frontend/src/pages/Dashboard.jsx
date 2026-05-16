@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../styles/Dashboard.css'
 import DocumentRequest from './DocumentRequest'
-import { clearSession } from '../api'
+import { API_BASE, authHeaders, clearSession } from '../api'
 import logo from '../assets/NU_shield.png'
 import settingslogo from '../assets/settings-icon.png'
 import tracklogo from '../assets/track-icon.png'
@@ -17,6 +17,9 @@ function App() {
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -51,6 +54,7 @@ function App() {
 
     setIsLoading(true);
     setError('');
+    setActionError('');
 
     try {
       const res = await fetch(`http://localhost:5000/api/requests?email=${encodeURIComponent(user.email)}`);
@@ -96,6 +100,11 @@ function App() {
     return base;
   }, [requests]);
 
+  const selectedRequest = useMemo(
+    () => requests.find((req) => req._id === selectedRequestId) || null,
+    [requests, selectedRequestId]
+  );
+
   const filteredRequests = useMemo(() => {
     const term = String(searchTerm || '').trim().toLowerCase();
     const status = String(statusFilter || '').trim();
@@ -112,6 +121,18 @@ function App() {
       return matchesStatus && haystack.includes(term);
     });
   }, [requests, searchTerm, statusFilter]);
+
+    useEffect(() => {
+      if (selectedRequestId && !requests.some((req) => req._id === selectedRequestId)) {
+        setSelectedRequestId('');
+      }
+    }, [requests, selectedRequestId]);
+
+    useEffect(() => {
+      if (selectedRequestId && !filteredRequests.some((req) => req._id === selectedRequestId)) {
+        setSelectedRequestId('');
+      }
+    }, [filteredRequests, selectedRequestId]);
 
   const formatDate = (value) => {
     const date = new Date(value);
@@ -135,10 +156,57 @@ function App() {
     return normalized === 'delivery' ? 'Delivery (₱150 fee)' : 'Pickup';
   };
 
+  const handleSelectRequest = (requestId) => {
+    setSelectedRequestId((current) => (current === requestId ? '' : requestId));
+    setActionError('');
+  };
+
+  const handleViewDetails = () => {
+    if (!selectedRequestId) return;
+    navigate(`/document-tracking?id=${encodeURIComponent(selectedRequestId)}`);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedRequest) return;
+    if (selectedRequest.status !== 'Pending') {
+      setActionError('Only pending requests can be deleted.');
+      return;
+    }
+
+    setIsDeleting(true);
+    setActionError('');
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/requests/${encodeURIComponent(selectedRequest._id)}`,
+        {
+          method: 'DELETE',
+          headers: authHeaders(false)
+        }
+      );
+      const data = await res.json();
+
+      if (!res.ok) {
+        setActionError(data.message || 'Failed to delete request.');
+        return;
+      }
+
+      setRequests((prev) => prev.filter((req) => req._id !== selectedRequest._id));
+      setSelectedRequestId('');
+    } catch (err) {
+      setActionError('Cannot connect to server.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleLogout = () => {
     clearSession();
     navigate('/login');
   };
+
+  const isViewDisabled = !selectedRequest;
+  const isDeleteDisabled = !selectedRequest || selectedRequest.status !== 'Pending' || isDeleting;
 
   return (
     <div className={`app-container ${isOpen ? 'sidebar-open' : ''}`} onClick={() => setIsOpen(false)}>
@@ -154,15 +222,21 @@ function App() {
           <header className="main-header">
             <div className="header-left">
               <div className="menu-burger" onClick={toggleSidebar}>☰</div>
-              <img src={logo} alt="Logo" className="nav-logo" />
-              <span className="system-name">NU Laguna e-Registrar</span>
+              <button
+                type="button"
+                className="header-brand"
+                onClick={() => navigate('/dashboard')}
+              >
+                <img src={logo} alt="Logo" className="nav-logo" />
+                <span className="system-name">NU Laguna e-Registrar</span>
+              </button>
             </div>
           </header>
 
           {/* Sidebar */}
           <div className={`sidebar ${isOpen ? 'active' : ''}`} onClick={(e) => e.stopPropagation()}>
         <nav className="sidebar-nav">
-          <div className="sidebar-link" onClick={() => { setView('new-request'); setIsOpen(false); }}>
+          <div className="sidebar-link" onClick={() => { navigate('/document-request'); setIsOpen(false); }}>
             <img src={submitlogo} alt="Submit Logo" className="sidebar-icon" />
             <span className="sidebar-label">Submit Document Requests</span>
           </div>
@@ -191,7 +265,7 @@ function App() {
         <main className="dashboard-wrapper" key="dashboard">
           <div className="dashboard-header-row">
             <h2 className="page-title">Document Requests Dashboard</h2>
-            <button className="new-request-btn" onClick={() => setView('new-request')}>
+            <button className="new-request-btn" onClick={() => navigate('/document-request')}>
               <img src={pluslogo} alt="Plus Logo" className="btn-plus-asset" />
               REQUEST A DOCUMENT
             </button>
@@ -264,8 +338,15 @@ function App() {
                     </tr>
                   )}
                   {!isLoading && !error && filteredRequests.map((req) => (
-                    <tr key={req._id}>
-                      <td className="check-column-cell"><input type="checkbox" /></td>
+                    <tr key={req._id} className={req._id === selectedRequestId ? 'selected-row' : ''}>
+                      <td className="check-column-cell">
+                        <input
+                          type="checkbox"
+                          aria-label="Select request"
+                          checked={selectedRequestId === req._id}
+                          onChange={() => handleSelectRequest(req._id)}
+                        />
+                      </td>
                       <td>{req._id}</td>
                       <td>{req.documentType || '-'}</td>
                       <td>{req.copies ?? '-'}</td>
@@ -282,10 +363,26 @@ function App() {
 
           {/* New Action Buttons Section */}
           <div className="dashboard-footer-actions">
+            <div className="action-left">
+              <div className="action-note">Select a request to enable View Details or Delete.</div>
+              {actionError && <div className="action-error" role="alert">{actionError}</div>}
+            </div>
             {/* Wrap the right-side buttons in a sub-container */}
             <div className="right-actions">
-              <button className="action-btn view-btn">VIEW DETAILS</button>
-              <button className="action-btn delete-btn">DELETE</button>
+              <button
+                className="action-btn view-btn"
+                onClick={handleViewDetails}
+                disabled={isViewDisabled}
+              >
+                VIEW DETAILS
+              </button>
+              <button
+                className="action-btn delete-btn"
+                onClick={handleDelete}
+                disabled={isDeleteDisabled}
+              >
+                {isDeleting ? 'DELETING...' : 'DELETE'}
+              </button>
             </div>
           </div>
         </main>

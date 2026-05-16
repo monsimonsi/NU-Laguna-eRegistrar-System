@@ -147,10 +147,10 @@ const DocumentRequest = ({ onBack }) => {
           <Menu size={30} strokeWidth={2.5} />
         </button>
 
-        <div className="doc-brand">
+        <button type="button" className="doc-brand" onClick={goToDashboard}>
           <img src={logo} alt="NU Logo" className="doc-logo" />
           <span className="doc-title">NU Laguna e-Registrar</span>
-        </div>
+        </button>
       </header>
 
       <div className={`sidebar doc-sidebar ${isOpen ? 'active' : ''}`} onClick={(e) => e.stopPropagation()}>

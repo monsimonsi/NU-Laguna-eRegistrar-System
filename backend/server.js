@@ -41,6 +41,16 @@ function makeTrackingNumber() {
   return `NUL-${y}${m}${day}-${rand}`;
 }
 
+function isRequestOwner(req, request) {
+  const authEmail = String(req.auth?.email || '').trim().toLowerCase();
+  const requestEmail = String(request.email || '').trim().toLowerCase();
+  if (authEmail && requestEmail && authEmail === requestEmail) return true;
+
+  const authId = String(req.auth?.sub || '');
+  const requesterId = request.requesterId ? String(request.requesterId) : '';
+  return Boolean(authId && requesterId && authId === requesterId);
+}
+
 // Login API
 app.post('/api/login', async (req, res) => {
   try {
@@ -367,6 +377,47 @@ app.get('/api/requests', async (req, res) => {
     return res.status(200).json({ requests });
   } catch (error) {
     console.error('List requests error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get a single request (student/alumni only)
+app.get('/api/requests/:id', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await DocumentRequest.findById(id).lean();
+    if (!request) return res.status(404).json({ message: 'Request not found' });
+
+    if (!isRequestOwner(req, request)) {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    return res.status(200).json({ request });
+  } catch (error) {
+    console.error('Get request error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete a request (student/alumni only, pending status)
+app.delete('/api/requests/:id', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await DocumentRequest.findById(id).lean();
+    if (!request) return res.status(404).json({ message: 'Request not found' });
+
+    if (!isRequestOwner(req, request)) {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    if (request.status !== 'Pending') {
+      return res.status(409).json({ message: 'Only pending requests can be deleted.' });
+    }
+
+    await DocumentRequest.findByIdAndDelete(id);
+    return res.status(200).json({ message: 'Request deleted.' });
+  } catch (error) {
+    console.error('Delete request error:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 });

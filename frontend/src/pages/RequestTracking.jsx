@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Menu, FileText } from 'lucide-react';
 import logo from '../assets/NU_shield.png';
 import { API_BASE, authHeaders } from '../api';
 import '../styles/DocumentRequest.css';
 
 const RequestTracking = () => {
+  const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -41,10 +42,10 @@ const RequestTracking = () => {
           <Menu size={30} strokeWidth={2.5} />
         </button>
 
-        <div className="doc-brand">
+        <button type="button" className="doc-brand" onClick={() => navigate('/dashboard')}>
           <img src={logo} alt="NU Logo" className="doc-logo" />
           <span className="doc-title">NU Laguna e-Registrar</span>
-        </div>
+        </button>
       </header>
 
       <main className="doc-main">

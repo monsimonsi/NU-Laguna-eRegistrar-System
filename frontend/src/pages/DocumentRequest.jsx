@@ -336,7 +336,11 @@ const DocumentRequest = ({ onBack }) => {
     setNotes('');
     setAddress('');
     setMessage('');
-    if (onBack) onBack();
+    if (onBack) {
+      onBack();
+      return;
+    }
+    navigate('/dashboard');
   }}
 >
   CANCEL

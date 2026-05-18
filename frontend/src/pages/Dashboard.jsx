@@ -19,6 +19,7 @@ function App() {
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -57,7 +58,9 @@ function App() {
     setActionError('');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/requests?email=${encodeURIComponent(user.email)}`);
+      const res = await fetch(`${API_BASE}/api/me/requests`, {
+        headers: authHeaders(false)
+      });
       const data = await res.json();
 
       if (!res.ok) {
@@ -156,6 +159,22 @@ function App() {
     return normalized === 'delivery' ? 'Delivery (₱150 fee)' : 'Pickup';
   };
 
+  const formatDocumentFee = (request) => {
+    const base = Number(request?.basePrice);
+    const extra = Number(request?.succeedingPagesFee);
+    const hasBase = Number.isFinite(base);
+    const hasExtra = Number.isFinite(extra);
+    if (!hasBase && !hasExtra) return '-';
+    const total = (hasBase ? base : 0) + (hasExtra ? extra : 0);
+    return formatCurrency(total);
+  };
+
+  const formatSucceedingPages = (value) => {
+    const pages = Number(value);
+    if (!Number.isFinite(pages)) return '-';
+    return pages;
+  };
+
   const handleSelectRequest = (requestId) => {
     setSelectedRequestId((current) => (current === requestId ? '' : requestId));
     setActionError('');
@@ -166,12 +185,18 @@ function App() {
     navigate(`/document-tracking?id=${encodeURIComponent(selectedRequestId)}`);
   };
 
-  const handleDelete = async () => {
+  const handleDeleteClick = () => {
     if (!selectedRequest) return;
     if (selectedRequest.status !== 'Pending') {
       setActionError('Only pending requests can be deleted.');
       return;
     }
+
+    setIsConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedRequest) return;
 
     setIsDeleting(true);
     setActionError('');
@@ -193,11 +218,16 @@ function App() {
 
       setRequests((prev) => prev.filter((req) => req._id !== selectedRequest._id));
       setSelectedRequestId('');
+      setIsConfirmOpen(false);
     } catch (err) {
       setActionError('Cannot connect to server.');
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleCancelDelete = () => {
+    setIsConfirmOpen(false);
   };
 
   const handleLogout = () => {
@@ -312,29 +342,30 @@ function App() {
                 <thead>
                   <tr>
                     <th className="check-column-head"></th>
-                    <th>Request ID</th>
+                    <th>Date Requested</th>
                     <th>Document Type</th>
+                    <th>Document Fee</th>
+                    <th>Succeeding Pages</th>
                     <th>Copies</th>
                     <th>Delivery Method</th>
                     <th>Total Fee</th>
-                    <th>Date Requested</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading && (
                     <tr>
-                      <td className="table-loading" colSpan="8">Loading requests...</td>
+                      <td className="table-loading" colSpan="9">Loading requests...</td>
                     </tr>
                   )}
                   {!isLoading && error && (
                     <tr>
-                      <td className="table-error" colSpan="8">{error}</td>
+                      <td className="table-error" colSpan="9">{error}</td>
                     </tr>
                   )}
                   {!isLoading && !error && filteredRequests.length === 0 && (
                     <tr>
-                      <td className="table-empty" colSpan="8">No requests found.</td>
+                      <td className="table-empty" colSpan="9">No requests found.</td>
                     </tr>
                   )}
                   {!isLoading && !error && filteredRequests.map((req) => (
@@ -347,12 +378,13 @@ function App() {
                           onChange={() => handleSelectRequest(req._id)}
                         />
                       </td>
-                      <td>{req._id}</td>
+                      <td>{formatDate(req.createdAt)}</td>
                       <td>{req.documentType || '-'}</td>
+                      <td>{formatDocumentFee(req)}</td>
+                      <td>{formatSucceedingPages(req.succeedingPages)}</td>
                       <td>{req.copies ?? '-'}</td>
                       <td>{formatDeliveryMethod(req.deliveryMethod)}</td>
                       <td>{formatCurrency(req.totalFee)}</td>
-                      <td>{formatDate(req.createdAt)}</td>
                       <td>{req.status || '-'}</td>
                     </tr>
                   ))}
@@ -378,13 +410,36 @@ function App() {
               </button>
               <button
                 className="action-btn delete-btn"
-                onClick={handleDelete}
+                onClick={handleDeleteClick}
                 disabled={isDeleteDisabled}
               >
                 {isDeleting ? 'DELETING...' : 'DELETE'}
               </button>
             </div>
           </div>
+          {isConfirmOpen && (
+            <div className="confirm-overlay" onClick={handleCancelDelete}>
+              <div className="confirm-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+                <h3 className="confirm-title">Delete this request?</h3>
+                <p className="confirm-text">
+                  This will remove the request from your list. You can only delete pending requests.
+                </p>
+                <div className="confirm-actions">
+                  <button className="confirm-btn cancel" type="button" onClick={handleCancelDelete}>
+                    Cancel
+                  </button>
+                  <button
+                    className="confirm-btn delete"
+                    type="button"
+                    onClick={handleConfirmDelete}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       ) : (
         <DocumentRequest onBack={() => setView('dashboard')} />

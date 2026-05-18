@@ -178,6 +178,26 @@ body {
   margin-top: 12px;
 }
 
+.track-summary-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.track-summary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: #4052a6;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
 .track-summary-meta p {
   margin: 3px 0;
   font-size: 18px;
@@ -548,6 +568,10 @@ body {
   }
 
   .track-summary-meta p {
+    font-size: 14px;
+  }
+
+  .track-summary-badge {
     font-size: 14px;
   }
 

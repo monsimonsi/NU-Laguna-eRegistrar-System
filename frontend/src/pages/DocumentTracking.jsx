@@ -176,8 +176,15 @@ const DocumentTracking = () => {
                 </div>
 
                 <div className="track-summary-meta">
-                  <p>Request ID: {request._id || '-'}</p>
+                  {request.documentType === 'Course Description 1st Page' && (
+                    <div className="track-summary-badges">
+                      <span className="track-summary-badge">
+                        Succeeding Pages: {request.succeedingPages ?? '-'}
+                      </span>
+                    </div>
+                  )}
                   <p>Request Date: {formatDate(request.createdAt)}</p>
+                  <p>Request ID: {request._id || '-'}</p>
                 </div>
               </div>
 
@@ -285,6 +292,7 @@ const DocumentTracking = () => {
 
                   <div className="detail-label small-gap">Purpose</div>
                   <div className="detail-value strong">{request.purpose || '-'}</div>
+
                 </div>
 
                 <div className="detail-block">

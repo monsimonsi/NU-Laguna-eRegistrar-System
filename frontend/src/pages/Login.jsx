@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/nu-logo-left.png';
 import bg from '../assets/nubg.jpg';
-import { API_BASE } from '../api';
+import { API_BASE, getStoredToken, parseJwtPayload } from '../api';
 import '../styles/Login.css';
 
 const Login = () => {
@@ -12,6 +12,19 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    const token = getStoredToken();
+    const payload = parseJwtPayload(token);
+    const role = String(payload?.role || '').trim().toLowerCase();
+    if (role === 'admin') {
+      navigate('/admin-dashboard', { replace: true });
+      return;
+    }
+    if (role === 'student' || role === 'alumni') {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,12 +61,12 @@ const Login = () => {
       const loggedInRole = String(data.user?.role || role).trim().toLowerCase();
 
       if (loggedInRole === 'admin') {
-        navigate('/admin-dashboard');
+        navigate('/admin-dashboard', { replace: true });
         return;
       }
 
       if (loggedInRole === 'student' || loggedInRole === 'alumni') {
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
         return;
       }
 

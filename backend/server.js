@@ -234,27 +234,50 @@ app.post('/api/alumni-registrations', async (req, res) => {
       return res.status(400).json({ message: 'Passwords do not match.' });
     }
 
-    const existingUser = await User.findOne({ email: normalizedEmail }).lean();
-    if (existingUser) {
-      return res.status(409).json({ message: 'Email is already registered.' });
-    }
-
+    const existingUser = await User.findOne({ email: normalizedEmail });
     const existingRegistration = await AlumniRegistration.findOne({
       $or: [{ email: normalizedEmail }, { student_id: normalizedStudentId }]
     }).lean();
 
-      // rejected — reapplication
-      existing.full_name = full_name;
-      existing.password = await hashPassword(plainPassword);
-      existing.status = 'pending';
-      await existing.save();
+    if (existingUser && existingUser.role !== 'alumni') {
+      return res.status(409).json({ message: 'Email is already registered.' });
+    }
+
+    if (existingRegistration && existingRegistration.verificationStatus !== 'rejected') {
+      return res.status(409).json({ message: 'Registration already exists.' });
+    }
+
+    if (existingUser && existingUser.status !== 'rejected') {
+      return res.status(409).json({ message: 'Email is already registered.' });
+    }
+
+    if (existingUser && existingUser.status === 'rejected') {
+      existingUser.full_name = normalizedFullName;
+      existingUser.password = await hashPassword(normalizedPassword);
+      existingUser.status = 'pending';
+      await existingUser.save();
+
+      await AlumniRegistration.findOneAndUpdate(
+        { userId: existingUser._id },
+        {
+          full_name: normalizedFullName,
+          email: normalizedEmail,
+          student_id: normalizedStudentId,
+          year_graduated: normalizedYear,
+          course: normalizedCourse,
+          verificationStatus: 'pending',
+          reviewedBy: null,
+          rejectionReason: ''
+        },
+        { new: true, upsert: true }
+      );
 
       await AlumniVerification.findOneAndUpdate(
-        { user_id: existing._id },
+        { user_id: existingUser._id },
         {
-          student_number,
-          course,
-          year_graduated,
+          student_number: normalizedStudentId,
+          course: normalizedCourse,
+          year_graduated: String(normalizedYear),
           verification_status: 'pending',
           reviewed_by: null,
           rejection_reason: ''
@@ -265,30 +288,29 @@ app.post('/api/alumni-registrations', async (req, res) => {
       void Promise.all([
         mail.notifyAlumniRegistrationPending({
           to: normalizedEmail,
-          fullName: full_name,
+          fullName: normalizedFullName,
           isReapplication: true
         }),
         mail.notifyRegistrarAlumniPending({
           email: normalizedEmail,
-          fullName: full_name,
-          studentNumber: student_number,
-          course,
-          yearGraduated: year_graduated,
+          fullName: normalizedFullName,
+          studentNumber: normalizedStudentId,
+          course: normalizedCourse,
+          yearGraduated: normalizedYear,
           isReapplication: true
         })
       ]);
 
       return res.status(200).json({
-        message:
-          'Your registration has been resubmitted and is pending verification.',
-        userId: existing._id
+        message: 'Your registration has been resubmitted and is pending verification.',
+        userId: existingUser._id
       });
     }
 
     const newUser = new User({
       full_name: normalizedFullName,
       email: normalizedEmail,
-      password: await hashPassword(plainPassword),
+      password: await hashPassword(normalizedPassword),
       role: 'alumni',
       status: 'pending'
     });
@@ -307,18 +329,31 @@ app.post('/api/alumni-registrations', async (req, res) => {
       rejectionReason: ''
     });
 
+    await AlumniVerification.findOneAndUpdate(
+      { user_id: newUser._id },
+      {
+        student_number: normalizedStudentId,
+        course: normalizedCourse,
+        year_graduated: String(normalizedYear),
+        verification_status: 'pending',
+        reviewed_by: null,
+        rejection_reason: ''
+      },
+      { new: true, upsert: true }
+    );
+
     void Promise.all([
       mail.notifyAlumniRegistrationPending({
         to: normalizedEmail,
-        fullName: full_name,
+        fullName: normalizedFullName,
         isReapplication: false
       }),
       mail.notifyRegistrarAlumniPending({
         email: normalizedEmail,
-        fullName: full_name,
-        studentNumber: student_number,
-        course,
-        yearGraduated: year_graduated,
+        fullName: normalizedFullName,
+        studentNumber: normalizedStudentId,
+        course: normalizedCourse,
+        yearGraduated: normalizedYear,
         isReapplication: false
       })
     ]);
@@ -374,42 +409,50 @@ app.patch('/api/alumni-registrations/:id', async (req, res) => {
       verificationStatus: normalizedStatus,
       rejectionReason: normalizedStatus === 'rejected' ? normalizedReason : ''
     };
-
-    if (action === 'approve') {
-      alum.status = 'active';
-      await alum.save();
-      verification.verification_status = 'approved';
-      verification.reviewed_by = admin._id;
-      verification.rejection_reason = '';
-      await verification.save();
-
-      void mail.notifyAlumniApproved({
-        to: alum.email,
-        fullName: alum.full_name
-      });
-
-      return res.status(200).json({
-        message: 'Alumni account approved.',
-        user: { id: alum._id, email: alum.email, status: alum.status }
-      });
+    if (reviewedBy) {
+      update.reviewedBy = reviewedBy;
     }
 
-    alum.status = 'rejected';
-    await alum.save();
-    verification.verification_status = 'rejected';
-    verification.reviewed_by = admin._id;
-    verification.rejection_reason = String(rejectionReason || '').trim();
-    await verification.save();
+    const updated = await AlumniRegistration.findByIdAndUpdate(id, update, { new: true });
+    if (!updated) {
+      return res.status(404).json({ message: 'Registration not found.' });
+    }
 
-    void mail.notifyAlumniRejected({
-      to: alum.email,
-      fullName: alum.full_name,
-      reason: verification.rejection_reason
-    });
+    if (normalizedStatus === 'approved') {
+      await User.findByIdAndUpdate(updated.userId, { status: 'active' });
+    } else if (normalizedStatus === 'rejected') {
+      await User.findByIdAndUpdate(updated.userId, { status: 'rejected' });
+    }
+
+    await AlumniVerification.findOneAndUpdate(
+      { user_id: updated.userId },
+      {
+        verification_status: normalizedStatus,
+        reviewed_by: reviewedBy || null,
+        rejection_reason: normalizedStatus === 'rejected' ? normalizedReason : ''
+      },
+      { new: true, upsert: true }
+    );
+
+    const alum = await User.findById(updated.userId).lean();
+    if (alum) {
+      if (normalizedStatus === 'approved') {
+        void mail.notifyAlumniApproved({
+          to: alum.email,
+          fullName: alum.full_name
+        });
+      } else if (normalizedStatus === 'rejected') {
+        void mail.notifyAlumniRejected({
+          to: alum.email,
+          fullName: alum.full_name,
+          reason: normalizedReason
+        });
+      }
+    }
 
     return res.status(200).json({
-      message: 'Alumni registration rejected.',
-      user: { id: alum._id, email: alum.email, status: alum.status }
+      message: 'Verification status updated.',
+      registration: updated
     });
   } catch (error) {
     console.error('Verify alumni error:', error);
@@ -426,22 +469,11 @@ app.get('/api/admin/stats', authMiddleware, requireAdmin, async (req, res) => {
       User.countDocuments({ role: 'alumni', status: 'active' }),
       User.countDocuments({ role: 'alumni', status: 'pending' })
     ]);
-    if (reviewedBy) {
-      update.reviewedBy = reviewedBy;
-    }
-
-    const updated = await AlumniRegistration.findByIdAndUpdate(id, update, { new: true });
-    if (!updated) {
-      return res.status(404).json({ message: 'Registration not found.' });
-    }
-
-    if (normalizedStatus === 'approved') {
-      await User.findByIdAndUpdate(updated.userId, { status: 'active' });
-    }
-
     return res.status(200).json({
-      message: 'Verification status updated.',
-      registration: updated
+      totalRequests,
+      pendingRequests,
+      approvedAlumni,
+      pendingAlumni
     });
   } catch (error) {
     console.error('Update alumni registration error:', error);
@@ -450,10 +482,9 @@ app.get('/api/admin/stats', authMiddleware, requireAdmin, async (req, res) => {
 });
 
 // Create a new document request
-app.post('/api/requests', async (req, res) => {
+app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, res) => {
   try {
     const {
-      requesterId,
       full_name,
       email,
       role,
@@ -466,10 +497,17 @@ app.post('/api/requests', async (req, res) => {
       notes
     } = req.body;
 
-    const normalizedDocumentType = String(documentType || '').trim();
-    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const authSub = String(req.auth?.sub || '').trim();
+    const authEmail = String(req.auth?.email || '').trim().toLowerCase();
+    const authRole = String(req.auth?.role || '').trim();
+    const authName = String(req.auth?.name || '').trim();
 
-    if (!full_name || !email || !role || !normalizedDocumentType) {
+    const normalizedDocumentType = String(documentType || '').trim();
+    const normalizedFullName = String(authName || full_name || '').trim();
+    const normalizedEmail = authEmail || String(email || '').trim().toLowerCase();
+    const normalizedRole = authRole || String(role || '').trim();
+
+    if (!normalizedFullName || !normalizedEmail || !normalizedRole || !normalizedDocumentType) {
       return res.status(400).json({ message: 'Missing required fields.' });
     }
 
@@ -495,25 +533,28 @@ app.post('/api/requests', async (req, res) => {
     const totalFee = subtotal + deliveryFee;
 
     // #region agent log
-    fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H1',location:'server.js:/api/requests:before-duplicate-check',message:'Starting duplicate request check',data:{userId:String(req.auth.sub),role:String(req.auth.role),documentType:String(documentType||'')},timestamp:Date.now()})}).catch(()=>{});
+    fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H1',location:'server.js:/api/requests:before-duplicate-check',message:'Starting duplicate request check',data:{userId:authSub,role:authRole,documentType:String(documentType||'')},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
+    const allowMultipleSameType = normalizedDocumentType === 'Course Description 1st Page';
     const cutoff = new Date(Date.now() - DUPLICATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
     const unpaidCutoff = new Date(Date.now() - UNPAID_DUPLICATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-    const duplicate = await DocumentRequest.findOne({
-      requesterId: req.auth.sub,
-      documentType,
-      $or: [
-        {
-          createdAt: { $gte: cutoff },
-          paymentConfirmed: true,
-          status: { $in: ACTIVE_REQUEST_STATUSES }
-        },
-        {
-          createdAt: { $gte: unpaidCutoff },
-          paymentConfirmed: false
-        }
-      ]
-    }).sort({ createdAt: -1 });
+    const duplicate = allowMultipleSameType
+      ? null
+      : await DocumentRequest.findOne({
+          requesterId: authSub,
+          documentType,
+          $or: [
+            {
+              createdAt: { $gte: cutoff },
+              paymentConfirmed: true,
+              status: { $in: ACTIVE_REQUEST_STATUSES }
+            },
+            {
+              createdAt: { $gte: unpaidCutoff },
+              paymentConfirmed: false
+            }
+          ]
+        }).sort({ createdAt: -1 });
 
     // #region agent log
     fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H1',location:'server.js:/api/requests:after-duplicate-query',message:'Duplicate query result',data:{foundDuplicate:!!duplicate,duplicateId:duplicate?String(duplicate._id):null,cutoffIso:cutoff.toISOString()},timestamp:Date.now()})}).catch(()=>{});
@@ -545,10 +586,10 @@ app.post('/api/requests', async (req, res) => {
     }
 
     const newRequest = new DocumentRequest({
-      requesterId: requesterId ? requesterId : req.auth.sub,
-      full_name,
+      requesterId: authSub,
+      full_name: normalizedFullName,
       email: normalizedEmail,
-      role,
+      role: normalizedRole,
       documentType: normalizedDocumentType,
       purpose,
       copies: normalizedCopies,
@@ -557,7 +598,7 @@ app.post('/api/requests', async (req, res) => {
       succeedingPages: normalizedSucceedingPages,
       notes: notes || '',
       trackingNumber: makeTrackingNumber(),
-      paymentConfirmed: skipOnlinePayment
+      paymentConfirmed: skipOnlinePayment,
       basePrice,
       perSucceedingPageFee,
       succeedingPagesFee,
@@ -572,7 +613,7 @@ app.post('/api/requests', async (req, res) => {
         '[payments] PAYMONGO_SECRET_KEY is not set — new requests are treated as paid (development fallback).'
       );
       await createNotification({
-        userId: req.auth.sub,
+        userId: authSub,
         category: 'request_submitted',
         message: `Your request for ${newRequest.documentType} was submitted successfully.`,
         meta: {
@@ -581,7 +622,7 @@ app.post('/api/requests', async (req, res) => {
         }
       });
       // #region agent log
-      fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H3',location:'server.js:/api/requests:notification-created',message:'Created notification row for request submission',data:{userId:String(req.auth.sub),requestId:String(newRequest._id)},timestamp:Date.now()})}).catch(()=>{});
+      fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H3',location:'server.js:/api/requests:notification-created',message:'Created notification row for request submission',data:{userId:authSub,requestId:String(newRequest._id)},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
 
       void mail.notifyDocumentRequestSubmitted({
@@ -602,7 +643,7 @@ app.post('/api/requests', async (req, res) => {
     try {
       const intent = await payments.createOrRefreshPaymentIntent(newRequest, null);
       // #region agent log
-      fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H3',location:'server.js:/api/requests:payment-intent-created',message:'PayMongo payment intent created for new request',data:{userId:String(req.auth.sub),requestId:String(newRequest._id)},timestamp:Date.now()})}).catch(()=>{});
+      fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H3',location:'server.js:/api/requests:payment-intent-created',message:'PayMongo payment intent created for new request',data:{userId:authSub,requestId:String(newRequest._id)},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
 
       return res.status(201).json({
@@ -735,6 +776,31 @@ app.post('/api/requests/:id/payment/intent', authMiddleware, requireStudentOrAlu
         ? err.errors.map((e) => e.detail || e.code).join('; ')
         : err.message || '';
     return res.status(502).json({ message: 'Payment provider error.', detail });
+  }
+});
+
+// Current user's requests (student/alumni)
+app.get('/api/me/requests', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+  try {
+    const authEmail = String(req.auth?.email || '').trim().toLowerCase();
+    const authId = String(req.auth?.sub || '').trim();
+    const filter = {};
+
+    if (authEmail && authId) {
+      filter.$or = [{ requesterId: authId }, { email: authEmail }];
+    } else if (authEmail) {
+      filter.email = authEmail;
+    } else if (authId) {
+      filter.requesterId = authId;
+    } else {
+      return res.status(400).json({ message: 'User context not found.' });
+    }
+
+    const requests = await DocumentRequest.find(filter).sort({ createdAt: -1 }).lean();
+    return res.status(200).json({ requests });
+  } catch (error) {
+    console.error('List my requests error:', error);
+    return res.status(500).json({ message: 'Server error' });
   }
 });
 

@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard';
 import DocumentRequest from './pages/DocumentRequest';
 import DocumentTracking from './pages/DocumentTracking';
 import Payment from './pages/Payment';
+import PaymentReturn from './pages/PaymentReturn';
+import RequestTracking from './pages/RequestTracking';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -52,6 +54,22 @@ function App() {
           element={
             <ProtectedRoute roles={['student', 'alumni']}>
               <Payment />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment/return"
+          element={
+            <ProtectedRoute roles={['student', 'alumni']}>
+              <PaymentReturn />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-requests"
+          element={
+            <ProtectedRoute roles={['student', 'alumni']}>
+              <RequestTracking />
             </ProtectedRoute>
           }
         />

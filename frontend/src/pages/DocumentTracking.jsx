@@ -130,6 +130,8 @@ const DocumentTracking = () => {
   const statusKey = activeStep === 2 ? 'processing' : activeStep === 3 ? 'ready' : activeStep === 4 ? 'released' : 'pending';
   const progressPercent = `${(statusStep / 4) * 100}%`;
   const showDetails = Boolean(request) && !loading && !error;
+  const isPaid = Boolean(request?.paymentConfirmed);
+  const needsPayment = showDetails && !isPaid;
 
   return (
     <div className="track-page">
@@ -189,18 +191,23 @@ const DocumentTracking = () => {
               </div>
 
               <div className="track-summary-right">
-                <button
-                  className="track-proceed-btn"
-                  type="button"
-                  disabled={!showDetails}
-                  onClick={() => navigate('/payment')}
-                >
-                  PROCEED TO PAYMENT
-                </button>
+                {needsPayment && (
+                  <button
+                    className="track-proceed-btn"
+                    type="button"
+                    onClick={() =>
+                      navigate(`/payment?requestId=${encodeURIComponent(request._id)}`, {
+                        state: { request },
+                      })
+                    }
+                  >
+                    PROCEED TO PAYMENT
+                  </button>
+                )}
                 <div className="track-status-row">
-                  <span className="track-status-pill unpaid">
+                  <span className={`track-status-pill ${isPaid ? 'paid' : 'unpaid'}`}>
                     <CircleDollarSign size={15} strokeWidth={2.2} />
-                    Unpaid
+                    {isPaid ? 'Paid' : 'Unpaid'}
                   </span>
                   <span className={`track-status-pill ${statusClass}`}>
                     <Clock3 size={15} strokeWidth={2.2} />

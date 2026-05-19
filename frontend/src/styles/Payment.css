@@ -571,3 +571,46 @@
     min-height: 48px;
   }
 }
+
+.payment-feedback {
+  margin: 0 0 16px;
+  font-size: 14px;
+}
+
+.payment-feedback--error {
+  color: #c0392b;
+}
+
+.payment-feedback--success {
+  color: #2e7d32;
+}
+
+.payment-method-btn {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.payment-method-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.payment-paid-note {
+  font-size: 13px;
+  color: #33468f;
+  margin-top: 12px;
+}
+
+.payment-return-wrap {
+  max-width: 560px;
+}
+
+.payment-return-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}

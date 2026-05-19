@@ -78,16 +78,26 @@ const RequestTracking = () => {
                   <tr style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
                     <th style={{ padding: '8px 6px' }}>Tracking #</th>
                     <th style={{ padding: '8px 6px' }}>Document</th>
+                    <th style={{ padding: '8px 6px' }}>Payment</th>
                     <th style={{ padding: '8px 6px' }}>Status</th>
                     <th style={{ padding: '8px 6px' }}>Requested</th>
                   </tr>
                 </thead>
                 <tbody>
                   {requests.map((r) => (
-                    <tr key={r._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <tr
+                      key={r._id}
+                      style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                      onClick={() =>
+                        navigate(`/document-tracking?id=${encodeURIComponent(r._id)}`)
+                      }
+                    >
                       <td style={{ padding: '10px 6px', fontWeight: 600 }}>{r.trackingNumber || '—'}</td>
                       <td style={{ padding: '10px 6px' }}>{r.documentType}</td>
-                      <td style={{ padding: '10px 6px' }}>{r.status}</td>
+                      <td style={{ padding: '10px 6px' }}>
+                        {r.paymentConfirmed ? 'Paid' : 'Awaiting payment'}
+                      </td>
+                      <td style={{ padding: '10px 6px' }}>{r.status === 'Completed' ? 'Released' : r.status}</td>
                       <td style={{ padding: '10px 6px', color: '#64748b' }}>
                         {r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}
                       </td>

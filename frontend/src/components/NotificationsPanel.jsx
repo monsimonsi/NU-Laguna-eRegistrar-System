@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { IoIosNotifications } from 'react-icons/io';
 import { apiFetch } from '../api';
 
 export default function NotificationsPanel() {
@@ -24,9 +25,32 @@ export default function NotificationsPanel() {
     }
   }, []);
 
+  const markAllRead = useCallback(async () => {
+    try {
+      const { res } = await apiFetch('/api/me/notifications/read-all', {
+        method: 'PATCH',
+        auth: true,
+        json: false,
+      });
+      if (res.ok) {
+        setNotifications((prev) => prev.map((n) => ({ ...n, status: 'read' })));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (open) return undefined;
+    const interval = setInterval(() => {
+      load();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [open, load]);
 
   const unreadCount = notifications.filter((n) => n.status !== 'read').length;
 
@@ -47,16 +71,29 @@ export default function NotificationsPanel() {
     }
   };
 
+  const handleToggle = async () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    await load();
+    await markAllRead();
+  };
+
   return (
     <div className="notifications-panel">
       <button
         type="button"
         className="notifications-toggle"
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleToggle}
         aria-expanded={open}
       >
+        <IoIosNotifications className="notifications-icon" aria-hidden="true" />
         Notifications
-        {unreadCount > 0 && <span className="notifications-badge">{unreadCount}</span>}
+        {!open && unreadCount > 0 && (
+          <span className="notifications-badge">{unreadCount}</span>
+        )}
       </button>
 
       {open && (

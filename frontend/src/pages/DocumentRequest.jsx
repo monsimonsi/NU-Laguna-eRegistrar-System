@@ -1,10 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, FileText } from 'lucide-react';
 import logo from '../assets/NU_shield.png';
+import settingslogo from '../assets/settings-icon.png';
+import tracklogo from '../assets/track-icon.png';
+import submitlogo from '../assets/submit-icon.png';
+import logoutlogo from '../assets/logout-icon.png';
+import { API_BASE, authHeaders, clearSession, formatPhp } from '../api';
+import { estimateFees, findPriceForType } from '../utils/fees';
+import '../styles/Dashboard.css';
 import '../styles/DocumentRequest.css';
 
-const DocumentRequest = () => {
+const DocumentRequest = ({ onBack }) => {
+  const [isOpen, setIsOpen] = useState(false);
   const [copies, setCopies] = useState(1);
   const [succeedingPages, setSucceedingPages] = useState(0);
   const [documentType, setDocumentType] = useState('');
@@ -16,7 +24,26 @@ const DocumentRequest = () => {
   const [isError, setIsError] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [createdRequest, setCreatedRequest] = useState(null);
+  const [duplicateRequestId, setDuplicateRequestId] = useState('');
+  const [prices, setPrices] = useState([]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/prices`);
+        const data = await res.json();
+        if (res.ok) setPrices(data.prices || []);
+      } catch {
+        /* optional preview */
+      }
+    })();
+  }, []);
+
+  const feeEstimate = useMemo(() => {
+    const row = findPriceForType(prices, documentType);
+    return estimateFees(row, { copies, succeedingPages, deliveryMethod });
+  }, [prices, documentType, copies, succeedingPages, deliveryMethod]);
 
   const decreaseCopies = () => {
     setCopies((prev) => Math.max(1, prev - 1));
@@ -32,6 +59,28 @@ const DocumentRequest = () => {
 
   const increaseSucceedingPages = () => {
     setSucceedingPages((prev) => prev + 1);
+  };
+
+  const toggleSidebar = (e) => {
+    e.stopPropagation();
+    setIsOpen((prev) => !prev);
+  };
+
+  const closeSidebar = () => {
+    setIsOpen(false);
+  };
+
+  const goToDashboard = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+    navigate('/dashboard');
+  };
+
+  const handleLogout = () => {
+    clearSession();
+    navigate('/login');
   };
 
   const handleSubmit = async (e) => {
@@ -73,9 +122,9 @@ const DocumentRequest = () => {
     }
 
     try {
-      const res = await fetch('http://localhost:5000/api/requests', {
+      const res = await fetch(`${API_BASE}/api/requests`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(true),
         body: JSON.stringify(payload)
       });
 
@@ -83,12 +132,23 @@ const DocumentRequest = () => {
       if (!res.ok) {
         setIsError(true);
         setMessage(data.message || 'Failed to create request.');
+        if (res.status === 409 && data.duplicateRequestId) {
+          setDuplicateRequestId(data.duplicateRequestId);
+        }
         return;
       }
 
+      setDuplicateRequestId('');
       setIsError(false);
-      // store created request and show modal
       setCreatedRequest(data.request || null);
+
+      if (data.paymentMode === 'paymongo' && data.request?._id) {
+        navigate(`/payment?requestId=${encodeURIComponent(data.request._id)}`, {
+          state: { request: data.request, payment: data.payment },
+        });
+        return;
+      }
+
       setShowModal(true);
       setMessage('Request submitted successfully.');
       // reset form
@@ -107,23 +167,58 @@ const DocumentRequest = () => {
   };
 
   return (
-    <div className="doc-page">
+    <div className={`doc-page ${isOpen ? 'sidebar-open' : ''}`} onClick={closeSidebar}>
       <header className="doc-topbar">
-        <button className="doc-menu-btn" aria-label="Menu">
+        <button
+          className="doc-menu-btn"
+          aria-label="Menu"
+          aria-expanded={isOpen}
+          onClick={toggleSidebar}
+        >
           <Menu size={30} strokeWidth={2.5} />
         </button>
 
-        <div className="doc-brand">
+        <button type="button" className="doc-brand" onClick={goToDashboard}>
           <img src={logo} alt="NU Logo" className="doc-logo" />
           <span className="doc-title">NU Laguna e-Registrar</span>
-        </div>
+        </button>
       </header>
+
+      <div className={`sidebar doc-sidebar ${isOpen ? 'active' : ''}`} onClick={(e) => e.stopPropagation()}>
+        <nav className="sidebar-nav">
+          <div className="sidebar-link" onClick={() => { setIsOpen(false); }}>
+            <img src={submitlogo} alt="Submit Logo" className="sidebar-icon" />
+            <span className="sidebar-label">Submit Document Requests</span>
+          </div>
+          <div className="sidebar-link" onClick={() => { setIsOpen(false); goToDashboard(); }}>
+            <img src={tracklogo} alt="" className="sidebar-icon" />
+            <span className="sidebar-label">Track Document Requests</span>
+          </div>
+          <div className="sidebar-link" onClick={() => { setIsOpen(false); goToDashboard(); }}>
+            <img src={settingslogo} alt="" className="sidebar-icon" />
+            <span className="sidebar-label">Account Settings</span>
+          </div>
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="sidebar-link logout-sidebar" onClick={handleLogout}>
+            <img src={logoutlogo} alt="Logout Logo" className="sidebar-icon" />
+            <span className="sidebar-label">LOG OUT</span>
+          </div>
+        </div>
+      </div>
 
       <main className="doc-main">
         <div className="doc-back-row">
-          <Link to="/admin-dashboard" className="doc-back-link">
-            &lsaquo; Back to Dashboard
-          </Link>
+          {onBack ? (
+            <button onClick={onBack} className="doc-back-link doc-back-button">
+              &lsaquo; Back to Dashboard
+            </button>
+          ) : (
+            <Link to="/dashboard" className="doc-back-link">
+              &lsaquo; Back to Dashboard
+            </Link>
+          )}
         </div>
 
         <section className="doc-card">
@@ -146,6 +241,7 @@ const DocumentRequest = () => {
                     <option>Certificate of Registration (COR)</option>
                     <option>Certificates</option>
                     <option>Certificate of Good Moral Character</option>
+                    <option>Completion of Grades</option>
                     <option>Copy of Grades</option>
                     <option>Course Curriculum</option>
                     <option>Course Description 1st Page</option>
@@ -201,7 +297,7 @@ const DocumentRequest = () => {
             </div>
 
             {documentType === 'Course Description 1st Page' && (
-              <div className="doc-grid-top" style={{marginTop: 18}}>
+              <div className="doc-grid-top doc-grid-top--spaced">
                 <div className="doc-field copies-field">
                   <label>Succeeding Pages</label>
                   <div className="copies-control">
@@ -258,12 +354,35 @@ const DocumentRequest = () => {
               <textarea placeholder="Add personal notes or instructions if any" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
 
+            {documentType && (
+              <div className="doc-fee-preview">
+                <strong>Estimated total: {formatPhp(feeEstimate.total)}</strong>
+                {feeEstimate.deliveryFee > 0 && <span> (includes delivery fee)</span>}
+              </div>
+            )}
+
             <div className="doc-actions">
-              <button type="button" className="cancel-btn" onClick={() => {
-                setDocumentType(''); setPurpose(''); setCopies(1); setSucceedingPages(0); setDeliveryMethod('pickup'); setNotes(''); setAddress(''); setMessage('');
-              }}>
-                CANCEL
-              </button>
+              <button
+  type="button"
+  className="cancel-btn"
+  onClick={() => {
+    setDocumentType('');
+    setPurpose('');
+    setCopies(1);
+    setSucceedingPages(0);
+    setDeliveryMethod('pickup');
+    setNotes('');
+    setAddress('');
+    setMessage('');
+    if (onBack) {
+      onBack();
+      return;
+    }
+    navigate('/dashboard');
+  }}
+>
+  CANCEL
+</button>
               <button type="submit" className="submit-btn">
                 SUBMIT REQUEST
               </button>
@@ -272,39 +391,50 @@ const DocumentRequest = () => {
         </section>
       </main>
       {message && (
-        <div className={`doc-message ${isError ? 'error' : 'success'}`} style={{margin: '16px'}}>
+        <div className={`doc-message ${isError ? 'error' : 'success'} doc-message--spaced`}>
           {message}
+          {duplicateRequestId && (
+            <button
+              type="button"
+              className="doc-retry-pay-btn"
+              onClick={() =>
+                navigate(`/payment?requestId=${encodeURIComponent(duplicateRequestId)}`)
+              }
+            >
+              Retry payment
+            </button>
+          )}
         </div>
       )}
 
       {showModal && (
-        <div style={{position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'grid', placeItems: 'center', zIndex: 60}}>
-          <div style={{width: 'min(560px, 94%)', background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 8px 30px rgba(0,0,0,0.25)'}}>
-            <h3 style={{margin: 0, fontSize: 18}}>Request Submitted</h3>
-            <p style={{color: '#444', marginTop: 8}}>Your document request was created successfully.</p>
+        <div className="doc-modal-overlay">
+          <div className="doc-modal">
+            <h3 className="doc-modal-title">Request Submitted</h3>
+            <p className="doc-modal-subtitle">Your document request was created successfully.</p>
             {createdRequest && (
-              <div style={{marginTop: 8, fontSize: 13, color: '#222'}}>
+              <div className="doc-modal-details">
                 <div><strong>ID:</strong> {createdRequest._id}</div>
                 <div><strong>Document:</strong> {createdRequest.documentType}</div>
                 <div><strong>Status:</strong> {createdRequest.status}</div>
               </div>
             )}
 
-            <div style={{display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 18}}>
+            <div className="doc-modal-actions">
               <button
                 type="button"
-                onClick={() => navigate('/admin-dashboard')}
-                style={{background: '#dde2ec', border: 0, padding: '8px 12px', borderRadius: 8, cursor: 'pointer'}}
+                onClick={() => onBack ? onBack() : navigate('/dashboard')}
+                className="doc-modal-btn doc-modal-btn--secondary"
               >
-                Go to Dashboard
+                View my requests
               </button>
 
               <button
                 type="button"
                 onClick={() => { setShowModal(false); setCreatedRequest(null); setMessage(''); }}
-                style={{background: '#9ca4d7', color: '#16307a', border: 0, padding: '8px 12px', borderRadius: 8, cursor: 'pointer'}}
+                className="doc-modal-btn doc-modal-btn--primary"
               >
-                New Request
+                New request
               </button>
             </div>
           </div>

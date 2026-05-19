@@ -614,3 +614,10 @@
   gap: 12px;
   margin-top: 20px;
 }
+
+.payment-sandbox-hint {
+  font-size: 13px;
+  color: #33468f;
+  margin: 0 0 12px;
+  line-height: 1.4;
+}

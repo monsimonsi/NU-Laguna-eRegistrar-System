@@ -618,7 +618,7 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
       succeedingPages: normalizedSucceedingPages,
       notes: notes || '',
       trackingNumber: makeTrackingNumber(),
-      paymentConfirmed: skipOnlinePayment,
+      paymentConfirmed: false,
       basePrice,
       perSucceedingPageFee,
       succeedingPagesFee,
@@ -630,33 +630,15 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
 
     if (skipOnlinePayment) {
       console.warn(
-        '[payments] PAYMONGO_SECRET_KEY is not set — new requests are treated as paid (development fallback).'
+        '[payments] PAYMONGO_SECRET_KEY is not set — complete payment on the Payment page (sandbox mode).'
       );
-      await createNotification({
-        userId: authSub,
-        category: 'request_submitted',
-        message: `Your request for ${newRequest.documentType} was submitted successfully.`,
-        meta: {
-          requestId: String(newRequest._id),
-          trackingNumber: newRequest.trackingNumber || ''
-        }
-      });
-      // #region agent log
-      fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H3',location:'server.js:/api/requests:notification-created',message:'Created notification row for request submission',data:{userId:authSub,requestId:String(newRequest._id)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
-
-      void mail.notifyDocumentRequestSubmitted({
-        to: newRequest.email,
-        fullName: newRequest.full_name,
-        trackingNumber: newRequest.trackingNumber || '',
-        documentType: newRequest.documentType
-      });
 
       return res.status(201).json({
-        message: 'Request created',
+        message:
+          'Request saved. Proceed to payment to complete your order (sandbox mode until PayMongo keys are set).',
         request: newRequest,
         payment: null,
-        paymentMode: 'skipped'
+        paymentMode: 'sandbox'
       });
     }
 
@@ -788,6 +770,39 @@ app.get('/api/requests/:id/payment', authMiddleware, requireStudentOrAlumni, asy
   }
 });
 
+// Sandbox payment confirmation (when PayMongo is not configured)
+app.post('/api/requests/:id/payment/confirm-sandbox', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { method } = req.body;
+
+    const doc = await DocumentRequest.findById(id);
+    if (!doc) return res.status(404).json({ message: 'Request not found' });
+
+    if (!isRequestOwner(req, doc)) {
+      return res.status(403).json({ message: 'You can only pay for your own requests.' });
+    }
+
+    if (payments.isPaymongoConfigured()) {
+      return res.status(400).json({
+        message: 'Use GCash or Maya checkout. Sandbox confirmation is only for development without PayMongo.'
+      });
+    }
+
+    const result = await payments.confirmSandboxPayment(doc, method);
+    const payment = await payments.getPaymentForRequest(doc._id);
+
+    return res.status(200).json({
+      message: 'Payment recorded. Your request is now with the registrar.',
+      request: result.request,
+      payment
+    });
+  } catch (err) {
+    console.error('Sandbox payment confirm error:', err);
+    return res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
 // Start GCash / Maya checkout (redirect URL)
 app.post('/api/requests/:id/payment/checkout', authMiddleware, requireStudentOrAlumni, async (req, res) => {
   try {
@@ -807,7 +822,8 @@ app.post('/api/requests/:id/payment/checkout', authMiddleware, requireStudentOrA
 
     if (!payments.isPaymongoConfigured()) {
       return res.status(503).json({
-        message: 'Online payment is not configured. Your request will be processed without payment in development mode.'
+        message:
+          'PayMongo is not configured. Use sandbox payment on this page (GCash/Maya buttons) or set PAYMONGO_SECRET_KEY.'
       });
     }
 

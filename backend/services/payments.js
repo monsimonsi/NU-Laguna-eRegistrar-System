@@ -338,12 +338,58 @@ async function getPaymentForRequest(documentRequestId) {
   return Payment.findOne({ documentRequestId }).lean();
 }
 
+/**
+ * Dev/sandbox: mark request paid when PayMongo is not configured (payment page flow).
+ */
+async function confirmSandboxPayment(documentRequest, method = 'sandbox') {
+  if (isPaymongoConfigured()) {
+    throw new Error('Sandbox payment is disabled while PayMongo is configured.');
+  }
+
+  if (documentRequest.paymentConfirmed) {
+    return { ok: true, alreadyPaid: true, request: documentRequest };
+  }
+
+  const normalizedMethod = String(method || 'sandbox').trim().toLowerCase();
+  const methodLabel =
+    normalizedMethod === 'gcash'
+      ? 'GCash (sandbox)'
+      : normalizedMethod === 'paymaya'
+        ? 'Maya (sandbox)'
+        : 'Sandbox';
+
+  const amount = centavosForRequest(documentRequest);
+
+  await Payment.findOneAndUpdate(
+    { documentRequestId: documentRequest._id },
+    {
+      documentRequestId: documentRequest._id,
+      amountCentavos: amount,
+      currency: 'PHP',
+      paymentStatus: 'paid',
+      paymentMethod: methodLabel,
+      transactionReference: `SANDBOX-${Date.now()}`
+    },
+    { upsert: true, new: true }
+  );
+
+  documentRequest.paymentConfirmed = true;
+  await documentRequest.save();
+
+  if (documentRequest.requesterId) {
+    await notifyRequestSubmitted(documentRequest, documentRequest.requesterId);
+  }
+
+  return { ok: true, request: documentRequest };
+}
+
 module.exports = {
   isPaymongoConfigured,
   centavosForRequest,
   createOrRefreshPaymentIntent,
   startEwalletCheckout,
   getPaymentForRequest,
+  confirmSandboxPayment,
   notifyRequestSubmitted,
   handlePayMongoWebhook
 };

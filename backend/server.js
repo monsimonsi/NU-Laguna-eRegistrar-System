@@ -44,6 +44,17 @@ app.post(
 );
 app.use(express.json());
 
+app.get('/api/health', (req, res) => {
+  const dbConnected = mongoose.connection.readyState === 1;
+  res.status(dbConnected ? 200 : 503).json({
+    ok: dbConnected,
+    database: dbConnected ? 'connected' : 'disconnected',
+    hint: dbConnected
+      ? null
+      : 'Allow your IP in MongoDB Atlas → Network Access, or use 0.0.0.0/0 for development.'
+  });
+});
+
 const ALLOWED_STATUSES = DocumentRequest.REQUEST_STATUSES || [
   'Pending',
   'Processing',
@@ -103,6 +114,14 @@ function isRequestOwner(req, request) {
 // Login API
 app.post('/api/login', async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        approved: false,
+        message:
+          'Database is not connected. In MongoDB Atlas, open Network Access and add your current IP (or 0.0.0.0/0 for dev), then restart the backend.'
+      });
+    }
+
     const { email, password, role } = req.body;
     const normalizedEmail = String(email || '').trim().toLowerCase();
     const normalizedPassword = String(password || '');
@@ -370,7 +389,7 @@ app.post('/api/alumni-registrations', async (req, res) => {
 });
 
 // List alumni registrations (admin)
-app.get('/api/alumni-registrations', async (req, res) => {
+app.get('/api/alumni-registrations', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const registrations = await AlumniRegistration.find()
       .sort({ createdAt: -1 })
@@ -383,7 +402,7 @@ app.get('/api/alumni-registrations', async (req, res) => {
 });
 
 // Update alumni verification status (admin)
-app.patch('/api/alumni-registrations/:id', async (req, res) => {
+app.patch('/api/alumni-registrations/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { verificationStatus, reviewedBy, rejectionReason } = req.body;
@@ -733,6 +752,81 @@ app.patch('/api/me/notifications/:id/read', authMiddleware, requireStudentOrAlum
   }
 });
 
+// Payment status for a request (student/alumni owner)
+app.get('/api/requests/:id/payment', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+  try {
+    const doc = await DocumentRequest.findById(req.params.id).lean();
+    if (!doc) return res.status(404).json({ message: 'Request not found' });
+    if (!isRequestOwner(req, doc)) {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    const payment = await payments.getPaymentForRequest(doc._id);
+    return res.status(200).json({
+      request: doc,
+      payment,
+      paymentConfirmed: Boolean(doc.paymentConfirmed),
+      paymongoEnabled: payments.isPaymongoConfigured()
+    });
+  } catch (err) {
+    console.error('Get payment status error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Start GCash / Maya checkout (redirect URL)
+app.post('/api/requests/:id/payment/checkout', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { method } = req.body;
+
+    const doc = await DocumentRequest.findById(id);
+    if (!doc) return res.status(404).json({ message: 'Request not found' });
+
+    if (!isRequestOwner(req, doc)) {
+      return res.status(403).json({ message: 'You can only pay for your own requests.' });
+    }
+
+    if (doc.paymentConfirmed) {
+      return res.status(400).json({ message: 'This request is already paid.' });
+    }
+
+    if (!payments.isPaymongoConfigured()) {
+      return res.status(503).json({
+        message: 'Online payment is not configured. Your request will be processed without payment in development mode.'
+      });
+    }
+
+    const frontendBase = String(process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const returnUrl = `${frontendBase}/payment/return?requestId=${encodeURIComponent(String(doc._id))}`;
+
+    const existingPayment = await payments.getPaymentForRequest(doc._id);
+    const checkout = await payments.startEwalletCheckout(doc, existingPayment, method, returnUrl);
+
+    if (!checkout.redirectUrl) {
+      return res.status(502).json({ message: 'Payment provider did not return a checkout URL.' });
+    }
+
+    return res.status(200).json({
+      redirectUrl: checkout.redirectUrl,
+      payment: {
+        status: checkout.payment?.paymentStatus || 'pending',
+        amountCentavos: checkout.amountCentavos,
+        currency: checkout.currency,
+        clientKey: checkout.clientKey,
+        paymentIntentId: checkout.paymentIntentId
+      }
+    });
+  } catch (err) {
+    console.error('Payment checkout error:', err);
+    const detail =
+      err.errors && Array.isArray(err.errors)
+        ? err.errors.map((e) => e.detail || e.code).join('; ')
+        : err.message || '';
+    return res.status(502).json({ message: 'Payment provider error.', detail });
+  }
+});
+
 // Refresh PayMongo client credentials for an unpaid request (retry / resume checkout)
 app.post('/api/requests/:id/payment/intent', authMiddleware, requireStudentOrAlumni, async (req, res) => {
   try {
@@ -923,14 +1017,33 @@ app.patch('/api/requests/:id', authMiddleware, requireAdmin, async (req, res) =>
   }
 });
 
-// DB connect + server start
+function logServerReady() {
+  console.log('Server is running on port', process.env.PORT);
+  console.log('Health check: http://localhost:' + process.env.PORT + '/api/health');
+  if (mail.isMailConfigured()) {
+    console.log('SMTP email: enabled (transactional notifications will be sent)');
+  } else {
+    console.log('SMTP email: disabled — set MAIL_HOST, MAIL_USER, MAIL_PASS to enable');
+  }
+  if (payments.isPaymongoConfigured()) {
+    console.log('PayMongo: enabled (document requests require successful payment before registrar queue)');
+  } else {
+    console.log('PayMongo: disabled — set PAYMONGO_SECRET_KEY to require GCash/Maya checkout');
+  }
+}
+
+// Start HTTP immediately so the frontend gets responses even while DB is connecting
+app.listen(process.env.PORT, () => {
+  logServerReady();
+});
+
+// DB connect (login and all data routes need this)
 mongoose
   .connect(process.env.MONGO_URI, {
     dbName: process.env.DB_NAME
   })
   .then(async () => {
     console.log('Connected to MongoDB database:', process.env.DB_NAME);
-    // Migrate legacy status label to spec-aligned "Released"
     const legacy = await DocumentRequest.updateMany(
       { status: 'Completed' },
       { $set: { status: 'Released' } }
@@ -945,20 +1058,10 @@ mongoose
     if (payMig.modifiedCount > 0) {
       console.log('Migrated request payment flags: paymentConfirmed=true (', payMig.modifiedCount, 'docs)');
     }
-    app.listen(process.env.PORT, () => {
-      console.log('Server is running on port', process.env.PORT);
-      if (mail.isMailConfigured()) {
-        console.log('SMTP email: enabled (transactional notifications will be sent)');
-      } else {
-        console.log('SMTP email: disabled — set MAIL_HOST, MAIL_USER, MAIL_PASS to enable');
-      }
-      if (payments.isPaymongoConfigured()) {
-        console.log('PayMongo: enabled (document requests require successful payment before registrar queue)');
-      } else {
-        console.log('PayMongo: disabled — set PAYMONGO_SECRET_KEY to require GCash/Maya checkout');
-      }
-    });
   })
   .catch((error) => {
-    console.error('Error connecting to MongoDB', error);
+    console.error('Error connecting to MongoDB:', error.message || error);
+    console.error(
+      'Fix: MongoDB Atlas → Network Access → Add IP Address (your current IP or 0.0.0.0/0 for dev).'
+    );
   });

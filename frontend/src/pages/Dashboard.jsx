@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../styles/Dashboard.css'
 import DocumentRequest from './DocumentRequest'
+import NotificationsPanel from '../components/NotificationsPanel'
 import { API_BASE, authHeaders, clearSession } from '../api'
 import logo from '../assets/NU_shield.png'
 import settingslogo from '../assets/settings-icon.png'
@@ -29,7 +30,7 @@ function App() {
     'Processing',
     'Ready for Pickup',
     'Out for Delivery',
-    'Completed'
+    'Released'
   ];
 
   const toggleSidebar = (e) => {
@@ -45,7 +46,7 @@ function App() {
     }
   };
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     const user = getUser();
     if (!user || !user.email) {
       setError('You must be logged in to view your requests.');
@@ -76,13 +77,13 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (view === 'dashboard') {
       fetchRequests();
     }
-  }, [view]);
+  }, [view, fetchRequests]);
 
   const stats = useMemo(() => {
     const base = {
@@ -91,12 +92,13 @@ function App() {
       Processing: 0,
       'Ready for Pickup': 0,
       'Out for Delivery': 0,
-      Completed: 0
+      Released: 0
     };
 
     requests.forEach((req) => {
-      if (base[req.status] !== undefined) {
-        base[req.status] += 1;
+      const status = req.status === 'Completed' ? 'Released' : req.status;
+      if (base[status] !== undefined) {
+        base[status] += 1;
       }
     });
 
@@ -270,7 +272,7 @@ function App() {
             <img src={submitlogo} alt="Submit Logo" className="sidebar-icon" />
             <span className="sidebar-label">Submit Document Requests</span>
           </div>
-          <div className="sidebar-link" onClick={() => { setView('dashboard'); setIsOpen(false); }}>
+          <div className="sidebar-link" onClick={() => { navigate('/my-requests'); setIsOpen(false); }}>
             <img src={tracklogo} alt="" className="sidebar-icon" />
             <span className="sidebar-label">Track Document Requests</span>
           </div>
@@ -295,6 +297,7 @@ function App() {
         <main className="dashboard-wrapper" key="dashboard">
           <div className="dashboard-header-row">
             <h2 className="page-title">Document Requests Dashboard</h2>
+            <NotificationsPanel />
             <button className="new-request-btn" onClick={() => navigate('/document-request')}>
               <img src={pluslogo} alt="Plus Logo" className="btn-plus-asset" />
               REQUEST A DOCUMENT
@@ -307,7 +310,7 @@ function App() {
             <div className="stat-card"><span className="stat-label">Processing</span><span className="stat-value orange">{stats.Processing}</span></div>
             <div className="stat-card"><span className="stat-label">Ready for Pickup</span><span className="stat-value green">{stats['Ready for Pickup']}</span></div>
             <div className="stat-card"><span className="stat-label">Out for Delivery</span><span className="stat-value teal">{stats['Out for Delivery']}</span></div>
-            <div className="stat-card"><span className="stat-label">Completed</span><span className="stat-value yellow">{stats.Completed}</span></div>
+            <div className="stat-card"><span className="stat-label">Released</span><span className="stat-value yellow">{stats.Released}</span></div>
           </div>
 
           <div className="table-controls-row">
@@ -349,23 +352,24 @@ function App() {
                     <th>Copies</th>
                     <th>Delivery Method</th>
                     <th>Total Fee</th>
+                    <th>Payment</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading && (
                     <tr>
-                      <td className="table-loading" colSpan="9">Loading requests...</td>
+                      <td className="table-loading" colSpan="10">Loading requests...</td>
                     </tr>
                   )}
                   {!isLoading && error && (
                     <tr>
-                      <td className="table-error" colSpan="9">{error}</td>
+                      <td className="table-error" colSpan="10">{error}</td>
                     </tr>
                   )}
                   {!isLoading && !error && filteredRequests.length === 0 && (
                     <tr>
-                      <td className="table-empty" colSpan="9">No requests found.</td>
+                      <td className="table-empty" colSpan="10">No requests found.</td>
                     </tr>
                   )}
                   {!isLoading && !error && filteredRequests.map((req) => (
@@ -385,7 +389,23 @@ function App() {
                       <td>{req.copies ?? '-'}</td>
                       <td>{formatDeliveryMethod(req.deliveryMethod)}</td>
                       <td>{formatCurrency(req.totalFee)}</td>
-                      <td>{req.status || '-'}</td>
+                      <td>
+                        {req.paymentConfirmed ? (
+                          <span className="payment-tag paid">Paid</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="payment-tag unpaid-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/payment?requestId=${encodeURIComponent(req._id)}`);
+                            }}
+                          >
+                            Pay now
+                          </button>
+                        )}
+                      </td>
+                      <td>{req.status === 'Completed' ? 'Released' : req.status || '-'}</td>
                     </tr>
                   ))}
                 </tbody>

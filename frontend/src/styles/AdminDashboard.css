@@ -228,6 +228,12 @@ body {
   color: #1f1f1f;
 }
 
+.dashboard-load-error {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: #c0392b;
+}
+
 /* STATS */
 .stats-grid {
   display: grid;

@@ -16,9 +16,36 @@ function isPaymongoConfigured() {
   return Boolean(paymongoSecret());
 }
 
-function centavosForRequest() {
+function centavosForRequest(documentRequest) {
+  const totalFee = Number(documentRequest?.totalFee);
+  if (Number.isFinite(totalFee) && totalFee > 0) {
+    return Math.round(totalFee * 100);
+  }
   const n = Number(process.env.DOCUMENT_REQUEST_FEE_CENTAVOS);
   return Number.isFinite(n) && n >= 100 ? Math.round(n) : 10000;
+}
+
+async function paymongoApi(path, method, body) {
+  const sk = paymongoSecret();
+  if (!sk) throw new Error('PayMongo is not configured');
+
+  const res = await fetch(`https://api.paymongo.com/v1${path}`, {
+    method,
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${sk}:`).toString('base64')}`,
+      'Content-Type': 'application/json'
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const err = new Error('PayMongo API error');
+    err.errors = json.errors;
+    err.status = res.status;
+    throw err;
+  }
+  return json.data;
 }
 
 function client() {
@@ -62,7 +89,7 @@ async function createOrRefreshPaymentIntent(documentRequest, existingPayment) {
     throw new Error('PayMongo is not configured');
   }
 
-  const amount = centavosForRequest();
+  const amount = centavosForRequest(documentRequest);
   const description = `NU Laguna e-Registrar — ${documentRequest.documentType} (${documentRequest.trackingNumber || ''})`.trim();
 
   if (existingPayment?.paymongoPaymentIntentId) {
@@ -228,10 +255,95 @@ async function handlePayMongoWebhook(req, res) {
   }
 }
 
+/**
+ * Starts GCash or Maya checkout; returns redirect URL for the e-wallet app/page.
+ */
+async function startEwalletCheckout(documentRequest, existingPayment, method, returnUrl) {
+  const pm = client();
+  if (!pm) throw new Error('PayMongo is not configured');
+
+  const normalizedMethod = String(method || '').trim().toLowerCase();
+  if (normalizedMethod !== 'gcash' && normalizedMethod !== 'paymaya') {
+    throw new Error('Invalid payment method. Use gcash or paymaya.');
+  }
+
+  const intent = await createOrRefreshPaymentIntent(documentRequest, existingPayment);
+  const paymentIntentId = intent.paymentIntentId;
+
+  const billingName = String(documentRequest.full_name || 'NU Student').trim();
+  const billingEmail = String(documentRequest.email || '').trim();
+  const billingPhone = String(process.env.PAYMONGO_BILLING_PHONE || '09170000000').trim();
+
+  let paymentMethod;
+  if (pm.paymentMethods && typeof pm.paymentMethods.create === 'function') {
+    paymentMethod = await pm.paymentMethods.create({
+      type: normalizedMethod,
+      billing: {
+        name: billingName,
+        email: billingEmail,
+        phone: billingPhone
+      }
+    });
+  } else {
+    paymentMethod = await paymongoApi('/payment_methods', 'POST', {
+      data: {
+        attributes: {
+          type: normalizedMethod,
+          billing: {
+            name: billingName,
+            email: billingEmail,
+            phone: billingPhone
+          }
+        }
+      }
+    });
+  }
+
+  const paymentMethodId = paymentMethod.id || paymentMethod?.data?.id;
+  if (!paymentMethodId) {
+    throw new Error('Could not create payment method.');
+  }
+
+  const attachPayload = {
+    payment_method: paymentMethodId,
+    return_url: returnUrl
+  };
+
+  let attached;
+  if (pm.paymentIntents && typeof pm.paymentIntents.attach === 'function') {
+    attached = await pm.paymentIntents.attach(paymentIntentId, attachPayload);
+  } else {
+    attached = await paymongoApi(`/payment_intents/${paymentIntentId}/attach`, 'POST', {
+      data: { attributes: attachPayload }
+    });
+  }
+
+  const attrs = attached.attributes || attached;
+  const redirectUrl =
+    attrs?.next_action?.redirect?.url ||
+    attrs?.next_action?.redirect?.checkout_url ||
+    null;
+
+  return {
+    redirectUrl,
+    paymentIntentId,
+    clientKey: intent.clientKey,
+    amountCentavos: intent.amountCentavos,
+    currency: intent.currency,
+    payment: intent.payment
+  };
+}
+
+async function getPaymentForRequest(documentRequestId) {
+  return Payment.findOne({ documentRequestId }).lean();
+}
+
 module.exports = {
   isPaymongoConfigured,
   centavosForRequest,
   createOrRefreshPaymentIntent,
+  startEwalletCheckout,
+  getPaymentForRequest,
   notifyRequestSubmitted,
   handlePayMongoWebhook
 };

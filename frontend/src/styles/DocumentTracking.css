@@ -229,6 +229,10 @@ body {
   background: #9ca4d7;
 }
 
+.track-status-pill.paid {
+  background: #2e7d32;
+}
+
 .track-status-pill.pending {
   background: #ff5f5f;
 }

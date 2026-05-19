@@ -80,6 +80,21 @@ const PaymentPage = () => {
     setMessage('');
 
     try {
+      if (!paymongoEnabled) {
+        const { res, data } = await apiFetch(
+          `/api/requests/${encodeURIComponent(requestId)}/payment/confirm-sandbox`,
+          { method: 'POST', body: JSON.stringify({ method }) }
+        );
+
+        if (!res.ok) {
+          setError(data.message || 'Could not complete sandbox payment.');
+          return;
+        }
+
+        navigate(`/payment/return?requestId=${encodeURIComponent(requestId)}`);
+        return;
+      }
+
       const { res, data } = await apiFetch(
         `/api/requests/${encodeURIComponent(requestId)}/payment/checkout`,
         { method: 'POST', body: JSON.stringify({ method }) }
@@ -172,18 +187,14 @@ const PaymentPage = () => {
                   <button type="button" className="pay-btn" onClick={() => navigate('/dashboard')}>
                     BACK TO DASHBOARD
                   </button>
-                ) : paymongoEnabled ? (
+                ) : (
                   <button
                     type="button"
                     className="pay-btn"
                     disabled={paying}
                     onClick={() => startCheckout('gcash')}
                   >
-                    {paying ? 'STARTING…' : 'PAY WITH GCASH'}
-                  </button>
-                ) : (
-                  <button type="button" className="pay-btn" onClick={() => navigate('/dashboard')}>
-                    CONTINUE (DEV MODE)
+                    {paying ? 'PROCESSING…' : paymongoEnabled ? 'PAY WITH GCASH' : 'COMPLETE PAYMENT (SANDBOX)'}
                   </button>
                 )}
               </div>
@@ -208,7 +219,12 @@ const PaymentPage = () => {
                   </div>
                   <div className="payment-methods-right">
                     <h2 className="methods-title">Choose your payment method</h2>
-                    {!isPaid && paymongoEnabled && (
+                    {!isPaid && !paymongoEnabled && (
+                      <p className="payment-sandbox-hint">
+                        PayMongo is not configured. Select GCash or Maya to simulate payment for testing.
+                      </p>
+                    )}
+                    {!isPaid && (
                       <div className="methods-content">
                         <button
                           type="button"
@@ -216,7 +232,7 @@ const PaymentPage = () => {
                           disabled={paying}
                           onClick={() => startCheckout('gcash')}
                         >
-                          <div className="method-icon">📱</div>
+                          <div className="method-icon"></div>
                           <div className="method-info">
                             <p className="method-name">GCash</p>
                             <p className="method-desc">Pay via GCash e-wallet (sandbox)</p>
@@ -229,7 +245,7 @@ const PaymentPage = () => {
                           disabled={paying}
                           onClick={() => startCheckout('paymaya')}
                         >
-                          <div className="method-icon">📱</div>
+                          <div className="method-icon"></div>
                           <div className="method-info">
                             <p className="method-name">Maya</p>
                             <p className="method-desc">Pay via Maya e-wallet (sandbox)</p>

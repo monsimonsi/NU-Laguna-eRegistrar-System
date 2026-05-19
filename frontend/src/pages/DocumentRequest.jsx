@@ -142,7 +142,7 @@ const DocumentRequest = ({ onBack }) => {
       setIsError(false);
       setCreatedRequest(data.request || null);
 
-      if (data.paymentMode === 'paymongo' && data.request?._id) {
+      if (data.request?._id && !data.request.paymentConfirmed) {
         navigate(`/payment?requestId=${encodeURIComponent(data.request._id)}`, {
           state: { request: data.request, payment: data.payment },
         });
@@ -150,7 +150,7 @@ const DocumentRequest = ({ onBack }) => {
       }
 
       setShowModal(true);
-      setMessage('Request submitted successfully.');
+      setMessage(data.message || 'Request submitted successfully.');
       // reset form
       setDocumentType('');
       setPurpose('');

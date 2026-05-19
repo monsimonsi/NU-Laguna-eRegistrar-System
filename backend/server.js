@@ -13,7 +13,8 @@ const payments = require('./services/payments');
 const {
   createNotification,
   listForUser: listNotificationsForUser,
-  markRead: markNotificationRead
+  markRead: markNotificationRead,
+  markAllRead: markAllNotificationsRead
 } = require('./services/notifications');
 const DocumentPrice = require('./models/DocumentPrice');
 const {
@@ -732,6 +733,19 @@ app.get('/api/me/notifications', authMiddleware, requireStudentOrAlumni, async (
     return res.status(200).json({ notifications: rows });
   } catch (error) {
     console.error('List notifications error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.patch('/api/me/notifications/read-all', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+  try {
+    const result = await markAllNotificationsRead(req.auth.sub);
+    if (!result.ok) {
+      return res.status(400).json({ message: 'Invalid user id.' });
+    }
+    return res.status(200).json({ updated: result.modifiedCount });
+  } catch (error) {
+    console.error('Mark all notifications read error:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 });

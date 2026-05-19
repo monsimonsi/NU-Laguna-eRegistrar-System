@@ -44,8 +44,27 @@ async function markRead(userId, notificationId) {
   return { ok: true, notification: updated };
 }
 
+async function markAllRead(userId) {
+  const uid = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : null;
+  if (!uid) {
+    return { ok: false, reason: 'invalid_id' };
+  }
+  const result = await Notification.updateMany(
+    { user_id: uid, status: { $ne: 'read' } },
+    { $set: { status: 'read' } }
+  );
+  const modifiedCount =
+    typeof result?.modifiedCount === 'number'
+      ? result.modifiedCount
+      : typeof result?.nModified === 'number'
+        ? result.nModified
+        : 0;
+  return { ok: true, modifiedCount };
+}
+
 module.exports = {
   createNotification,
   listForUser,
-  markRead
+  markRead,
+  markAllRead
 };

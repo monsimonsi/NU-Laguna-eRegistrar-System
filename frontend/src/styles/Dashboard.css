@@ -400,11 +400,19 @@ label {
   border: 1px solid #35408f;
   background: #fff;
   color: #35408f;
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: 13px;
+  padding: 10px 25px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
+}
+
+.notifications-icon {
+  font-size: 18px;
+  line-height: 1;
 }
 
 .notifications-badge {

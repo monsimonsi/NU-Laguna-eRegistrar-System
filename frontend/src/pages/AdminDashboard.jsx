@@ -11,45 +11,116 @@ import {
   Clock3,
   BadgeCheck,
   UsersRound,
+  PackageOpen,
 } from 'lucide-react';
 
 const stats = [
-  { label: 'Total Requests', value: '156', sub: 'All-Time', icon: <FileText size={16} strokeWidth={2.2} />, colorClass: 'violet' },
-  { label: 'Pending', value: '16', sub: 'Awaiting Action', icon: <Clock3 size={16} strokeWidth={2.2} />, colorClass: 'yellow' },
-  { label: 'Approved Alumni', value: '67', sub: 'Verified', icon: <BadgeCheck size={16} strokeWidth={2.2} />, colorClass: 'green' },
-  { label: 'Pending Alumni', value: '13', sub: 'Needs Verification', icon: <UsersRound size={16} strokeWidth={2.2} />, colorClass: 'orange' },
+  {
+    label: 'Total Requests',
+    value: '156',
+    sub: 'All-Time',
+    icon: <FileText size={16} strokeWidth={2.2} />,
+    colorClass: 'violet',
+  },
+  {
+    label: 'Pending',
+    value: '16',
+    sub: 'Awaiting Action',
+    icon: <Clock3 size={16} strokeWidth={2.2} />,
+    colorClass: 'yellow',
+  },
+  {
+    label: 'Approved Alumni',
+    value: '67',
+    sub: 'Verified',
+    icon: <BadgeCheck size={16} strokeWidth={2.2} />,
+    colorClass: 'green',
+  },
+  {
+    label: 'Pending Alumni',
+    value: '13',
+    sub: 'Needs Verification',
+    icon: <UsersRound size={16} strokeWidth={2.2} />,
+    colorClass: 'orange',
+  },
 ];
 
 const alumniRequests = [
-  { name: 'Juan Dela Cruz', id: '2022-80123', program: 'BS Computer Science', year: 'Year: 2024' },
-  { name: 'Dubai Chewy E. Cookie', id: '2019-88161', program: 'BS Civil Engineering', year: 'Year: 2023' },
-  { name: 'Ilocos A. Empanada', id: '2019-12395', program: 'BS Psychology', year: 'Year: 2023' },
+  {
+    name: 'Juan Dela Cruz',
+    id: '2022-80123',
+    program: 'BS Computer Science',
+    year: 'Year: 2024',
+  },
+  {
+    name: 'Dubai Chewy E. Cookie',
+    id: '2019-88161',
+    program: 'BS Civil Engineering',
+    year: 'Year: 2023',
+  },
+  {
+    name: 'Ilocos A. Empanada',
+    id: '2019-12395',
+    program: 'BS Psychology',
+    year: 'Year: 2023',
+  },
 ];
 
 const AdminDashboard = () => {
   const [profileOpen, setProfileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="admin-page">
-      <aside className="admin-sidebar">
-        <button className="sidebar-toggle" aria-label="Menu">
+      <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <button
+          className="sidebar-toggle"
+          aria-label="Toggle sidebar"
+          onClick={() => setSidebarOpen((prev) => !prev)}
+        >
           <Menu size={26} strokeWidth={2.4} />
         </button>
 
+        <div className="sidebar-brand">
+          <img src={logo} alt="NU Logo" className="sidebar-brand-logo" />
+          <div className="sidebar-brand-text">
+            <span className="brand-line1">NU-LAGUNA</span>
+            <span className="brand-line2">e-registrar</span>
+          </div>
+        </div>
+
+        <div className="sidebar-user">
+          <div className="sidebar-user-avatar">
+            <Users size={24} strokeWidth={2.2} />
+          </div>
+          <span className="sidebar-user-label">ADMIN</span>
+        </div>
+
         <nav className="sidebar-nav">
-          <button className="sidebar-icon active" aria-label="Dashboard">
-            <LayoutGrid size={20} strokeWidth={2.2} />
+          <button className="sidebar-link active" aria-label="Dashboard">
+            <LayoutGrid size={24} strokeWidth={2.2} />
+            <span className="sidebar-text">Dashboard</span>
           </button>
-          <button className="sidebar-icon" aria-label="Documents">
-            <FileText size={20} strokeWidth={2.2} />
+
+          <button className="sidebar-link" aria-label="Requests">
+            <FileText size={24} strokeWidth={2.2} />
+            <span className="sidebar-text">Requests</span>
           </button>
-          <button className="sidebar-icon" aria-label="Users">
-            <Users size={20} strokeWidth={2.2} />
+
+          <button className="sidebar-link" aria-label="Alumni Verification">
+            <Users size={24} strokeWidth={2.2} />
+            <span className="sidebar-text">Alumni Verification</span>
+          </button>
+
+          <button className="sidebar-link" aria-label="Document Tracking">
+            <PackageOpen size={24} strokeWidth={2.2} />
+            <span className="sidebar-text">Document Tracking</span>
           </button>
         </nav>
 
         <button className="logout-btn" aria-label="Logout">
-          <LogOut size={20} strokeWidth={2.2} />
+          <LogOut size={22} strokeWidth={2.2} />
+          <span className="sidebar-text">LOG OUT</span>
         </button>
       </aside>
 
@@ -69,14 +140,24 @@ const AdminDashboard = () => {
               aria-label="Open profile menu"
             >
               <div className="avatar">A</div>
-              <ChevronDown size={18} strokeWidth={2.4} className={`profile-caret ${profileOpen ? 'open' : ''}`} />
+              <ChevronDown
+                size={18}
+                strokeWidth={2.4}
+                className={`profile-caret ${profileOpen ? 'open' : ''}`}
+              />
             </button>
 
             {profileOpen && (
               <div className="profile-dropdown">
-                <button type="button" className="profile-item">Profile</button>
-                <button type="button" className="profile-item">Settings</button>
-                <button type="button" className="profile-item">Logout</button>
+                <button type="button" className="profile-item">
+                  Profile
+                </button>
+                <button type="button" className="profile-item">
+                  Settings
+                </button>
+                <button type="button" className="profile-item">
+                  Logout
+                </button>
               </div>
             )}
           </div>
@@ -207,37 +288,49 @@ const AdminDashboard = () => {
                   <tr>
                     <td>Juan Dela Cruz</td>
                     <td>Transcript of Records</td>
-                    <td><span className="status-pill pending">pending</span></td>
+                    <td>
+                      <span className="status-pill pending">pending</span>
+                    </td>
                     <td>NUL 2026-0409-001</td>
                   </tr>
                   <tr>
                     <td>Dubai Chewy E. Cookie</td>
                     <td>Diploma</td>
-                    <td><span className="status-pill processing">processing</span></td>
+                    <td>
+                      <span className="status-pill processing">processing</span>
+                    </td>
                     <td>NUL 2026-0408-002</td>
                   </tr>
                   <tr>
                     <td>Ilocos A. Empanada</td>
                     <td>Certificate of Good Moral Character</td>
-                    <td><span className="status-pill ready">ready</span></td>
+                    <td>
+                      <span className="status-pill ready">ready</span>
+                    </td>
                     <td>NUL 2026-0407-003</td>
                   </tr>
                   <tr>
                     <td>Frank Dagat</td>
                     <td>Certificate of Registration</td>
-                    <td><span className="status-pill completed">completed</span></td>
+                    <td>
+                      <span className="status-pill completed">completed</span>
+                    </td>
                     <td>NUL 2026-0406-002</td>
                   </tr>
                   <tr>
                     <td>Sabrina Karpintero</td>
                     <td>Certificates</td>
-                    <td><span className="status-pill completed">completed</span></td>
+                    <td>
+                      <span className="status-pill completed">completed</span>
+                    </td>
                     <td>NUL 2026-0405-001</td>
                   </tr>
                   <tr>
                     <td>Chappell Roan</td>
                     <td>Diploma</td>
-                    <td><span className="status-pill ready">ready</span></td>
+                    <td>
+                      <span className="status-pill ready">ready</span>
+                    </td>
                     <td>NUL 2026-0404-099</td>
                   </tr>
                 </tbody>

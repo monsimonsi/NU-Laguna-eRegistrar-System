@@ -217,6 +217,20 @@ body {
   filter: brightness(0.98);
 }
 
+.registration-message {
+  margin-top: 10px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.registration-message.success {
+  color: #2e7d32;
+}
+
+.registration-message.error {
+  color: #c0392b;
+}
+
 @media (max-width: 1200px) {
   .registration-card,
   .back-link {
@@ -378,5 +392,39 @@ body {
 
   .page-heading h1 {
     font-size: 28px;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1366px) and (max-height: 768px) {
+  .alumni-page {
+    min-height: 100svh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .page-content {
+    min-height: 100svh;
+    padding: 12px 20px 20px;
+  }
+
+  .page-heading h1 {
+    font-size: 48px;
+  }
+
+  .page-heading p {
+    font-size: 18px;
+  }
+
+  .back-link {
+    margin: 14px auto 4px;
+  }
+
+  .registration-card {
+    height: auto;
+    margin: 0 auto 24px;
+  }
+
+  .form-side {
+    padding: 22px 28px 22px;
   }
 }

@@ -12,6 +12,7 @@ import {
   Clock3,
   BadgeCheck,
   UsersRound,
+  PackageOpen,
 } from 'lucide-react';
 import { API_BASE, authHeaders, clearSession } from '../api';
 
@@ -34,6 +35,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const requestsTableRef = useRef(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [requests, setRequests] = useState([]);
   const [alumniRegistrations, setAlumniRegistrations] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
@@ -76,6 +78,7 @@ const AdminDashboard = () => {
         headers: authHeaders(false),
       });
       const data = await res.json();
+
       if (res.ok) {
         setRequests(data.requests || []);
       } else {
@@ -93,10 +96,11 @@ const AdminDashboard = () => {
         headers: authHeaders(false),
       });
       const data = await res.json();
+
       if (res.ok) {
         setAlumniRegistrations(data.registrations || []);
       } else {
-        setLoadError(data.message || 'Failed to load alumni registrations.');
+        console.error('Failed to fetch alumni registrations', data.message);
       }
     } catch (err) {
       console.error('Failed to fetch alumni registrations', err);
@@ -134,9 +138,8 @@ const AdminDashboard = () => {
     let rejectionReason = '';
     if (newStatus === 'rejected') {
       const reason = window.prompt('Enter rejection reason');
-      if (reason === null) {
-        return;
-      }
+      if (reason === null) return;
+
       rejectionReason = String(reason).trim();
       if (!rejectionReason) {
         setAlumniIsError(true);
@@ -157,13 +160,16 @@ const AdminDashboard = () => {
       });
 
       const data = await res.json();
+
       if (!res.ok) {
         setAlumniIsError(true);
         setAlumniMessage(data.message || 'Failed to update status.');
         return;
       }
 
-      setAlumniRegistrations((prev) => prev.map((r) => (r._id === id ? data.registration : r)));
+      setAlumniRegistrations((prev) =>
+        prev.map((r) => (r._id === id ? data.registration : r))
+      );
       setAlumniIsError(false);
       setAlumniMessage('Verification status updated.');
       fetchAdminStats();
@@ -179,9 +185,11 @@ const AdminDashboard = () => {
       const res = await fetch(`${API_BASE}/api/requests/${id}`, {
         method: 'PATCH',
         headers: authHeaders(true),
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: newStatus }),
       });
+
       const data = await res.json();
+
       if (res.ok) {
         setRequests((prev) => prev.map((r) => (r._id === id ? data.request : r)));
         fetchAdminStats();
@@ -193,32 +201,67 @@ const AdminDashboard = () => {
     }
   };
 
-  const statusPillClass = (status) =>
-    `status-pill ${String(status || '')
-      .toLowerCase()
-      .replace(/ /g, '-')}`;
+  const statusPillClass = (status) => {
+    const normalized = String(status || '').toLowerCase();
+
+    if (normalized.includes('processing')) return 'status-pill processing';
+    if (normalized.includes('ready')) return 'status-pill ready';
+    if (normalized.includes('out for delivery')) return 'status-pill ready';
+    if (normalized.includes('completed')) return 'status-pill completed';
+    return 'status-pill pending';
+  };
 
   return (
     <div className="admin-page">
-      <aside className="admin-sidebar">
-        <button className="sidebar-toggle" aria-label="Menu">
+      <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <button
+          className="sidebar-toggle"
+          aria-label="Toggle sidebar"
+          onClick={() => setSidebarOpen((prev) => !prev)}
+        >
           <Menu size={26} strokeWidth={2.4} />
         </button>
 
+        <div className="sidebar-brand">
+          <img src={logo} alt="NU Logo" className="sidebar-brand-logo" />
+          <div className="sidebar-brand-text">
+            <span className="brand-line1">NU-LAGUNA</span>
+            <span className="brand-line2">e-registrar</span>
+          </div>
+        </div>
+
+        <div className="sidebar-user">
+          <div className="sidebar-user-avatar">
+            <Users size={24} strokeWidth={2.2} />
+          </div>
+          <span className="sidebar-user-label">ADMIN</span>
+        </div>
+
         <nav className="sidebar-nav">
-          <button className="sidebar-icon active" aria-label="Dashboard">
-            <LayoutGrid size={20} strokeWidth={2.2} />
+          <button className="sidebar-link active" aria-label="Dashboard">
+            <LayoutGrid size={24} strokeWidth={2.2} />
+            <span className="sidebar-text">Dashboard</span>
           </button>
-          <button className="sidebar-icon" aria-label="Documents">
-            <FileText size={20} strokeWidth={2.2} />
+
+          <button className="sidebar-link" aria-label="Requests">
+            <FileText size={24} strokeWidth={2.2} />
+            <span className="sidebar-text">Requests</span>
           </button>
-          <button className="sidebar-icon" aria-label="Users">
-            <Users size={20} strokeWidth={2.2} />
+
+          <button className="sidebar-link" aria-label="Alumni Verification">
+            <Users size={24} strokeWidth={2.2} />
+            <span className="sidebar-text">Alumni Verification</span>
+          </button>
+
+          <button className="sidebar-link" aria-label="Document Tracking">
+            <PackageOpen size={24} strokeWidth={2.2} />
+            <span className="sidebar-text">Document Tracking</span>
           </button>
         </nav>
 
         <button type="button" className="logout-btn" aria-label="Logout" onClick={handleLogout}>
           <LogOut size={20} strokeWidth={2.2} />
+          <span className="sidebar-text">LOG OUT</span>
         </button>
       </aside>
 
@@ -238,13 +281,21 @@ const AdminDashboard = () => {
               aria-label="Open profile menu"
             >
               <div className="avatar">A</div>
-              <ChevronDown size={18} strokeWidth={2.4} className={`profile-caret ${profileOpen ? 'open' : ''}`} />
+              <ChevronDown
+                size={18}
+                strokeWidth={2.4}
+                className={`profile-caret ${profileOpen ? 'open' : ''}`}
+              />
             </button>
 
             {profileOpen && (
               <div className="profile-dropdown">
-                <button type="button" className="profile-item">Profile</button>
-                <button type="button" className="profile-item">Settings</button>
+                <button type="button" className="profile-item">
+                  Profile
+                </button>
+                <button type="button" className="profile-item">
+                  Settings
+                </button>
                 <button type="button" className="profile-item" onClick={handleLogout}>
                   Logout
                 </button>
@@ -318,6 +369,7 @@ const AdminDashboard = () => {
                   </div>
                 )}
               </div>
+
               {alumniMessage && (
                 <div className={`alumni-message ${alumniIsError ? 'error' : 'success'}`}>
                   {alumniMessage}
@@ -403,7 +455,9 @@ const AdminDashboard = () => {
                       <td>{r.documentType}</td>
                       <td>{r.address || '-'}</td>
                       <td>
-                        <div className={statusPillClass(r.status)}>{r.status}</div>
+                        <span className={statusPillClass(r.status)}>
+                          {r.status}
+                        </span>
                       </td>
                       <td>{r.trackingNumber || r._id || '—'}</td>
                     </tr>

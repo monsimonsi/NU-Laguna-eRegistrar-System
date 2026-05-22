@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/AdminDashboard.css';
 import logo from '../assets/NU_shield.png';
@@ -16,66 +16,106 @@ import {
 } from 'lucide-react';
 import { API_BASE, authHeaders, clearSession } from '../api';
 
-const STATUS_OPTIONS = [
-  'Pending',
-  'Processing',
-  'Ready for Pickup',
-  'Out for Delivery',
-  'Completed',
+const STAT_CONFIG = [
+  { label: 'Total Requests', key: 'totalRequests', sub: 'All-Time', icon: <FileText size={16} strokeWidth={2.2} />, colorClass: 'violet' },
+  { label: 'Pending', key: 'pendingRequests', sub: 'Awaiting Action', icon: <Clock3 size={16} strokeWidth={2.2} />, colorClass: 'yellow' },
+  { label: 'Approved Alumni', key: 'approvedAlumni', sub: 'Verified', icon: <BadgeCheck size={16} strokeWidth={2.2} />, colorClass: 'green' },
+  { label: 'Pending Alumni', key: 'pendingAlumni', sub: 'Needs Verification', icon: <UsersRound size={16} strokeWidth={2.2} />, colorClass: 'orange' },
 ];
+
+function statusOptionsForRequest(request) {
+  const method = String(request?.deliveryMethod || 'pickup').toLowerCase();
+  if (method === 'delivery') {
+    return ['Pending', 'Processing', 'Out for Delivery', 'Released'];
+  }
+  return ['Pending', 'Processing', 'Ready for Pickup', 'Released'];
+}
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const requestsTableRef = useRef(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [requests, setRequests] = useState([]);
   const [alumniRegistrations, setAlumniRegistrations] = useState([]);
+  const [dashboardStats, setDashboardStats] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [alumniMessage, setAlumniMessage] = useState('');
   const [alumniIsError, setAlumniIsError] = useState(false);
 
-  useEffect(() => {
-    fetchRequests();
-    fetchAlumniRegistrations();
+  const stats = STAT_CONFIG.map((item) => ({
+    ...item,
+    value:
+      dashboardStats && dashboardStats[item.key] != null
+        ? String(dashboardStats[item.key])
+        : '—',
+  }));
+
+  const pendingAlumniList = alumniRegistrations.filter(
+    (r) => r.verificationStatus === 'pending'
+  );
+
+  const fetchAdminStats = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/stats`, {
+        headers: authHeaders(false),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setDashboardStats(data);
+      } else {
+        setLoadError(data.message || 'Failed to load dashboard stats.');
+      }
+    } catch (err) {
+      console.error('Failed to fetch admin stats', err);
+      setLoadError('Cannot connect to server.');
+    }
   }, []);
 
-  const pendingRequests = requests.filter((r) => r.status === 'Pending').length;
-  const approvedAlumni = alumniRegistrations.filter(
-    (r) => r.verificationStatus === 'approved'
-  ).length;
-  const pendingAlumni = alumniRegistrations.filter(
-    (r) => r.verificationStatus === 'pending'
-  ).length;
+  const fetchRequests = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/requests`, {
+        headers: authHeaders(false),
+      });
+      const data = await res.json();
 
-  const stats = [
-    {
-      label: 'Total Requests',
-      value: String(requests.length),
-      sub: 'All-Time',
-      icon: <FileText size={16} strokeWidth={2.2} />,
-      colorClass: 'violet',
-    },
-    {
-      label: 'Pending',
-      value: String(pendingRequests),
-      sub: 'Awaiting Action',
-      icon: <Clock3 size={16} strokeWidth={2.2} />,
-      colorClass: 'yellow',
-    },
-    {
-      label: 'Approved Alumni',
-      value: String(approvedAlumni),
-      sub: 'Verified',
-      icon: <BadgeCheck size={16} strokeWidth={2.2} />,
-      colorClass: 'green',
-    },
-    {
-      label: 'Pending Alumni',
-      value: String(pendingAlumni),
-      sub: 'Needs Verification',
-      icon: <UsersRound size={16} strokeWidth={2.2} />,
-      colorClass: 'orange',
-    },
-  ];
+      if (res.ok) {
+        setRequests(data.requests || []);
+      } else {
+        setLoadError(data.message || 'Failed to load document requests.');
+      }
+    } catch (err) {
+      console.error('Failed to fetch requests', err);
+      setLoadError('Cannot connect to server.');
+    }
+  }, []);
+
+  const fetchAlumniRegistrations = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/alumni-registrations`, {
+        headers: authHeaders(false),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setAlumniRegistrations(data.registrations || []);
+      } else {
+        console.error('Failed to fetch alumni registrations', data.message);
+      }
+    } catch (err) {
+      console.error('Failed to fetch alumni registrations', err);
+      setLoadError('Cannot connect to server.');
+    }
+  }, []);
+
+  const fetchDashboardData = useCallback(async () => {
+    setLoadError('');
+    await Promise.all([fetchAdminStats(), fetchRequests(), fetchAlumniRegistrations()]);
+  }, [fetchAdminStats, fetchRequests, fetchAlumniRegistrations]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const handleLogout = () => {
     clearSession();
@@ -88,38 +128,6 @@ const AdminDashboard = () => {
       return user?.id || null;
     } catch (e) {
       return null;
-    }
-  };
-
-  const fetchRequests = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/requests`, {
-        headers: authHeaders(false),
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        setRequests(data.requests || []);
-      } else {
-        console.error('Failed to fetch requests', data.message);
-      }
-    } catch (err) {
-      console.error('Failed to fetch requests', err);
-    }
-  };
-
-  const fetchAlumniRegistrations = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/alumni-registrations`);
-      const data = await res.json();
-
-      if (res.ok) {
-        setAlumniRegistrations(data.registrations || []);
-      } else {
-        console.error('Failed to fetch alumni registrations', data.message);
-      }
-    } catch (err) {
-      console.error('Failed to fetch alumni registrations', err);
     }
   };
 
@@ -143,9 +151,7 @@ const AdminDashboard = () => {
     try {
       const res = await fetch(`${API_BASE}/api/alumni-registrations/${id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: authHeaders(true),
         body: JSON.stringify({
           verificationStatus: newStatus,
           reviewedBy: getCurrentAdminId(),
@@ -166,6 +172,7 @@ const AdminDashboard = () => {
       );
       setAlumniIsError(false);
       setAlumniMessage('Verification status updated.');
+      fetchAdminStats();
     } catch (err) {
       console.error('Update alumni status error', err);
       setAlumniIsError(true);
@@ -185,6 +192,7 @@ const AdminDashboard = () => {
 
       if (res.ok) {
         setRequests((prev) => prev.map((r) => (r._id === id ? data.request : r)));
+        fetchAdminStats();
       } else {
         console.error('Update failed', data.message);
       }
@@ -259,10 +267,10 @@ const AdminDashboard = () => {
 
       <div className="admin-shell">
         <header className="admin-topbar">
-          <div className="admin-brand">
+          <button type="button" className="admin-brand" onClick={() => navigate('/admin-dashboard')}>
             <img src={logo} alt="NU Logo" className="admin-logo" />
             <span className="admin-title">ADMIN DASHBOARD</span>
-          </div>
+          </button>
 
           <div className="admin-profile-wrap">
             <button
@@ -300,6 +308,7 @@ const AdminDashboard = () => {
           <section className="dashboard-header">
             <h1>DASHBOARD</h1>
             <p>Welcome back! Everything is under your control.</p>
+            {loadError && <p className="dashboard-load-error">{loadError}</p>}
           </section>
 
           <section className="stats-grid">
@@ -324,52 +333,38 @@ const AdminDashboard = () => {
                   <h3>Alumni Verification</h3>
                   <p>Pending Alumni Verification Requests</p>
                 </div>
-                <button type="button" className="view-all-btn">
+                <button
+                  type="button"
+                  className="view-all-btn"
+                  onClick={() =>
+                    requestsTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }
+                >
                   View All
                 </button>
               </div>
 
               <div className="request-list">
-                {alumniRegistrations.map((item) => (
+                {pendingAlumniList.map((item) => (
                   <div className="request-card" key={item._id}>
                     <div className="request-info">
                       <strong>{item.full_name}</strong>
                       <span>{item.student_id}</span>
                       <span>{item.course}</span>
                       <span>Year: {item.year_graduated}</span>
-                      <span className={`alumni-status ${item.verificationStatus}`}>
-                        {item.verificationStatus}
-                      </span>
-                      {item.verificationStatus === 'rejected' && item.rejectionReason && (
-                        <span className="alumni-reason">
-                          Reason: {item.rejectionReason}
-                        </span>
-                      )}
+                      <span className={`alumni-status ${item.verificationStatus}`}>{item.verificationStatus}</span>
                     </div>
 
-                    {item.verificationStatus === 'pending' && (
-                      <div className="request-actions">
-                        <button
-                          className="approve-btn"
-                          onClick={() => updateAlumniStatus(item._id, 'approved')}
-                        >
-                          Approve
-                        </button>
-                        <button
-                          className="reject-btn"
-                          onClick={() => updateAlumniStatus(item._id, 'rejected')}
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    )}
+                    <div className="request-actions">
+                      <button className="approve-btn" onClick={() => updateAlumniStatus(item._id, 'approved')}>Approve</button>
+                      <button className="reject-btn" onClick={() => updateAlumniStatus(item._id, 'rejected')}>Reject</button>
+                    </div>
                   </div>
                 ))}
-
-                {alumniRegistrations.length === 0 && (
+                {pendingAlumniList.length === 0 && (
                   <div className="request-card request-card-empty">
                     <div className="request-info">
-                      <strong>No alumni registrations yet.</strong>
+                      <strong>No pending alumni verification requests.</strong>
                     </div>
                   </div>
                 )}
@@ -388,13 +383,23 @@ const AdminDashboard = () => {
                   <h3>Request Management</h3>
                   <p>Recent Document Requests</p>
                 </div>
-                <button type="button" className="view-all-btn">
+                <button
+                  type="button"
+                  className="view-all-btn"
+                  onClick={() =>
+                    requestsTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }
+                >
                   View All
                 </button>
               </div>
 
               <div className="request-list request-list-small">
                 {requests.slice(0, 6).map((r) => (
+                  (() => {
+                    const options = statusOptionsForRequest(r);
+                    const selected = options.includes(r.status) ? r.status : options[0];
+                    return (
                   <div className="small-request-card" key={r._id}>
                     <div className="small-request-info">
                       <strong>{r.full_name}</strong>
@@ -409,28 +414,22 @@ const AdminDashboard = () => {
                       <label>Status:</label>
                       <div className="select-wrap">
                         <select
-                          value={
-                            STATUS_OPTIONS.includes(r.status)
-                              ? r.status
-                              : 'Pending'
-                          }
+                          value={selected}
                           onChange={(e) => updateStatus(r._id, e.target.value)}
                         >
-                          {STATUS_OPTIONS.map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
+                          {options.map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </div>
                     </div>
                   </div>
+                    );
+                  })()
                 ))}
               </div>
             </article>
           </section>
 
-          <section className="table-card">
+          <section className="table-card" ref={requestsTableRef}>
             <div className="table-header">
               <div className="table-header-left">
                 <h3>Recent Document Requests</h3>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, FileText } from 'lucide-react';
 import logo from '../assets/NU_shield.png';
@@ -6,7 +6,8 @@ import settingslogo from '../assets/settings-icon.png';
 import tracklogo from '../assets/track-icon.png';
 import submitlogo from '../assets/submit-icon.png';
 import logoutlogo from '../assets/logout-icon.png';
-import { API_BASE, authHeaders, clearSession } from '../api';
+import { API_BASE, authHeaders, clearSession, formatPhp } from '../api';
+import { estimateFees, findPriceForType } from '../utils/fees';
 import '../styles/Dashboard.css';
 import '../styles/DocumentRequest.css';
 
@@ -23,7 +24,26 @@ const DocumentRequest = ({ onBack }) => {
   const [isError, setIsError] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [createdRequest, setCreatedRequest] = useState(null);
+  const [duplicateRequestId, setDuplicateRequestId] = useState('');
+  const [prices, setPrices] = useState([]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/prices`);
+        const data = await res.json();
+        if (res.ok) setPrices(data.prices || []);
+      } catch {
+        /* optional preview */
+      }
+    })();
+  }, []);
+
+  const feeEstimate = useMemo(() => {
+    const row = findPriceForType(prices, documentType);
+    return estimateFees(row, { copies, succeedingPages, deliveryMethod });
+  }, [prices, documentType, copies, succeedingPages, deliveryMethod]);
 
   const decreaseCopies = () => {
     setCopies((prev) => Math.max(1, prev - 1));
@@ -112,14 +132,25 @@ const DocumentRequest = ({ onBack }) => {
       if (!res.ok) {
         setIsError(true);
         setMessage(data.message || 'Failed to create request.');
+        if (res.status === 409 && data.duplicateRequestId) {
+          setDuplicateRequestId(data.duplicateRequestId);
+        }
         return;
       }
 
+      setDuplicateRequestId('');
       setIsError(false);
-      // store created request and show modal
       setCreatedRequest(data.request || null);
+
+      if (data.request?._id && !data.request.paymentConfirmed) {
+        navigate(`/payment?requestId=${encodeURIComponent(data.request._id)}`, {
+          state: { request: data.request, payment: data.payment },
+        });
+        return;
+      }
+
       setShowModal(true);
-      setMessage('Request submitted successfully.');
+      setMessage(data.message || 'Request submitted successfully.');
       // reset form
       setDocumentType('');
       setPurpose('');
@@ -147,10 +178,10 @@ const DocumentRequest = ({ onBack }) => {
           <Menu size={30} strokeWidth={2.5} />
         </button>
 
-        <div className="doc-brand">
+        <button type="button" className="doc-brand" onClick={goToDashboard}>
           <img src={logo} alt="NU Logo" className="doc-logo" />
           <span className="doc-title">NU Laguna e-Registrar</span>
-        </div>
+        </button>
       </header>
 
       <div className={`sidebar doc-sidebar ${isOpen ? 'active' : ''}`} onClick={(e) => e.stopPropagation()}>
@@ -323,6 +354,13 @@ const DocumentRequest = ({ onBack }) => {
               <textarea placeholder="Add personal notes or instructions if any" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
 
+            {documentType && (
+              <div className="doc-fee-preview">
+                <strong>Estimated total: {formatPhp(feeEstimate.total)}</strong>
+                {feeEstimate.deliveryFee > 0 && <span> (includes delivery fee)</span>}
+              </div>
+            )}
+
             <div className="doc-actions">
               <button
   type="button"
@@ -336,7 +374,11 @@ const DocumentRequest = ({ onBack }) => {
     setNotes('');
     setAddress('');
     setMessage('');
-    if (onBack) onBack();
+    if (onBack) {
+      onBack();
+      return;
+    }
+    navigate('/dashboard');
   }}
 >
   CANCEL
@@ -351,6 +393,17 @@ const DocumentRequest = ({ onBack }) => {
       {message && (
         <div className={`doc-message ${isError ? 'error' : 'success'} doc-message--spaced`}>
           {message}
+          {duplicateRequestId && (
+            <button
+              type="button"
+              className="doc-retry-pay-btn"
+              onClick={() =>
+                navigate(`/payment?requestId=${encodeURIComponent(duplicateRequestId)}`)
+              }
+            >
+              Retry payment
+            </button>
+          )}
         </div>
       )}
 

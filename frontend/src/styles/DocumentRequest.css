@@ -57,6 +57,11 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
 }
 
 .doc-logo {
@@ -525,4 +530,27 @@ body {
   .submit-btn {
     height: 44px;
   }
+}
+
+.doc-fee-preview {
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #33468f;
+}
+
+.doc-retry-pay-btn {
+  display: block;
+  margin-top: 10px;
+  border: 1px solid #35408f;
+  background: #35408f;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }

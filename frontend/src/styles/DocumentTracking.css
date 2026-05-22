@@ -52,6 +52,11 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
 }
 
 .track-logo {
@@ -107,12 +112,48 @@ body {
   box-shadow: 0 2px 10px rgba(59, 70, 120, 0.12);
 }
 
+.track-feedback {
+  margin: 0;
+  padding: 16px 18px;
+  font-size: 16px;
+  color: #1f1f1f;
+}
+
+.track-feedback.error {
+  color: #b42318;
+}
+
 .track-summary-card {
   padding: 14px 18px;
   display: flex;
   justify-content: space-between;
   gap: 18px;
   align-items: center;
+}
+
+.track-summary-right {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 240px;
+  max-width: 100%;
+}
+
+.track-summary-right .track-proceed-btn {
+  width: 100%;
+}
+
+.track-status-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+
+.track-status-row .track-status-pill {
+  width: 100%;
+  min-width: 0;
 }
 
 .track-summary-header {
@@ -135,6 +176,26 @@ body {
 
 .track-summary-meta {
   margin-top: 12px;
+}
+
+.track-summary-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.track-summary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: #4052a6;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
 }
 
 .track-summary-meta p {
@@ -168,8 +229,28 @@ body {
   background: #9ca4d7;
 }
 
+.track-status-pill.paid {
+  background: #2e7d32;
+}
+
 .track-status-pill.pending {
   background: #ff5f5f;
+}
+
+.track-status-pill.processing {
+  background: #f7c74a;
+}
+
+.track-status-pill.ready {
+  background: #71d39f;
+}
+
+.track-status-pill.delivery {
+  background: #6ac5c5;
+}
+
+.track-status-pill.released {
+  background: #8fd17b;
 }
 
 .track-progress-card {
@@ -210,17 +291,26 @@ body {
   margin-top: 20px;
   background: #e1e1e1;
   border-radius: 999px;
-  padding: 18px 24px 12px;
+  padding: 0;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  align-items: center;
+  gap: 0;
+  align-items: stretch;
+  overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .track-step {
   text-align: center;
   color: #4052a6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 8px;
+  min-height: 170px;
+  border-radius: inherit;
+  transition: background 0.2s ease;
 }
 
 .track-step-icon {
@@ -230,14 +320,23 @@ body {
   width: 92px;
   height: 92px;
   border-radius: 999px;
+  background: transparent;
 }
 
-.track-step.active .track-step-icon {
+.track-steps[data-status="pending"] .track-step[data-step="pending"] {
   background: #ef9a9a;
 }
 
-.track-step:not(.active) .track-step-icon {
-  background: transparent;
+.track-steps[data-status="processing"] .track-step[data-step="processing"] {
+  background: #6f8dff;
+}
+
+.track-steps[data-status="ready"] .track-step[data-step="ready"] {
+  background: #71d39f;
+}
+
+.track-steps[data-status="released"] .track-step[data-step="released"] {
+  background: #ffd21a;
 }
 
 .track-step-icon svg {
@@ -267,11 +366,23 @@ body {
   padding: 0 18px;
   border: 0;
   border-radius: 12px;
-  background: #9ca4d7;
+  background: #ffd21a;
   color: #4052a6;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.track-proceed-btn:hover:not(:disabled) {
+  background: #f3c600;
+  color: #4052a6;
+  transform: translateY(-1px);
+}
+
+.track-proceed-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .track-details-grid {
@@ -329,7 +440,11 @@ body {
 /* RESPONSIVE */
 @media (max-width: 1100px) {
   .track-steps {
-    padding: 16px 14px 10px;
+    padding: 0;
+  }
+
+  .track-step {
+    min-height: 150px;
   }
 
   .track-step-icon {
@@ -391,6 +506,10 @@ body {
     align-items: flex-start;
   }
 
+  .track-summary-right {
+    width: 100%;
+  }
+
   .track-status-stack {
     width: 100%;
     align-items: flex-end;
@@ -405,7 +524,11 @@ body {
   .track-steps {
     grid-template-columns: 1fr 1fr;
     border-radius: 24px;
-    gap: 18px 10px;
+    gap: 0;
+  }
+
+  .track-step {
+    min-height: 140px;
   }
 
   .track-step-icon {
@@ -452,6 +575,10 @@ body {
     font-size: 14px;
   }
 
+  .track-summary-badge {
+    font-size: 14px;
+  }
+
   .track-card-head p {
     font-size: 14px;
   }
@@ -463,6 +590,7 @@ body {
 
   .track-step {
     padding: 2px 0 4px;
+    min-height: 130px;
   }
 
   .track-step-icon {

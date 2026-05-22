@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../styles/Dashboard.css'
 import DocumentRequest from './DocumentRequest'
-import { clearSession } from '../api'
+import NotificationsPanel from '../components/NotificationsPanel'
+import { API_BASE, authHeaders, clearSession } from '../api'
 import logo from '../assets/NU_shield.png'
 import settingslogo from '../assets/settings-icon.png'
 import tracklogo from '../assets/track-icon.png'
@@ -17,6 +18,10 @@ function App() {
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -25,7 +30,7 @@ function App() {
     'Processing',
     'Ready for Pickup',
     'Out for Delivery',
-    'Completed'
+    'Released'
   ];
 
   const toggleSidebar = (e) => {
@@ -41,7 +46,7 @@ function App() {
     }
   };
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     const user = getUser();
     if (!user || !user.email) {
       setError('You must be logged in to view your requests.');
@@ -51,9 +56,12 @@ function App() {
 
     setIsLoading(true);
     setError('');
+    setActionError('');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/requests?email=${encodeURIComponent(user.email)}`);
+      const res = await fetch(`${API_BASE}/api/me/requests`, {
+        headers: authHeaders(false)
+      });
       const data = await res.json();
 
       if (!res.ok) {
@@ -69,13 +77,13 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (view === 'dashboard') {
       fetchRequests();
     }
-  }, [view]);
+  }, [view, fetchRequests]);
 
   const stats = useMemo(() => {
     const base = {
@@ -84,17 +92,23 @@ function App() {
       Processing: 0,
       'Ready for Pickup': 0,
       'Out for Delivery': 0,
-      Completed: 0
+      Released: 0
     };
 
     requests.forEach((req) => {
-      if (base[req.status] !== undefined) {
-        base[req.status] += 1;
+      const status = req.status === 'Completed' ? 'Released' : req.status;
+      if (base[status] !== undefined) {
+        base[status] += 1;
       }
     });
 
     return base;
   }, [requests]);
+
+  const selectedRequest = useMemo(
+    () => requests.find((req) => req._id === selectedRequestId) || null,
+    [requests, selectedRequestId]
+  );
 
   const filteredRequests = useMemo(() => {
     const term = String(searchTerm || '').trim().toLowerCase();
@@ -112,6 +126,18 @@ function App() {
       return matchesStatus && haystack.includes(term);
     });
   }, [requests, searchTerm, statusFilter]);
+
+    useEffect(() => {
+      if (selectedRequestId && !requests.some((req) => req._id === selectedRequestId)) {
+        setSelectedRequestId('');
+      }
+    }, [requests, selectedRequestId]);
+
+    useEffect(() => {
+      if (selectedRequestId && !filteredRequests.some((req) => req._id === selectedRequestId)) {
+        setSelectedRequestId('');
+      }
+    }, [filteredRequests, selectedRequestId]);
 
   const formatDate = (value) => {
     const date = new Date(value);
@@ -135,10 +161,84 @@ function App() {
     return normalized === 'delivery' ? 'Delivery (₱150 fee)' : 'Pickup';
   };
 
+  const formatDocumentFee = (request) => {
+    const base = Number(request?.basePrice);
+    const extra = Number(request?.succeedingPagesFee);
+    const hasBase = Number.isFinite(base);
+    const hasExtra = Number.isFinite(extra);
+    if (!hasBase && !hasExtra) return '-';
+    const total = (hasBase ? base : 0) + (hasExtra ? extra : 0);
+    return formatCurrency(total);
+  };
+
+  const formatSucceedingPages = (value) => {
+    const pages = Number(value);
+    if (!Number.isFinite(pages)) return '-';
+    return pages;
+  };
+
+  const handleSelectRequest = (requestId) => {
+    setSelectedRequestId((current) => (current === requestId ? '' : requestId));
+    setActionError('');
+  };
+
+  const handleViewDetails = () => {
+    if (!selectedRequestId) return;
+    navigate(`/document-tracking?id=${encodeURIComponent(selectedRequestId)}`);
+  };
+
+  const handleDeleteClick = () => {
+    if (!selectedRequest) return;
+    if (selectedRequest.status !== 'Pending') {
+      setActionError('Only pending requests can be deleted.');
+      return;
+    }
+
+    setIsConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedRequest) return;
+
+    setIsDeleting(true);
+    setActionError('');
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/requests/${encodeURIComponent(selectedRequest._id)}`,
+        {
+          method: 'DELETE',
+          headers: authHeaders(false)
+        }
+      );
+      const data = await res.json();
+
+      if (!res.ok) {
+        setActionError(data.message || 'Failed to delete request.');
+        return;
+      }
+
+      setRequests((prev) => prev.filter((req) => req._id !== selectedRequest._id));
+      setSelectedRequestId('');
+      setIsConfirmOpen(false);
+    } catch (err) {
+      setActionError('Cannot connect to server.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setIsConfirmOpen(false);
+  };
+
   const handleLogout = () => {
     clearSession();
     navigate('/login');
   };
+
+  const isViewDisabled = !selectedRequest;
+  const isDeleteDisabled = !selectedRequest || selectedRequest.status !== 'Pending' || isDeleting;
 
   return (
     <div className={`app-container ${isOpen ? 'sidebar-open' : ''}`} onClick={() => setIsOpen(false)}>
@@ -154,19 +254,25 @@ function App() {
           <header className="main-header">
             <div className="header-left">
               <div className="menu-burger" onClick={toggleSidebar}>☰</div>
-              <img src={logo} alt="Logo" className="nav-logo" />
-              <span className="system-name">NU Laguna e-Registrar</span>
+              <button
+                type="button"
+                className="header-brand"
+                onClick={() => navigate('/dashboard')}
+              >
+                <img src={logo} alt="Logo" className="nav-logo" />
+                <span className="system-name">NU Laguna e-Registrar</span>
+              </button>
             </div>
           </header>
 
           {/* Sidebar */}
           <div className={`sidebar ${isOpen ? 'active' : ''}`} onClick={(e) => e.stopPropagation()}>
         <nav className="sidebar-nav">
-          <div className="sidebar-link" onClick={() => { setView('new-request'); setIsOpen(false); }}>
+          <div className="sidebar-link" onClick={() => { navigate('/document-request'); setIsOpen(false); }}>
             <img src={submitlogo} alt="Submit Logo" className="sidebar-icon" />
             <span className="sidebar-label">Submit Document Requests</span>
           </div>
-          <div className="sidebar-link" onClick={() => { setView('dashboard'); setIsOpen(false); }}>
+          <div className="sidebar-link" onClick={() => { navigate('/my-requests'); setIsOpen(false); }}>
             <img src={tracklogo} alt="" className="sidebar-icon" />
             <span className="sidebar-label">Track Document Requests</span>
           </div>
@@ -191,7 +297,8 @@ function App() {
         <main className="dashboard-wrapper" key="dashboard">
           <div className="dashboard-header-row">
             <h2 className="page-title">Document Requests Dashboard</h2>
-            <button className="new-request-btn" onClick={() => setView('new-request')}>
+            <NotificationsPanel />
+            <button className="new-request-btn" onClick={() => navigate('/document-request')}>
               <img src={pluslogo} alt="Plus Logo" className="btn-plus-asset" />
               REQUEST A DOCUMENT
             </button>
@@ -203,7 +310,7 @@ function App() {
             <div className="stat-card"><span className="stat-label">Processing</span><span className="stat-value orange">{stats.Processing}</span></div>
             <div className="stat-card"><span className="stat-label">Ready for Pickup</span><span className="stat-value green">{stats['Ready for Pickup']}</span></div>
             <div className="stat-card"><span className="stat-label">Out for Delivery</span><span className="stat-value teal">{stats['Out for Delivery']}</span></div>
-            <div className="stat-card"><span className="stat-label">Completed</span><span className="stat-value yellow">{stats.Completed}</span></div>
+            <div className="stat-card"><span className="stat-label">Released</span><span className="stat-value yellow">{stats.Released}</span></div>
           </div>
 
           <div className="table-controls-row">
@@ -238,41 +345,67 @@ function App() {
                 <thead>
                   <tr>
                     <th className="check-column-head"></th>
-                    <th>Request ID</th>
+                    <th>Date Requested</th>
                     <th>Document Type</th>
+                    <th>Document Fee</th>
+                    <th>Succeeding Pages</th>
                     <th>Copies</th>
                     <th>Delivery Method</th>
                     <th>Total Fee</th>
-                    <th>Date Requested</th>
+                    <th>Payment</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading && (
                     <tr>
-                      <td className="table-loading" colSpan="8">Loading requests...</td>
+                      <td className="table-loading" colSpan="10">Loading requests...</td>
                     </tr>
                   )}
                   {!isLoading && error && (
                     <tr>
-                      <td className="table-error" colSpan="8">{error}</td>
+                      <td className="table-error" colSpan="10">{error}</td>
                     </tr>
                   )}
                   {!isLoading && !error && filteredRequests.length === 0 && (
                     <tr>
-                      <td className="table-empty" colSpan="8">No requests found.</td>
+                      <td className="table-empty" colSpan="10">No requests found.</td>
                     </tr>
                   )}
                   {!isLoading && !error && filteredRequests.map((req) => (
-                    <tr key={req._id}>
-                      <td className="check-column-cell"><input type="checkbox" /></td>
-                      <td>{req._id}</td>
+                    <tr key={req._id} className={req._id === selectedRequestId ? 'selected-row' : ''}>
+                      <td className="check-column-cell">
+                        <input
+                          type="checkbox"
+                          aria-label="Select request"
+                          checked={selectedRequestId === req._id}
+                          onChange={() => handleSelectRequest(req._id)}
+                        />
+                      </td>
+                      <td>{formatDate(req.createdAt)}</td>
                       <td>{req.documentType || '-'}</td>
+                      <td>{formatDocumentFee(req)}</td>
+                      <td>{formatSucceedingPages(req.succeedingPages)}</td>
                       <td>{req.copies ?? '-'}</td>
                       <td>{formatDeliveryMethod(req.deliveryMethod)}</td>
                       <td>{formatCurrency(req.totalFee)}</td>
-                      <td>{formatDate(req.createdAt)}</td>
-                      <td>{req.status || '-'}</td>
+                      <td>
+                        {req.paymentConfirmed ? (
+                          <span className="payment-tag paid">Paid</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="payment-tag unpaid-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/payment?requestId=${encodeURIComponent(req._id)}`);
+                            }}
+                          >
+                            Pay now
+                          </button>
+                        )}
+                      </td>
+                      <td>{req.status === 'Completed' ? 'Released' : req.status || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -282,12 +415,51 @@ function App() {
 
           {/* New Action Buttons Section */}
           <div className="dashboard-footer-actions">
+            <div className="action-left">
+              <div className="action-note">Select a request to enable View Details or Delete.</div>
+              {actionError && <div className="action-error" role="alert">{actionError}</div>}
+            </div>
             {/* Wrap the right-side buttons in a sub-container */}
             <div className="right-actions">
-              <button className="action-btn view-btn">VIEW DETAILS</button>
-              <button className="action-btn delete-btn">DELETE</button>
+              <button
+                className="action-btn view-btn"
+                onClick={handleViewDetails}
+                disabled={isViewDisabled}
+              >
+                VIEW DETAILS
+              </button>
+              <button
+                className="action-btn delete-btn"
+                onClick={handleDeleteClick}
+                disabled={isDeleteDisabled}
+              >
+                {isDeleting ? 'DELETING...' : 'DELETE'}
+              </button>
             </div>
           </div>
+          {isConfirmOpen && (
+            <div className="confirm-overlay" onClick={handleCancelDelete}>
+              <div className="confirm-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+                <h3 className="confirm-title">Delete this request?</h3>
+                <p className="confirm-text">
+                  This will remove the request from your list. You can only delete pending requests.
+                </p>
+                <div className="confirm-actions">
+                  <button className="confirm-btn cancel" type="button" onClick={handleCancelDelete}>
+                    Cancel
+                  </button>
+                  <button
+                    className="confirm-btn delete"
+                    type="button"
+                    onClick={handleConfirmDelete}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       ) : (
         <DocumentRequest onBack={() => setView('dashboard')} />

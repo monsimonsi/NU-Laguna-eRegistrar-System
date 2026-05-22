@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import logo from '../assets/nu-logo-left.png';
 import bg from '../assets/nubg.jpg';
 import '../styles/AlumniRegistration.css';
+import { API_BASE } from '../api';
 
 const YEAR_OPTIONS = ['2020', '2021', '2022', '2023', '2024', '2025', '2026'];
 
@@ -56,7 +57,7 @@ const AlumniRegistration = () => {
     };
 
     try {
-      const response = await fetch('http://localhost:5000/api/alumni-registrations', {
+      const response = await fetch(`${API_BASE}/api/alumni-registrations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

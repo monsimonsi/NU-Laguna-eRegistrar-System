@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Menu, FileText } from 'lucide-react';
 import logo from '../assets/NU_shield.png';
 import { API_BASE, authHeaders } from '../api';
 import '../styles/DocumentRequest.css';
 
 const RequestTracking = () => {
+  const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -41,10 +42,10 @@ const RequestTracking = () => {
           <Menu size={30} strokeWidth={2.5} />
         </button>
 
-        <div className="doc-brand">
+        <button type="button" className="doc-brand" onClick={() => navigate('/dashboard')}>
           <img src={logo} alt="NU Logo" className="doc-logo" />
           <span className="doc-title">NU Laguna e-Registrar</span>
-        </div>
+        </button>
       </header>
 
       <main className="doc-main">
@@ -77,16 +78,26 @@ const RequestTracking = () => {
                   <tr style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
                     <th style={{ padding: '8px 6px' }}>Tracking #</th>
                     <th style={{ padding: '8px 6px' }}>Document</th>
+                    <th style={{ padding: '8px 6px' }}>Payment</th>
                     <th style={{ padding: '8px 6px' }}>Status</th>
                     <th style={{ padding: '8px 6px' }}>Requested</th>
                   </tr>
                 </thead>
                 <tbody>
                   {requests.map((r) => (
-                    <tr key={r._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <tr
+                      key={r._id}
+                      style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                      onClick={() =>
+                        navigate(`/document-tracking?id=${encodeURIComponent(r._id)}`)
+                      }
+                    >
                       <td style={{ padding: '10px 6px', fontWeight: 600 }}>{r.trackingNumber || '—'}</td>
                       <td style={{ padding: '10px 6px' }}>{r.documentType}</td>
-                      <td style={{ padding: '10px 6px' }}>{r.status}</td>
+                      <td style={{ padding: '10px 6px' }}>
+                        {r.paymentConfirmed ? 'Paid' : 'Awaiting payment'}
+                      </td>
+                      <td style={{ padding: '10px 6px' }}>{r.status === 'Completed' ? 'Released' : r.status}</td>
                       <td style={{ padding: '10px 6px', color: '#64748b' }}>
                         {r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}
                       </td>

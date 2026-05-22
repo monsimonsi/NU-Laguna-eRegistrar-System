@@ -231,6 +231,11 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
 }
 
 .admin-logo {
@@ -334,6 +339,12 @@ body {
   margin: 4px 0 14px;
   font-size: 14px;
   color: #1f1f1f;
+}
+
+.dashboard-load-error {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: #c0392b;
 }
 
 /* STATS */

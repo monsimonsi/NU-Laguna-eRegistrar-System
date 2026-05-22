@@ -20,11 +20,29 @@ body {
   display: flex;
   background: linear-gradient(180deg, #dfe4f4 0%, #e7ecf8 100%);
   color: #24304f;
+  --sidebar-collapsed: clamp(52px, 4.5vw, 68px);
+  --sidebar-expanded: clamp(220px, 17vw, 320px);
+  --sidebar-toggle-h: clamp(44px, 4.2vw, 56px);
+  --sidebar-brand-h: clamp(66px, 6.5vw, 84px);
+  --sidebar-logo: clamp(46px, 4.8vw, 60px);
+  --sidebar-brand-line1: clamp(15px, 1.6vw, 18px);
+  --sidebar-brand-line2: clamp(11px, 1.3vw, 13px);
+  --sidebar-user-avatar: clamp(42px, 4.5vw, 52px);
+  --sidebar-user-font: clamp(15px, 1.7vw, 19px);
+  --sidebar-link-h: clamp(44px, 4.2vw, 50px);
+  --sidebar-link-radius: clamp(10px, 1.2vw, 14px);
+  --sidebar-icon: clamp(22px, 2.2vw, 26px);
+  --sidebar-text: clamp(13px, 1.5vw, 17px);
+  --sidebar-collapsed-item: clamp(40px, 3.6vw, 44px);
+  --sidebar-icon-collapsed: clamp(20px, 2vw, 22px);
+  --logout-h: clamp(54px, 5vw, 68px);
+  --sidebar-padding-x: clamp(12px, 1.6vw, 16px);
+  --sidebar-gap: clamp(10px, 1.4vw, 12px);
 }
 
 /* SIDEBAR */
 .admin-sidebar {
-  width: 64px;
+  width: var(--sidebar-collapsed);
   background: #b8c2df;
   border-right: 1px solid rgba(59, 70, 120, 0.18);
   display: flex;
@@ -38,12 +56,12 @@ body {
 }
 
 .admin-sidebar.open {
-  width: 320px;
+  width: var(--sidebar-expanded);
 }
 
 .sidebar-toggle {
   width: 100%;
-  height: 56px;
+  height: var(--sidebar-toggle-h);
   border: 0;
   background: #f1c53b;
   display: grid;
@@ -53,18 +71,18 @@ body {
 }
 
 .sidebar-brand {
-  height: 92px;
+  height: var(--sidebar-brand-h);
   background: #ffd21a;
   border-bottom: 1px solid rgba(59, 70, 120, 0.18);
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 16px;
+  padding: 0 var(--sidebar-padding-x);
 }
 
 .sidebar-brand-logo {
-  width: 62px;
-  height: 62px;
+  width: var(--sidebar-logo);
+  height: var(--sidebar-logo);
   object-fit: contain;
   flex: 0 0 auto;
 }
@@ -79,12 +97,12 @@ body {
 }
 
 .brand-line1 {
-  font-size: 24px;
+  font-size: var(--sidebar-brand-line1);
   letter-spacing: 0.3px;
 }
 
 .brand-line2 {
-  font-size: 18px;
+  font-size: var(--sidebar-brand-line2);
   font-style: italic;
   font-weight: 700;
 }
@@ -98,12 +116,12 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 18px 16px 10px;
+  padding: clamp(12px, 1.8vw, 18px) var(--sidebar-padding-x) clamp(6px, 1.1vw, 10px);
 }
 
 .sidebar-user-avatar {
-  width: 54px;
-  height: 54px;
+  width: var(--sidebar-user-avatar);
+  height: var(--sidebar-user-avatar);
   border-radius: 50%;
   background: #d9d9d9;
   color: #33468f;
@@ -113,7 +131,7 @@ body {
 }
 
 .sidebar-user-label {
-  font-size: 28px;
+  font-size: var(--sidebar-user-font);
   font-style: italic;
   color: #33468f;
   white-space: nowrap;
@@ -129,22 +147,22 @@ body {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 8px 12px 12px;
+  gap: var(--sidebar-gap);
+  padding: 8px var(--sidebar-padding-x) 12px;
 }
 
 .sidebar-link {
   width: 100%;
-  height: 52px;
+  height: var(--sidebar-link-h);
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--sidebar-link-radius);
   background: transparent;
   color: #33468f;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 0 12px;
+  gap: var(--sidebar-gap);
+  padding: 0 var(--sidebar-padding-x);
   cursor: pointer;
   overflow: hidden;
 }
@@ -159,13 +177,13 @@ body {
 }
 
 .sidebar-link svg {
-  width: 28px;
-  height: 28px;
+  width: var(--sidebar-icon);
+  height: var(--sidebar-icon);
 }
 
 .sidebar-text {
   white-space: nowrap;
-  font-size: 24px;
+  font-size: var(--sidebar-text);
   font-weight: 700;
   line-height: 1;
 }
@@ -175,19 +193,19 @@ body {
 }
 
 .admin-sidebar:not(.open) .sidebar-link {
-  width: 42px;
+  width: var(--sidebar-collapsed-item);
   align-self: center;
   padding: 0;
 }
 
 .admin-sidebar:not(.open) .sidebar-link svg {
   width: 100%;
-  height: 24px;
+  height: var(--sidebar-icon-collapsed);
 }
 
 .logout-btn {
   width: 100%;
-  height: 72px;
+  height: var(--logout-h);
   border: 0;
   border-top: 1px solid rgba(59, 70, 120, 0.18);
   background: #c4cae2;
@@ -196,13 +214,13 @@ body {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 0 16px;
+  padding: 0 var(--sidebar-padding-x);
   cursor: pointer;
 }
 
 .logout-btn svg {
-  width: 24px;
-  height: 24px;
+  width: var(--sidebar-icon);
+  height: var(--sidebar-icon);
 }
 
 .admin-sidebar:not(.open) .logout-btn {
@@ -723,8 +741,8 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .admin-sidebar.open {
-    width: 280px;
+  .admin-page {
+    --sidebar-expanded: clamp(200px, 26vw, 280px);
   }
 }
 

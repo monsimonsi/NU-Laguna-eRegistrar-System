@@ -35,13 +35,16 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const requestsTableRef = useRef(null);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarHover, setSidebarHover] = useState(false);
+  const [sidebarPinned, setSidebarPinned] = useState(false);
   const [requests, setRequests] = useState([]);
   const [alumniRegistrations, setAlumniRegistrations] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [alumniMessage, setAlumniMessage] = useState('');
   const [alumniIsError, setAlumniIsError] = useState(false);
+
+  const isSidebarOpen = sidebarPinned || sidebarHover;
 
   const stats = STAT_CONFIG.map((item) => ({
     ...item,
@@ -116,6 +119,10 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  const handleSidebarToggle = () => {
+    setSidebarPinned((prev) => !prev);
+  };
 
   const handleLogout = () => {
     clearSession();
@@ -213,11 +220,16 @@ const AdminDashboard = () => {
 
   return (
     <div className="admin-page">
-      <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <aside
+        className={`admin-sidebar ${isSidebarOpen ? 'open' : ''}`}
+        onMouseEnter={() => setSidebarHover(true)}
+        onMouseLeave={() => setSidebarHover(false)}
+      >
         <button
           className="sidebar-toggle"
           aria-label="Toggle sidebar"
-          onClick={() => setSidebarOpen((prev) => !prev)}
+          aria-expanded={isSidebarOpen}
+          onClick={handleSidebarToggle}
         >
           <Menu size={26} strokeWidth={2.4} />
         </button>

@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import logo from '../assets/nu-logo-left.png';
 import bg from '../assets/nubg.jpg';
 import '../styles/AlumniRegistration.css';
-import { API_BASE } from '../api';
 
 const YEAR_OPTIONS = ['2020', '2021', '2022', '2023', '2024', '2025', '2026'];
 
@@ -12,7 +11,7 @@ const PROGRAM_OPTIONS = [
   'BS Information Technology',
   'BS Information Systems',
   'BS Business Administration',
-  'Other'
+  'Other',
 ];
 
 const AlumniRegistration = () => {
@@ -27,16 +26,46 @@ const AlumniRegistration = () => {
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setMessage('');
     setIsError(false);
 
     const fullName = `${String(firstName).trim()} ${String(lastName).trim()}`.trim();
 
-    if (!fullName) {
+    if (!firstName.trim() || !lastName.trim()) {
       setIsError(true);
       setMessage('First name and last name are required.');
+      return;
+    }
+
+    if (!studentId.trim()) {
+      setIsError(true);
+      setMessage('Student ID is required.');
+      return;
+    }
+
+    if (!yearGraduated) {
+      setIsError(true);
+      setMessage('Year graduated is required.');
+      return;
+    }
+
+    if (!course) {
+      setIsError(true);
+      setMessage('Program is required.');
+      return;
+    }
+
+    if (!email.trim()) {
+      setIsError(true);
+      setMessage('Email is required.');
+      return;
+    }
+
+    if (!password || !confirmPassword) {
+      setIsError(true);
+      setMessage('Password and confirmation are required.');
       return;
     }
 
@@ -46,44 +75,17 @@ const AlumniRegistration = () => {
       return;
     }
 
-    const payload = {
-      full_name: fullName,
-      email,
-      password,
-      confirm_password: confirmPassword,
-      student_id: studentId,
-      year_graduated: yearGraduated,
-      course
-    };
+    setIsError(false);
+    setMessage(`Registration ready for ${fullName}.`);
 
-    try {
-      const response = await fetch(`${API_BASE}/api/alumni-registrations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        setIsError(true);
-        setMessage(data.message || 'Registration failed.');
-        return;
-      }
-
-      setIsError(false);
-      setMessage('Registration submitted. Please wait for verification.');
-      setFirstName('');
-      setLastName('');
-      setStudentId('');
-      setYearGraduated('');
-      setCourse('');
-      setEmail('');
-      setPassword('');
-      setConfirmPassword('');
-    } catch (error) {
-      setIsError(true);
-      setMessage('Cannot connect to server.');
-    }
+    setFirstName('');
+    setLastName('');
+    setStudentId('');
+    setYearGraduated('');
+    setCourse('');
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
   };
 
   return (
@@ -149,8 +151,14 @@ const AlumniRegistration = () => {
                 <div className="field">
                   <label>Year Graduated: *</label>
                   <div className="select-wrap">
-                    <select value={yearGraduated} onChange={(e) => setYearGraduated(e.target.value)} required>
-                      <option value="" disabled></option>
+                    <select
+                      value={yearGraduated}
+                      onChange={(e) => setYearGraduated(e.target.value)}
+                      required
+                    >
+                      <option value="" disabled>
+                        Select year
+                      </option>
                       {YEAR_OPTIONS.map((year) => (
                         <option key={year} value={year}>
                           {year}
@@ -165,8 +173,14 @@ const AlumniRegistration = () => {
                 <div className="field full">
                   <label>Program: *</label>
                   <div className="select-wrap">
-                    <select value={course} onChange={(e) => setCourse(e.target.value)} required>
-                      <option value="" disabled></option>
+                    <select
+                      value={course}
+                      onChange={(e) => setCourse(e.target.value)}
+                      required
+                    >
+                      <option value="" disabled>
+                        Select program
+                      </option>
                       {PROGRAM_OPTIONS.map((program) => (
                         <option key={program} value={program}>
                           {program}

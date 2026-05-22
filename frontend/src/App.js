@@ -8,7 +8,6 @@ import DocumentTracking from './pages/DocumentTracking';
 import Payment from './pages/Payment';
 import PaymentReturn from './pages/PaymentReturn';
 import RequestTracking from './pages/RequestTracking';
-import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
@@ -17,62 +16,13 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
         <Route path="/alumni-registration" element={<AlumniRegistration />} />
-        <Route
-          path="/admin-dashboard"
-          element={
-            <ProtectedRoute roles={['admin']}>
-              <AdminDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute roles={['student', 'alumni']}>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/document-request"
-          element={
-            <ProtectedRoute roles={['student', 'alumni']}>
-              <DocumentRequest />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/document-tracking"
-          element={
-            <ProtectedRoute roles={['student', 'alumni']}>
-              <DocumentTracking />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/payment"
-          element={
-            <ProtectedRoute roles={['student', 'alumni']}>
-              <Payment />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/payment/return"
-          element={
-            <ProtectedRoute roles={['student', 'alumni']}>
-              <PaymentReturn />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/my-requests"
-          element={
-            <ProtectedRoute roles={['student', 'alumni']}>
-              <RequestTracking />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/admin-dashboard" element={<AdminDashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/document-request" element={<DocumentRequest />} />
+        <Route path="/document-tracking" element={<DocumentTracking />} />
+        <Route path="/payment" element={<Payment />} />
+        <Route path="/payment/return" element={<PaymentReturn />} />
+        <Route path="/my-requests" element={<RequestTracking />} />
       </Routes>
     </BrowserRouter>
   );

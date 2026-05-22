@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/nu-logo-left.png';
 import bg from '../assets/nubg.jpg';
-import { API_BASE, getStoredToken, parseJwtPayload } from '../api';
 import '../styles/Login.css';
 
 const Login = () => {
@@ -13,69 +12,34 @@ const Login = () => {
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  useEffect(() => {
-    const token = getStoredToken();
-    const payload = parseJwtPayload(token);
-    const role = String(payload?.role || '').trim().toLowerCase();
-    if (role === 'admin') {
-      navigate('/admin-dashboard', { replace: true });
-      return;
-    }
-    if (role === 'student' || role === 'alumni') {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [navigate]);
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setIsError(false);
     setErrorMessage('');
 
-    try {
-      const response = await fetch(`${API_BASE}/api/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role, email, password })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setIsError(true);
-        setErrorMessage(data.message || 'Login failed. Please try again.');
-        console.log(data.message || 'Login failed.');
-        return;
-      }
-
-      setIsError(false);
-      console.log('Logged in user:', data.user);
-      try {
-        if (data.token) {
-          localStorage.setItem('token', data.token);
-        }
-        localStorage.setItem('user', JSON.stringify(data.user));
-      } catch (e) {
-        console.warn('Failed to persist session in localStorage', e);
-      }
-
-      const loggedInRole = String(data.user?.role || role).trim().toLowerCase();
-
-      if (loggedInRole === 'admin') {
-        navigate('/admin-dashboard', { replace: true });
-        return;
-      }
-
-      if (loggedInRole === 'student' || loggedInRole === 'alumni') {
-        navigate('/dashboard', { replace: true });
-        return;
-      }
-
+    if (!role) {
       setIsError(true);
-    } catch (error) {
-      setIsError(true);
-      setErrorMessage('Cannot connect to server.');
-      console.log('Cannot connect to server.');
+      setErrorMessage('Please select a role.');
+      return;
     }
+
+    if (role === 'admin') {
+      navigate('/admin-dashboard');
+      return;
+    }
+
+    if (role === 'student') {
+      navigate('/dashboard');
+      return;
+    }
+
+    if (role === 'alumni') {
+      navigate('/alumni-dashboard');
+      return;
+    }
+
+    setIsError(true);
+    setErrorMessage('Invalid role selected.');
   };
 
   return (
@@ -83,7 +47,7 @@ const Login = () => {
       <div className="bg-image" />
 
       <header className="top-logo">
-          <img src={logo} alt="NU Logo" className="login-logo" />
+        <img src={logo} alt="NU Logo" className="login-logo" />
       </header>
 
       <main className="login-main">
@@ -108,7 +72,9 @@ const Login = () => {
                 <label>Login As:</label>
                 <div className="select-wrap">
                   <select value={role} onChange={(e) => setRole(e.target.value)} required>
-                    <option value="" disabled>Select role</option>
+                    <option value="" disabled>
+                      Select role
+                    </option>
                     <option value="student">Student</option>
                     <option value="alumni">Alumni</option>
                     <option value="admin">Registrar</option>
@@ -123,7 +89,6 @@ const Login = () => {
                   placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  required
                 />
               </div>
 
@@ -134,7 +99,6 @@ const Login = () => {
                   placeholder="********"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required
                 />
               </div>
 
@@ -155,7 +119,7 @@ const Login = () => {
 
               {isError && (
                 <p style={{ marginTop: '10px', color: 'red' }}>
-                  {errorMessage || 'Login failed. Please try again.'}
+                  {errorMessage}
                 </p>
               )}
 

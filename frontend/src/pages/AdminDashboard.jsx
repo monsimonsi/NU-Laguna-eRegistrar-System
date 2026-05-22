@@ -267,7 +267,12 @@ const AdminDashboard = () => {
             <span className="sidebar-text">Alumni Verification</span>
           </button>
 
-          <button className="sidebar-link" aria-label="Document Tracking">
+          <button
+            type="button"
+            className="sidebar-link"
+            aria-label="Document Tracking"
+            onClick={() => navigate('/admin-document-tracking')}
+          >
             <PackageOpen size={24} strokeWidth={2.2} />
             <span className="sidebar-text">Document Tracking</span>
           </button>

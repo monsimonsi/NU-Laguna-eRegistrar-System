@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
 import AlumniRegistration from './pages/AlumniRegistration';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminDocumentTracking from './pages/AdminDocumentTracking';
 import Dashboard from './pages/Dashboard';
 import DocumentRequest from './pages/DocumentRequest';
 import DocumentTracking from './pages/DocumentTracking';
@@ -24,6 +25,14 @@ function App() {
           element={
             <ProtectedRoute roles={['admin']}>
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-document-tracking"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <AdminDocumentTracking />
             </ProtectedRoute>
           }
         />

@@ -79,10 +79,6 @@ const PaymentReturn = () => {
         if (res.ok && data.paymentConfirmed) {
           setStatus('success');
           setMessage('Payment successful! Opening your receipt…');
-          timer = setTimeout(
-            () => navigate(`/payment/receipt?requestId=${encodeURIComponent(requestId)}`),
-            1500
-          );
           return;
         }
 

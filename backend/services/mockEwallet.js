@@ -4,6 +4,7 @@ const DocumentRequest = require('../models/DocumentRequest');
 const {
   centavosForRequest,
   notifyRequestSubmitted,
+  notifyRegistrarRequestPaid,
   notifyPaymentFailed,
   isPaymongoConfigured
 } = require('./payments');
@@ -215,6 +216,7 @@ async function completeMockSession(sessionId, userId, email, payerDetails = {}) 
     if (doc.requesterId) {
       await notifyRequestSubmitted(doc, doc.requesterId);
     }
+    await notifyRegistrarRequestPaid(doc, payment);
   }
 
   return {

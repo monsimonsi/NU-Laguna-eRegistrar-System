@@ -88,6 +88,7 @@ const DocumentRequest = ({ onBack }) => {
     e.preventDefault();
     setIsError(false);
     setMessage('');
+    setDuplicateRequestId('');
 
     const user = (() => {
       try { return JSON.parse(localStorage.getItem('user')); } catch (e) { return null; }

@@ -1,7 +1,7 @@
 const Paymongo = require('paymongo-node');
 const Payment = require('../models/Payment');
 const DocumentRequest = require('../models/DocumentRequest');
-const { createNotification } = require('./notifications');
+const { createNotification, createForRole } = require('./notifications');
 const mail = require('./mail');
 const {
   normalizePhilippineMobile,
@@ -107,6 +107,24 @@ async function notifyRequestSubmitted(documentRequest, userId) {
     fullName: documentRequest.full_name,
     trackingNumber: documentRequest.trackingNumber || '',
     documentType: documentRequest.documentType
+  });
+}
+
+async function notifyRegistrarRequestPaid(documentRequest, payment) {
+  return createForRole({
+    role: 'admin',
+    category: 'request_paid',
+    message: `${documentRequest.full_name} paid for ${documentRequest.documentType}. The request is ready for registrar processing.`,
+    dedupeKey: `request-paid:${documentRequest._id}`,
+    meta: {
+      requestId: String(documentRequest._id),
+      trackingNumber: documentRequest.trackingNumber || '',
+      documentType: documentRequest.documentType,
+      requesterName: documentRequest.full_name,
+      paymentId: payment?._id ? String(payment._id) : '',
+      paymentMethod: payment?.paymentMethod || '',
+      paymentStatus: 'paid'
+    }
   });
 }
 
@@ -225,6 +243,7 @@ async function markPaidFromPaymongoPayment({
     if (doc.requesterId) {
       await notifyRequestSubmitted(doc, doc.requesterId);
     }
+    await notifyRegistrarRequestPaid(doc, payment);
   }
 
   return { ok: true };
@@ -573,6 +592,7 @@ async function confirmSandboxPayment(documentRequest, method = 'sandbox') {
   if (documentRequest.requesterId) {
     await notifyRequestSubmitted(documentRequest, documentRequest.requesterId);
   }
+  await notifyRegistrarRequestPaid(documentRequest, payment);
 
   return { ok: true, request: documentRequest };
 }
@@ -589,6 +609,7 @@ module.exports = {
   syncPaymentFromPaymongo,
   confirmSandboxPayment,
   notifyRequestSubmitted,
+  notifyRegistrarRequestPaid,
   notifyPaymentFailed,
   handlePayMongoWebhook
 };

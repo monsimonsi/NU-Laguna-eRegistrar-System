@@ -14,6 +14,7 @@ const mockEwallet = require('./services/mockEwallet');
 const { createMockPaymentRouter } = require('./routes/mockPayment');
 const {
   createNotification,
+  createForRole: createNotificationsForRole,
   listForUser: listNotificationsForUser,
   markRead: markNotificationRead,
   markAllRead: markAllNotificationsRead
@@ -573,6 +574,20 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
       paymentConfirmed: false
     });
 
+    void createNotificationsForRole({
+      role: 'admin',
+      category: 'request_created',
+      message: `${newRequest.full_name} created a ${newRequest.documentType} request. Waiting for payment confirmation.`,
+      dedupeKey: `request-created:${newRequest._id}`,
+      meta: {
+        requestId: String(newRequest._id),
+        trackingNumber: newRequest.trackingNumber || '',
+        documentType: newRequest.documentType,
+        requesterName: newRequest.full_name,
+        paymentConfirmed: false
+      }
+    });
+
     if (skipOnlinePayment) {
       console.warn(
         '[payments] PAYMONGO_SECRET_KEY is not set — complete payment on the Payment page (sandbox mode).'
@@ -648,8 +663,8 @@ app.get('/api/prices/:documentType', async (req, res) => {
   }
 });
 
-// In-app notifications for the current user (student / alumni)
-app.get('/api/me/notifications', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+// In-app notifications for the current authenticated user.
+app.get('/api/me/notifications', authMiddleware, async (req, res) => {
   try {
     const limit = Number(req.query.limit) || 50;
     const skip = Number(req.query.skip) || 0;
@@ -661,7 +676,7 @@ app.get('/api/me/notifications', authMiddleware, requireStudentOrAlumni, async (
   }
 });
 
-app.patch('/api/me/notifications/read-all', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+app.patch('/api/me/notifications/read-all', authMiddleware, async (req, res) => {
   try {
     const result = await markAllNotificationsRead(req.auth.sub);
     if (!result.ok) {
@@ -674,7 +689,7 @@ app.patch('/api/me/notifications/read-all', authMiddleware, requireStudentOrAlum
   }
 });
 
-app.patch('/api/me/notifications/:id/read', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+app.patch('/api/me/notifications/:id/read', authMiddleware, async (req, res) => {
   try {
     const result = await markNotificationRead(req.auth.sub, req.params.id);
     if (!result.ok) {

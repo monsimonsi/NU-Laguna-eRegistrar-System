@@ -15,6 +15,7 @@ import {
   PackageOpen,
 } from 'lucide-react';
 import { API_BASE, authHeaders, clearSession } from '../api';
+import NotificationsPanel from '../components/NotificationsPanel';
 
 const STAT_CONFIG = [
   { label: 'Total Requests', key: 'totalRequests', sub: 'All-Time', icon: <FileText size={16} strokeWidth={2.2} />, colorClass: 'violet' },
@@ -288,35 +289,39 @@ const AdminDashboard = () => {
             <span className="admin-title">ADMIN DASHBOARD</span>
           </button>
 
-          <div className="admin-profile-wrap">
-            <button
-              type="button"
-              className="admin-profile"
-              onClick={() => setProfileOpen((prev) => !prev)}
-              aria-expanded={profileOpen}
-              aria-label="Open profile menu"
-            >
-              <div className="avatar">A</div>
-              <ChevronDown
-                size={18}
-                strokeWidth={2.4}
-                className={`profile-caret ${profileOpen ? 'open' : ''}`}
-              />
-            </button>
+          <div className="admin-topbar-actions">
+            <NotificationsPanel />
 
-            {profileOpen && (
-              <div className="profile-dropdown">
-                <button type="button" className="profile-item">
-                  Profile
-                </button>
-                <button type="button" className="profile-item">
-                  Settings
-                </button>
-                <button type="button" className="profile-item" onClick={handleLogout}>
-                  Logout
-                </button>
-              </div>
-            )}
+            <div className="admin-profile-wrap">
+              <button
+                type="button"
+                className="admin-profile"
+                onClick={() => setProfileOpen((prev) => !prev)}
+                aria-expanded={profileOpen}
+                aria-label="Open profile menu"
+              >
+                <div className="avatar">A</div>
+                <ChevronDown
+                  size={18}
+                  strokeWidth={2.4}
+                  className={`profile-caret ${profileOpen ? 'open' : ''}`}
+                />
+              </button>
+
+              {profileOpen && (
+                <div className="profile-dropdown">
+                  <button type="button" className="profile-item">
+                    Profile
+                  </button>
+                  <button type="button" className="profile-item">
+                    Settings
+                  </button>
+                  <button type="button" className="profile-item" onClick={handleLogout}>
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

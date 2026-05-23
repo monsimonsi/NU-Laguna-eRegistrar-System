@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  CreditCard,
+  ReceiptText,
+  ShieldCheck,
+  Smartphone
+} from 'lucide-react';
 import '../styles/Payment.css';
 import '../styles/PaymentReceipt.css';
 import orderIcon from '../assets/order-icon.png';
@@ -26,6 +34,7 @@ const PaymentPage = () => {
   const [message, setMessage] = useState('');
   const [payerName, setPayerName] = useState('');
   const [payerMobile, setPayerMobile] = useState('');
+  const [selectedMethod, setSelectedMethod] = useState('');
 
   const loadPaymentContext = useCallback(async () => {
     if (!requestId) {
@@ -53,6 +62,7 @@ const PaymentPage = () => {
       setPaymongoEnabled(data.paymongoEnabled !== false);
       setPayerName(data.payment?.payerName || data.request?.full_name || '');
       setPayerMobile(data.payment?.payerMobile || '');
+      setSelectedMethod(data.payment?.method || '');
 
       if (data.paymentConfirmed) {
         setMessage('This request is already paid. The registrar will process it shortly.');
@@ -85,8 +95,42 @@ const PaymentPage = () => {
     return null;
   };
 
-  const startCheckout = async (method) => {
+  const paymentMethods = useMemo(
+    () => [
+      {
+        id: 'gcash',
+        name: 'GCash',
+        description: paymongoEnabled
+          ? 'Pay using your GCash mobile wallet.'
+          : 'Open the imitation GCash checkout for testing.'
+      },
+      {
+        id: 'paymaya',
+        name: 'Maya',
+        description: paymongoEnabled
+          ? 'Pay using your Maya mobile wallet.'
+          : 'Open the imitation Maya checkout for testing.'
+      }
+    ],
+    [paymongoEnabled]
+  );
+
+  const selectedMethodName =
+    paymentMethods.find((method) => method.id === selectedMethod)?.name || '';
+
+  const selectPaymentMethod = (method) => {
+    setSelectedMethod(method);
+    setError('');
+    setMessage('');
+  };
+
+  const startCheckout = async () => {
     if (!requestId || request?.paymentConfirmed) return;
+
+    if (!selectedMethod) {
+      setError('Choose GCash or Maya before clicking Pay Now.');
+      return;
+    }
 
     const mobile = normalizeMobile(payerMobile);
     if (!mobile) {
@@ -104,7 +148,7 @@ const PaymentPage = () => {
         {
           method: 'POST',
           body: JSON.stringify({
-            method,
+            method: selectedMethod,
             payerMobile: mobile,
             payerName: payerName.trim() || request?.full_name || ''
           })
@@ -153,10 +197,15 @@ const PaymentPage = () => {
           {!loading && request && (
             <div className="cards-container">
               <div className="order-summary-card">
-                <h2 className="summary-title">
-                  <img src={orderIcon} alt="Order" className="title-icon" />
-                  Order Summary
-                </h2>
+                <div className="summary-card-head">
+                  <h2 className="summary-title">
+                    <img src={orderIcon} alt="Order" className="title-icon" />
+                    Order Summary
+                  </h2>
+                  <span className={`summary-status-pill ${isPaid ? 'paid' : 'pending'}`}>
+                    {isPaid ? 'Paid' : 'Pending'}
+                  </span>
+                </div>
                 <div className="summary-content">
                   <p className="doc-name">
                     <strong>{request.documentType}</strong>
@@ -195,7 +244,7 @@ const PaymentPage = () => {
                 </div>
 
                 {isPaid ? (
-                  <>
+                  <div className="summary-actions">
                     <button
                       type="button"
                       className="pay-btn"
@@ -205,30 +254,32 @@ const PaymentPage = () => {
                     >
                       VIEW RECEIPT
                     </button>
-                    <button type="button" className="methods-back-btn" onClick={() => navigate('/dashboard')}>
+                    <button type="button" className="pay-btn secondary" onClick={() => navigate('/dashboard')}>
                       BACK TO DASHBOARD
                     </button>
-                  </>
+                  </div>
                 ) : (
-                  <button
-                    type="button"
-                    className="pay-btn"
-                    disabled={paying}
-                    onClick={() => startCheckout('gcash')}
-                  >
-                    {paying ? 'PROCESSING…' : 'PAY WITH GCASH'}
-                  </button>
+                  <div className="summary-payment-note">
+                    <ReceiptText size={18} />
+                    <span>Review the amount, choose a wallet, then confirm with Pay Now.</span>
+                  </div>
                 )}
               </div>
 
               <div className="payment-methods-wrapper">
                 <button type="button" className="methods-back-btn" onClick={() => navigate('/dashboard')}>
+                  <ArrowLeft size={16} />
                   BACK
                 </button>
                 <div className="payment-methods-card">
                   <div className="payment-summary-left">
-                    <p className="amount-label">Payment amount</p>
-                    <p className="amount-value">{formatPhp(feeBreakdown?.total)}</p>
+                    <div className="amount-panel">
+                      <p className="amount-label">Amount due</p>
+                      <p className="amount-value">{formatPhp(feeBreakdown?.total)}</p>
+                      <span className={`summary-status-pill ${isPaid ? 'paid' : 'pending'}`}>
+                        {isPaid ? 'Payment confirmed' : 'Awaiting payment'}
+                      </span>
+                    </div>
                     <div className="total-divider-line" />
                     <div className="payment-details">
                       <p className="detail-label">Payment for</p>
@@ -238,9 +289,18 @@ const PaymentPage = () => {
                         {isPaid ? 'Paid' : payment?.paymentStatus || 'Pending'}
                       </p>
                     </div>
+                    {!isPaid && (
+                      <div className="payment-secure-note">
+                        <ShieldCheck size={18} />
+                        <span>Your e-wallet details are only used for this payment and receipt.</span>
+                      </div>
+                    )}
                   </div>
                   <div className="payment-methods-right">
-                    <h2 className="methods-title">Choose your payment method</h2>
+                    <div className="methods-heading">
+                      <p className="methods-eyebrow">Payment method</p>
+                      <h2 className="methods-title">Choose your e-wallet</h2>
+                    </div>
                     {!isPaid && !paymongoEnabled && (
                       <p className="payment-sandbox-hint">
                         PayMongo is not configured. GCash and Maya open imitation checkout pages for testing.
@@ -276,36 +336,51 @@ const PaymentPage = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="methods-content">
+                      <div className="methods-content" role="radiogroup" aria-label="Payment method">
+                        {paymentMethods.map((method) => {
+                          const selected = selectedMethod === method.id;
+
+                          return (
+                            <button
+                              key={method.id}
+                              type="button"
+                              className={`payment-method payment-method-btn ${selected ? 'selected' : ''}`}
+                              disabled={paying}
+                              onClick={() => selectPaymentMethod(method.id)}
+                              aria-pressed={selected}
+                            >
+                              <span className={`method-icon method-icon--${method.id}`}>
+                                <CreditCard size={20} />
+                              </span>
+                              <span className="method-info">
+                                <span className="method-name">{method.name}</span>
+                                <span className="method-desc">{method.description}</span>
+                              </span>
+                              {selected ? (
+                                <CheckCircle2 className="method-check" size={22} />
+                              ) : (
+                                <span className="method-radio" aria-hidden="true" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="payment-confirm-panel">
+                        <div className="selected-payment-copy">
+                          <Smartphone size={18} />
+                          <span>
+                            {selectedMethodName
+                              ? `${selectedMethodName} selected`
+                              : 'Select GCash or Maya to continue'}
+                          </span>
+                        </div>
                         <button
                           type="button"
-                          className="payment-method payment-method-btn"
-                          disabled={paying}
-                          onClick={() => startCheckout('gcash')}
+                          className="payment-pay-now-btn"
+                          disabled={paying || !selectedMethod}
+                          onClick={startCheckout}
                         >
-                          <div className="method-icon"></div>
-                          <div className="method-info">
-                            <p className="method-name">GCash</p>
-                            <p className="method-desc">
-                              {paymongoEnabled ? 'Pay via GCash' : 'Imitation GCash checkout (sandbox)'}
-                            </p>
-                          </div>
-                          <span className="chevron">›</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="payment-method payment-method-btn"
-                          disabled={paying}
-                          onClick={() => startCheckout('paymaya')}
-                        >
-                          <div className="method-icon"></div>
-                          <div className="method-info">
-                            <p className="method-name">Maya</p>
-                            <p className="method-desc">
-                              {paymongoEnabled ? 'Pay via Maya' : 'Imitation Maya checkout (sandbox)'}
-                            </p>
-                          </div>
-                          <span className="chevron">›</span>
+                          {paying ? 'PROCESSING...' : 'PAY NOW'}
                         </button>
                       </div>
                       </>

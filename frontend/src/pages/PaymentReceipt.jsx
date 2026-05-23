@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import logo from '../assets/NU_shield.png';
 import { API_BASE, apiFetch, formatPhp, getStoredToken } from '../api';
+import '../styles/Payment.css';
 import '../styles/PaymentReceipt.css';
 
 const PaymentReceipt = () => {

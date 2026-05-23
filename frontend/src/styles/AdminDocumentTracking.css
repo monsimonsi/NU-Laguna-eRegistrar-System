@@ -517,23 +517,23 @@ body {
 }
 
 .tracking-status-pill.waiting {
-  background: #ef9999;
+  background: #d9534f;
   color: #fff;
 }
 
 .tracking-status-pill.processing {
-  background: #f6c97f;
+  background: #f0ad4e;
   color: #5d3a00;
 }
 
 .tracking-status-pill.ready {
-  background: #aab7dd;
+  background: #5cb85c;
   color: #fff;
 }
 
 .tracking-status-pill.completed {
-  background: #7ec173;
-  color: #fff;
+  background: #ffd400;
+  color: #5d3a00;
 }
 
 .detail-status-pill {
@@ -777,23 +777,27 @@ body {
 }
 
 .status-step.waiting.active {
-  background: #ef9999;
-  color: #33468f;
+  background: #d9534f;
+  color: #fff;
 }
 
 .status-step.processing.active {
-  background: #f6c97f;
-  color: #33468f;
+  background: #f0ad4e;
+  color: #5d3a00;
 }
 
 .status-step.ready.active {
-  background: #aab7dd;
-  color: #33468f;
+  background: #5cb85c;
+  color: #fff;
 }
 
 .status-step.completed.active {
-  background: #ebda96;
-  color: #33468f;
+  background: #ffd400;
+  color: #5d3a00;
+}
+
+.status-step.active .status-step-icon {
+  color: currentColor;
 }
 
 .status-step:not(.active) .status-step-icon {

@@ -185,8 +185,6 @@ const DocumentTracking = () => {
                       </span>
                     </div>
                   )}
-                  <p>Request Date: {formatDate(request.createdAt)}</p>
-                  <p>Request ID: {request._id || '-'}</p>
                 </div>
               </div>
 

@@ -779,23 +779,23 @@ body {
 }
 
 .status-pill.pending {
-  background: #f4cf7d;
-  color: #8b5d00;
+  background: #d9534f;
+  color: #fff;
 }
 
 .status-pill.processing {
-  background: #c8d5ff;
-  color: #4b5fc0;
+  background: #f0ad4e;
+  color: #5d3a00;
 }
 
 .status-pill.ready {
-  background: #b9efae;
-  color: #2c8b28;
+  background: #5cb85c;
+  color: #fff;
 }
 
 .status-pill.completed {
-  background: #c9c9c9;
-  color: #6a6a6a;
+  background: #ffd400;
+  color: #5d3a00;
 }
 
 .status-pill.status-pill-compact {

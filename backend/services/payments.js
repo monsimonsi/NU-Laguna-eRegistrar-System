@@ -110,6 +110,22 @@ async function notifyRequestSubmitted(documentRequest, userId) {
   });
 }
 
+async function notifyPaymentFailed(documentRequest, payment, reason = 'failed') {
+  if (!documentRequest?.requesterId) return null;
+  return createNotification({
+    userId: documentRequest.requesterId,
+    category: 'payment_failed',
+    message: `Payment for your ${documentRequest.documentType} request did not go through. You can retry payment from your dashboard.`,
+    meta: {
+      requestId: String(documentRequest._id),
+      trackingNumber: documentRequest.trackingNumber || '',
+      paymentId: payment?._id ? String(payment._id) : '',
+      paymentStatus: 'failed',
+      reason
+    }
+  });
+}
+
 async function createOrRefreshPaymentIntent(documentRequest, existingPayment) {
   const pm = client();
   if (!pm) {
@@ -213,13 +229,20 @@ async function markPaidFromPaymongoPayment({
   return { ok: true };
 }
 
-async function markFailedFromPaymongoPayment({ paymentIntentId }) {
+async function markFailedFromPaymongoPayment({ paymentIntentId, reason = 'paymongo_failed' }) {
   if (!paymentIntentId) return { ok: false, reason: 'missing_payment_intent' };
   const payment = await Payment.findOne({ paymongoPaymentIntentId: paymentIntentId });
   if (!payment || payment.paymentStatus === 'paid') return { ok: false, reason: 'skip' };
+  if (payment.paymentStatus === 'failed') return { ok: true, duplicate: true };
 
   payment.paymentStatus = 'failed';
   await payment.save();
+
+  const doc = await DocumentRequest.findById(payment.documentRequestId).lean();
+  if (doc) {
+    await notifyPaymentFailed(doc, payment, reason);
+  }
+
   return { ok: true };
 }
 
@@ -275,7 +298,7 @@ async function handlePayMongoWebhook(req, res) {
         return res.status(200).json({ received: true, ignored: true });
       }
     } else if (type === 'payment.failed') {
-      await markFailedFromPaymongoPayment({ paymentIntentId });
+      await markFailedFromPaymongoPayment({ paymentIntentId, reason: 'paymongo_failed' });
     }
 
     return res.status(200).json({ received: true });
@@ -493,7 +516,10 @@ async function syncPaymentFromPaymongo(documentRequestId) {
   }
 
   if (status === 'failed' || status === 'cancelled') {
-    await markFailedFromPaymongoPayment({ paymentIntentId: piId });
+    await markFailedFromPaymongoPayment({
+      paymentIntentId: piId,
+      reason: status === 'cancelled' ? 'paymongo_cancelled' : 'paymongo_failed'
+    });
     return { ok: false, reason: 'failed', status };
   }
 
@@ -561,5 +587,6 @@ module.exports = {
   syncPaymentFromPaymongo,
   confirmSandboxPayment,
   notifyRequestSubmitted,
+  notifyPaymentFailed,
   handlePayMongoWebhook
 };

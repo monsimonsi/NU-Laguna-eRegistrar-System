@@ -1,7 +1,12 @@
 const crypto = require('crypto');
 const Payment = require('../models/Payment');
 const DocumentRequest = require('../models/DocumentRequest');
-const { centavosForRequest, notifyRequestSubmitted, isPaymongoConfigured } = require('./payments');
+const {
+  centavosForRequest,
+  notifyRequestSubmitted,
+  notifyPaymentFailed,
+  isPaymongoConfigured
+} = require('./payments');
 const { normalizePhilippineMobile, generateReceiptNumber } = require('./receipts');
 
 const MOCK_PROVIDERS = {
@@ -234,6 +239,8 @@ async function cancelMockSession(sessionId, userId, email) {
   payment.paymentStatus = 'failed';
   payment.transactionReference = '';
   await payment.save();
+
+  await notifyPaymentFailed(doc, payment, 'mock_checkout_cancelled');
 
   return { ok: true, payment };
 }

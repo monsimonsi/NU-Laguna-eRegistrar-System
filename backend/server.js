@@ -28,6 +28,11 @@ const {
 const mail = require('./services/mail');
 const { generateReceiptPdfBuffer } = require('./services/receiptPdf');
 const { hashPassword, verifyPassword } = require('./services/passwords');
+const {
+  ACTIVE_REQUEST_STATUSES,
+  validateDocumentRequestInput,
+  validateStatusTransition
+} = require('./utils/requestLogic');
 
 const app = express();
 
@@ -82,25 +87,8 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-const ALLOWED_STATUSES = DocumentRequest.REQUEST_STATUSES || [
-  'Pending',
-  'Processing',
-  'Ready for Pickup',
-  'Out for Delivery',
-  'Released'
-];
 const DUPLICATE_WINDOW_DAYS = Number(process.env.DUPLICATE_REQUEST_DAYS || 30);
 const UNPAID_DUPLICATE_WINDOW_DAYS = Number(process.env.UNPAID_REQUEST_DUPLICATE_DAYS || 7);
-
-const ACTIVE_REQUEST_STATUSES = ['Pending', 'Processing', 'Ready for Pickup', 'Out for Delivery'];
-
-function allowedStatusesForRequest(request) {
-  const method = String(request?.deliveryMethod || 'pickup').toLowerCase();
-  if (method === 'delivery') {
-    return ['Pending', 'Processing', 'Out for Delivery', 'Released'];
-  }
-  return ['Pending', 'Processing', 'Ready for Pickup', 'Released'];
-}
 
 function userStatusMessage(request, status) {
   const method = String(request?.deliveryMethod || 'pickup').toLowerCase();
@@ -126,6 +114,30 @@ function makeTrackingNumber() {
   const day = String(d.getDate()).padStart(2, '0');
   const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
   return `NUL-${y}${m}${day}-${rand}`;
+}
+
+async function saveDocumentRequestWithTracking(requestData, maxAttempts = 5) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const request = new DocumentRequest({
+      ...requestData,
+      trackingNumber: makeTrackingNumber()
+    });
+
+    try {
+      await request.save();
+      return request;
+    } catch (err) {
+      const duplicateTracking =
+        err?.code === 11000 &&
+        (err?.keyPattern?.trackingNumber || err?.keyValue?.trackingNumber);
+      if (duplicateTracking && attempt < maxAttempts - 1) {
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw new Error('Could not generate a unique tracking number.');
 }
 
 function isRequestOwner(req, request) {
@@ -432,10 +444,11 @@ app.get('/api/alumni-registrations', authMiddleware, requireAdmin, async (req, r
 app.patch('/api/alumni-registrations/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { verificationStatus, reviewedBy, rejectionReason } = req.body;
+    const { verificationStatus, rejectionReason } = req.body;
 
     const normalizedStatus = String(verificationStatus || '').trim().toLowerCase();
     const normalizedReason = String(rejectionReason || '').trim();
+    const reviewerId = req.auth?.sub || null;
 
     const allowed = ['pending', 'approved', 'rejected'];
     if (!allowed.includes(normalizedStatus)) {
@@ -453,11 +466,9 @@ app.patch('/api/alumni-registrations/:id', authMiddleware, requireAdmin, async (
 
     const update = {
       verificationStatus: normalizedStatus,
-      rejectionReason: normalizedStatus === 'rejected' ? normalizedReason : ''
+      rejectionReason: normalizedStatus === 'rejected' ? normalizedReason : '',
+      reviewedBy: reviewerId
     };
-    if (reviewedBy) {
-      update.reviewedBy = reviewedBy;
-    }
 
     const updated = await AlumniRegistration.findByIdAndUpdate(id, update, { new: true });
     if (!updated) {
@@ -474,7 +485,7 @@ app.patch('/api/alumni-registrations/:id', authMiddleware, requireAdmin, async (
       { user_id: updated.userId },
       {
         verification_status: normalizedStatus,
-        reviewed_by: reviewedBy || null,
+        reviewed_by: reviewerId,
         rejection_reason: normalizedStatus === 'rejected' ? normalizedReason : ''
       },
       { new: true, upsert: true }
@@ -530,65 +541,37 @@ app.get('/api/admin/stats', authMiddleware, requireAdmin, async (req, res) => {
 // Create a new document request
 app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, res) => {
   try {
-    const {
-      full_name,
-      email,
-      role,
-      documentType,
-      purpose,
-      copies,
-      deliveryMethod,
-      address,
-      succeedingPages,
-      notes
-    } = req.body;
-
-    const authSub = String(req.auth?.sub || '').trim();
-    const authEmail = String(req.auth?.email || '').trim().toLowerCase();
-    const authRole = String(req.auth?.role || '').trim();
-    const authName = String(req.auth?.name || '').trim();
-
-    const normalizedDocumentType = String(documentType || '').trim();
-    const normalizedFullName = String(authName || full_name || '').trim();
-    const normalizedEmail = authEmail || String(email || '').trim().toLowerCase();
-    const normalizedRole = authRole || String(role || '').trim();
-
-    if (!normalizedFullName || !normalizedEmail || !normalizedRole || !normalizedDocumentType) {
-      return res.status(400).json({ message: 'Missing required fields.' });
+    const requestedDocumentType = String(req.body?.documentType || '').trim();
+    if (!requestedDocumentType) {
+      return res.status(400).json({ message: 'Document type is required.', field: 'documentType' });
     }
 
     const price = await DocumentPrice.findOne({
-      documentType: normalizedDocumentType,
+      documentType: requestedDocumentType,
       active: true
     }).lean();
 
-    if (!price) {
-      return res.status(400).json({ message: 'No pricing found for this document type.' });
+    const validation = validateDocumentRequestInput({
+      body: req.body,
+      auth: req.auth,
+      price
+    });
+    if (!validation.ok) {
+      return res.status(validation.status || 400).json({
+        message: validation.message,
+        field: validation.field
+      });
     }
 
-    const normalizedCopies = Math.max(1, Number(copies) || 1);
-    const normalizedSucceedingPages = normalizedDocumentType === 'Course Description 1st Page'
-      ? Math.max(0, Number(succeedingPages) || 0)
-      : 0;
-
-    const basePrice = Number(price.basePrice) || 0;
-    const perSucceedingPageFee = Number(price.perSucceedingPageFee) || 0;
-    const succeedingPagesFee = normalizedSucceedingPages * perSucceedingPageFee;
-    const subtotal = (basePrice + succeedingPagesFee) * normalizedCopies;
-    const deliveryFee = deliveryMethod === 'delivery' ? Number(price.deliveryFee) || 150 : 0;
-    const totalFee = subtotal + deliveryFee;
-
-    // #region agent log
-    fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H1',location:'server.js:/api/requests:before-duplicate-check',message:'Starting duplicate request check',data:{userId:authSub,role:authRole,documentType:String(documentType||'')},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    const allowMultipleSameType = normalizedDocumentType === 'Course Description 1st Page';
+    const requestData = validation.value;
+    const allowMultipleSameType = requestData.documentType === 'Course Description 1st Page';
     const cutoff = new Date(Date.now() - DUPLICATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
     const unpaidCutoff = new Date(Date.now() - UNPAID_DUPLICATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
     const duplicate = allowMultipleSameType
       ? null
       : await DocumentRequest.findOne({
-          requesterId: authSub,
-          documentType,
+          requesterId: requestData.requesterId,
+          documentType: requestData.documentType,
           $or: [
             {
               createdAt: { $gte: cutoff },
@@ -602,23 +585,17 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
           ]
         }).sort({ createdAt: -1 });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H1',location:'server.js:/api/requests:after-duplicate-query',message:'Duplicate query result',data:{foundDuplicate:!!duplicate,duplicateId:duplicate?String(duplicate._id):null,cutoffIso:cutoff.toISOString()},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     if (duplicate) {
-      // #region agent log
-      fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H2',location:'server.js:/api/requests:duplicate-blocked',message:'Blocking duplicate request submission',data:{existingTrackingNumber:String(duplicate.trackingNumber||'')},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       if (!duplicate.paymentConfirmed) {
         return res.status(409).json({
-          message: `You already have a ${documentType} request waiting for payment. Use 'Retry payment' on that request or wait before submitting again.`,
+          message: `You already have a ${requestData.documentType} request waiting for payment. Use 'Retry payment' on that request or wait before submitting again.`,
           duplicateRequestId: duplicate._id,
           trackingNumber: duplicate.trackingNumber || null,
           pendingPayment: true
         });
       }
       return res.status(409).json({
-        message: `A recent ${documentType} request already exists and is still being processed.`,
+        message: `A recent ${requestData.documentType} request already exists and is still being processed.`,
         duplicateRequestId: duplicate._id,
         trackingNumber: duplicate.trackingNumber || null
       });
@@ -631,28 +608,10 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
       );
     }
 
-    const newRequest = new DocumentRequest({
-      requesterId: authSub,
-      full_name: normalizedFullName,
-      email: normalizedEmail,
-      role: normalizedRole,
-      documentType: normalizedDocumentType,
-      purpose,
-      copies: normalizedCopies,
-      deliveryMethod: deliveryMethod || 'pickup',
-      address: address || '',
-      succeedingPages: normalizedSucceedingPages,
-      notes: notes || '',
-      trackingNumber: makeTrackingNumber(),
-      paymentConfirmed: false,
-      basePrice,
-      perSucceedingPageFee,
-      succeedingPagesFee,
-      deliveryFee,
-      totalFee
+    const newRequest = await saveDocumentRequestWithTracking({
+      ...requestData,
+      paymentConfirmed: false
     });
-
-    await newRequest.save();
 
     if (skipOnlinePayment) {
       console.warn(
@@ -670,9 +629,6 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
 
     try {
       const intent = await payments.createOrRefreshPaymentIntent(newRequest, null);
-      // #region agent log
-      fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H3',location:'server.js:/api/requests:payment-intent-created',message:'PayMongo payment intent created for new request',data:{userId:authSub,requestId:String(newRequest._id)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
 
       return res.status(201).json({
         message:
@@ -1165,10 +1121,6 @@ app.patch('/api/requests/:id', authMiddleware, requireAdmin, async (req, res) =>
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!ALLOWED_STATUSES.includes(status)) {
-      return res.status(400).json({ message: 'Invalid status' });
-    }
-
     const previous = await DocumentRequest.findById(id);
     if (!previous) return res.status(404).json({ message: 'Request not found' });
 
@@ -1178,39 +1130,39 @@ app.patch('/api/requests/:id', authMiddleware, requireAdmin, async (req, res) =>
       });
     }
 
-    const allowedForMethod = allowedStatusesForRequest(previous);
-    if (!allowedForMethod.includes(status)) {
+    const transition = validateStatusTransition({
+      currentStatus: previous.status,
+      nextStatus: status,
+      request: previous
+    });
+    if (!transition.ok) {
       return res.status(400).json({
-        message:
-          previous.deliveryMethod === 'delivery'
-            ? 'Invalid status for delivery request. Allowed: Pending, Processing, Out for Delivery, Released.'
-            : 'Invalid status for pickup request. Allowed: Pending, Processing, Ready for Pickup, Released.'
+        message: transition.message,
+        allowedStatuses: transition.allowedStatuses || []
       });
     }
 
-    const updated = await DocumentRequest.findByIdAndUpdate(id, { status }, { new: true });
+    const nextStatus = transition.status;
+    const updated = await DocumentRequest.findByIdAndUpdate(id, { status: nextStatus }, { new: true });
 
-    if (previous.status !== status) {
+    if (previous.status !== nextStatus) {
       await createNotification({
         userId: updated.requesterId,
         category: 'request_status',
-        message: userStatusMessage(updated, status),
+        message: userStatusMessage(updated, nextStatus),
         meta: {
           requestId: String(updated._id),
           trackingNumber: updated.trackingNumber || '',
-          status,
+          status: nextStatus,
           deliveryMethod: updated.deliveryMethod || 'pickup'
         }
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H4',location:'server.js:/api/requests/:id:status-notification-created',message:'Created notification row for status change',data:{requestId:String(updated._id),status:String(status)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       void mail.notifyDocumentRequestStatus({
         to: updated.email,
         fullName: updated.full_name,
         trackingNumber: updated.trackingNumber || '',
         documentType: updated.documentType,
-        status,
+        status: nextStatus,
         deliveryMethod: updated.deliveryMethod || 'pickup'
       });
     }

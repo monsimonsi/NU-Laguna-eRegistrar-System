@@ -182,14 +182,14 @@ const PaymentReceipt = () => {
             <div className="receipt-actions">
               <button
                 type="button"
-                className="pay-btn"
+                className="receipt-download-btn"
                 disabled={downloading}
                 onClick={downloadPdf}
               >
                 {downloading ? 'PREPARING PDF…' : 'DOWNLOAD RECEIPT (PDF)'}
               </button>
-              <button type="button" className="methods-back-btn" onClick={() => navigate('/dashboard')}>
-                GO TO DASHBOARD
+              <button type="button" className="receipt-dashboard-btn" onClick={() => navigate('/dashboard')}>
+                BACK TO DASHBOARD
               </button>
               {downloadError && (
                 <p className="payment-feedback payment-feedback--error receipt-download-error">
@@ -201,7 +201,7 @@ const PaymentReceipt = () => {
 
           {!loading && error && (
             <div className="receipt-actions">
-              <button type="button" className="methods-back-btn" onClick={() => navigate('/dashboard')}>
+              <button type="button" className="receipt-dashboard-btn" onClick={() => navigate('/dashboard')}>
                 GO TO DASHBOARD
               </button>
             </div>

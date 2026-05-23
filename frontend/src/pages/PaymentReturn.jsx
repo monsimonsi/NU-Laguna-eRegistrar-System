@@ -39,7 +39,7 @@ const PaymentReturn = () => {
         if (res.ok && data.paymentConfirmed) {
           setStatus('success');
           setMessage('Payment successful! Opening your receipt…');
-          setTimeout(
+          timer = setTimeout(
             () => navigate(`/payment/receipt?requestId=${encodeURIComponent(requestId)}`),
             1500
           );
@@ -63,7 +63,7 @@ const PaymentReturn = () => {
 
     poll();
     return () => clearTimeout(timer);
-  }, [requestId]);
+  }, [requestId, navigate]);
 
   return (
     <div className="payment-page">

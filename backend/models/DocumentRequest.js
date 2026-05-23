@@ -31,10 +31,14 @@ const DocumentRequestSchema = new mongoose.Schema({
     enum: REQUEST_STATUSES,
     default: 'Pending'
   },
-  trackingNumber: { type: String },
+  trackingNumber: { type: String, unique: true, sparse: true, index: true },
   /** When false, the registrar queue hides this row until PayMongo reports a successful payment. */
   paymentConfirmed: { type: Boolean, default: false }
 }, { timestamps: true });
+
+DocumentRequestSchema.index({ requesterId: 1, documentType: 1, createdAt: -1 });
+DocumentRequestSchema.index({ email: 1, createdAt: -1 });
+DocumentRequestSchema.index({ status: 1, paymentConfirmed: 1, createdAt: -1 });
 
 const DocumentRequest = mongoose.model('DocumentRequest', DocumentRequestSchema);
 DocumentRequest.REQUEST_STATUSES = REQUEST_STATUSES;

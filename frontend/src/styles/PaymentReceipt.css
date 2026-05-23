@@ -105,23 +105,66 @@
 
 .receipt-actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   margin-top: 24px;
   width: 100%;
   max-width: 520px;
 }
 
-.receipt-actions .pay-btn,
-.receipt-actions .methods-back-btn {
-  width: 100%;
-  max-width: 360px;
+.receipt-download-btn,
+.receipt-dashboard-btn {
+  flex: 1 1 0;
+  min-height: 44px;
+  min-width: 0;
+  max-width: 240px;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 12px 18px;
+  text-align: center;
+}
+
+.receipt-download-btn {
+  background-color: #959ac2;
+  color: #35408f;
+}
+
+.receipt-dashboard-btn {
+  background-color: #35408f;
+  color: #fff;
+}
+
+.receipt-download-btn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.receipt-download-btn:hover,
+.receipt-dashboard-btn:hover {
+  filter: brightness(0.96);
 }
 
 .receipt-download-error {
+  flex-basis: 100%;
   margin: 0;
   text-align: center;
+}
+
+@media (max-width: 560px) {
+  .receipt-actions {
+    flex-direction: column;
+  }
+
+  .receipt-download-btn,
+  .receipt-dashboard-btn {
+    width: 100%;
+    max-width: 360px;
+  }
 }
 
 .payer-details-card {

@@ -26,6 +26,7 @@ const DocumentRequest = ({ onBack }) => {
   const [createdRequest, setCreatedRequest] = useState(null);
   const [duplicateRequestId, setDuplicateRequestId] = useState('');
   const [prices, setPrices] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -87,6 +88,7 @@ const DocumentRequest = ({ onBack }) => {
     e.preventDefault();
     setIsError(false);
     setMessage('');
+    setDuplicateRequestId('');
 
     const user = (() => {
       try { return JSON.parse(localStorage.getItem('user')); } catch (e) { return null; }
@@ -95,6 +97,18 @@ const DocumentRequest = ({ onBack }) => {
     if (!user) {
       setIsError(true);
       setMessage('You must be logged in to submit a request.');
+      return;
+    }
+
+    if (!documentType) {
+      setIsError(true);
+      setMessage('Please select a document type.');
+      return;
+    }
+
+    if (!purpose) {
+      setIsError(true);
+      setMessage('Please select a purpose.');
       return;
     }
 
@@ -121,6 +135,7 @@ const DocumentRequest = ({ onBack }) => {
       payload.succeedingPages = succeedingPages;
     }
 
+    setIsSubmitting(true);
     try {
       const res = await fetch(`${API_BASE}/api/requests`, {
         method: 'POST',
@@ -163,6 +178,8 @@ const DocumentRequest = ({ onBack }) => {
       console.error(err);
       setIsError(true);
       setMessage('Cannot connect to server.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -230,7 +247,7 @@ const DocumentRequest = ({ onBack }) => {
             </div>
           </div>
 
-          <form className="doc-form" onSubmit={handleSubmit}>
+          <form className="doc-form" onSubmit={handleSubmit} noValidate>
             <div className="doc-grid-top">
               <div className="doc-field">
                 <label>Document Type *</label>
@@ -361,6 +378,23 @@ const DocumentRequest = ({ onBack }) => {
               </div>
             )}
 
+            {message && (
+              <div className={`doc-message ${isError ? 'error' : 'success'}`} role="status">
+                <span>{message}</span>
+                {duplicateRequestId && (
+                  <button
+                    type="button"
+                    className="doc-retry-pay-btn"
+                    onClick={() =>
+                      navigate(`/payment?requestId=${encodeURIComponent(duplicateRequestId)}`)
+                    }
+                  >
+                    Retry payment
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="doc-actions">
               <button
   type="button"
@@ -383,29 +417,13 @@ const DocumentRequest = ({ onBack }) => {
 >
   CANCEL
 </button>
-              <button type="submit" className="submit-btn">
-                SUBMIT REQUEST
+              <button type="submit" className="submit-btn" disabled={isSubmitting}>
+                {isSubmitting ? 'SUBMITTING...' : 'SUBMIT REQUEST'}
               </button>
             </div>
           </form>
         </section>
       </main>
-      {message && (
-        <div className={`doc-message ${isError ? 'error' : 'success'} doc-message--spaced`}>
-          {message}
-          {duplicateRequestId && (
-            <button
-              type="button"
-              className="doc-retry-pay-btn"
-              onClick={() =>
-                navigate(`/payment?requestId=${encodeURIComponent(duplicateRequestId)}`)
-              }
-            >
-              Retry payment
-            </button>
-          )}
-        </div>
-      )}
 
       {showModal && (
         <div className="doc-modal-overlay">

@@ -309,8 +309,41 @@ body {
   align-items: center;
 }
 
-.doc-message--spaced {
-  margin: 16px;
+.doc-message {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  border: 1px solid #bcc6ea;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.doc-message.error {
+  border-color: #f0a7a7;
+  background: #fff1f1;
+  color: #9b1c1c;
+}
+
+.doc-message.success {
+  border-color: #9fd2b0;
+  background: #f0fff4;
+  color: #116329;
+}
+
+.doc-retry-pay-btn {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 8px;
+  background: #4052a6;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 10px;
 }
 
 .doc-modal-overlay {
@@ -393,6 +426,11 @@ body {
   background: #9ca4d7;
   color: #4052a6;
   margin-top: auto;
+}
+
+.submit-btn:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .cancel-btn:hover,

@@ -24,6 +24,13 @@ const PaymentReturn = () => {
     const poll = async () => {
       attempts += 1;
       try {
+        if (attempts === 1) {
+          await apiFetch(`/api/requests/${encodeURIComponent(requestId)}/payment/sync`, {
+            method: 'POST',
+            auth: true
+          });
+        }
+
         const { res, data } = await apiFetch(
           `/api/requests/${encodeURIComponent(requestId)}/payment`,
           { method: 'GET', auth: true, json: false }
@@ -31,7 +38,11 @@ const PaymentReturn = () => {
 
         if (res.ok && data.paymentConfirmed) {
           setStatus('success');
-          setMessage('Payment successful! Your request is now with the registrar.');
+          setMessage('Payment successful! Opening your receipt…');
+          setTimeout(
+            () => navigate(`/payment/receipt?requestId=${encodeURIComponent(requestId)}`),
+            1500
+          );
           return;
         }
 

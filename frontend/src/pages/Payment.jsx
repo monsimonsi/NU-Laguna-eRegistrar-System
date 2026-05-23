@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import '../styles/Payment.css';
+import '../styles/PaymentReceipt.css';
 import orderIcon from '../assets/order-icon.png';
 import logo from '../assets/NU_shield.png';
 import { apiFetch, formatPhp } from '../api';
@@ -23,6 +24,8 @@ const PaymentPage = () => {
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [payerName, setPayerName] = useState('');
+  const [payerMobile, setPayerMobile] = useState('');
 
   const loadPaymentContext = useCallback(async () => {
     if (!requestId) {
@@ -48,6 +51,8 @@ const PaymentPage = () => {
       setRequest(data.request || null);
       setPayment(data.payment || null);
       setPaymongoEnabled(data.paymongoEnabled !== false);
+      setPayerName(data.payment?.payerName || data.request?.full_name || '');
+      setPayerMobile(data.payment?.payerMobile || '');
 
       if (data.paymentConfirmed) {
         setMessage('This request is already paid. The registrar will process it shortly.');
@@ -72,36 +77,42 @@ const PaymentPage = () => {
     return { base, succeeding, delivery, total };
   }, [request]);
 
+  const normalizeMobile = (value) => {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (digits.length === 11 && digits.startsWith('09')) return digits;
+    if (digits.length === 10 && digits.startsWith('9')) return `0${digits}`;
+    if (digits.length === 12 && digits.startsWith('639')) return `0${digits.slice(2)}`;
+    return null;
+  };
+
   const startCheckout = async (method) => {
     if (!requestId || request?.paymentConfirmed) return;
+
+    const mobile = normalizeMobile(payerMobile);
+    if (!mobile) {
+      setError('Enter a valid GCash/Maya mobile number (09XXXXXXXXX).');
+      return;
+    }
 
     setPaying(true);
     setError('');
     setMessage('');
 
     try {
-      if (!paymongoEnabled) {
-        const { res, data } = await apiFetch(
-          `/api/requests/${encodeURIComponent(requestId)}/payment/confirm-sandbox`,
-          { method: 'POST', body: JSON.stringify({ method }) }
-        );
-
-        if (!res.ok) {
-          setError(data.message || 'Could not complete sandbox payment.');
-          return;
-        }
-
-        navigate(`/payment/return?requestId=${encodeURIComponent(requestId)}`);
-        return;
-      }
-
       const { res, data } = await apiFetch(
         `/api/requests/${encodeURIComponent(requestId)}/payment/checkout`,
-        { method: 'POST', body: JSON.stringify({ method }) }
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            method,
+            payerMobile: mobile,
+            payerName: payerName.trim() || request?.full_name || ''
+          })
+        }
       );
 
       if (!res.ok) {
-        setError(data.message || data.detail || 'Could not start payment.');
+        setError(data.detail || data.message || 'Could not start payment.');
         return;
       }
 
@@ -184,9 +195,20 @@ const PaymentPage = () => {
                 </div>
 
                 {isPaid ? (
-                  <button type="button" className="pay-btn" onClick={() => navigate('/dashboard')}>
-                    BACK TO DASHBOARD
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="pay-btn"
+                      onClick={() =>
+                        navigate(`/payment/receipt?requestId=${encodeURIComponent(requestId)}`)
+                      }
+                    >
+                      VIEW RECEIPT
+                    </button>
+                    <button type="button" className="methods-back-btn" onClick={() => navigate('/dashboard')}>
+                      BACK TO DASHBOARD
+                    </button>
+                  </>
                 ) : (
                   <button
                     type="button"
@@ -194,7 +216,7 @@ const PaymentPage = () => {
                     disabled={paying}
                     onClick={() => startCheckout('gcash')}
                   >
-                    {paying ? 'PROCESSING…' : paymongoEnabled ? 'PAY WITH GCASH' : 'COMPLETE PAYMENT (SANDBOX)'}
+                    {paying ? 'PROCESSING…' : 'PAY WITH GCASH'}
                   </button>
                 )}
               </div>
@@ -221,10 +243,39 @@ const PaymentPage = () => {
                     <h2 className="methods-title">Choose your payment method</h2>
                     {!isPaid && !paymongoEnabled && (
                       <p className="payment-sandbox-hint">
-                        PayMongo is not configured. Select GCash or Maya to simulate payment for testing.
+                        PayMongo is not configured. GCash and Maya open imitation checkout pages for testing.
                       </p>
                     )}
                     {!isPaid && (
+                      <>
+                      <div className="payer-details-card">
+                        <h3 className="payer-details-title">Your e-wallet details</h3>
+                        <div className="payer-field">
+                          <label htmlFor="payerName">Account name</label>
+                          <input
+                            id="payerName"
+                            type="text"
+                            value={payerName}
+                            onChange={(e) => setPayerName(e.target.value)}
+                            placeholder="Name on GCash / Maya account"
+                          />
+                        </div>
+                        <div className="payer-field">
+                          <label htmlFor="payerMobile">Mobile number</label>
+                          <input
+                            id="payerMobile"
+                            type="tel"
+                            inputMode="numeric"
+                            value={payerMobile}
+                            onChange={(e) => setPayerMobile(e.target.value)}
+                            placeholder="09XXXXXXXXX"
+                            maxLength={11}
+                          />
+                          <p className="payer-field-hint">
+                            Used for GCash/Maya payment and shown on your receipt after payment.
+                          </p>
+                        </div>
+                      </div>
                       <div className="methods-content">
                         <button
                           type="button"
@@ -235,7 +286,9 @@ const PaymentPage = () => {
                           <div className="method-icon"></div>
                           <div className="method-info">
                             <p className="method-name">GCash</p>
-                            <p className="method-desc">Pay via GCash e-wallet (sandbox)</p>
+                            <p className="method-desc">
+                              {paymongoEnabled ? 'Pay via GCash' : 'Imitation GCash checkout (sandbox)'}
+                            </p>
                           </div>
                           <span className="chevron">›</span>
                         </button>
@@ -248,11 +301,26 @@ const PaymentPage = () => {
                           <div className="method-icon"></div>
                           <div className="method-info">
                             <p className="method-name">Maya</p>
-                            <p className="method-desc">Pay via Maya e-wallet (sandbox)</p>
+                            <p className="method-desc">
+                              {paymongoEnabled ? 'Pay via Maya' : 'Imitation Maya checkout (sandbox)'}
+                            </p>
                           </div>
                           <span className="chevron">›</span>
                         </button>
                       </div>
+                      </>
+                    )}
+                    {isPaid && (
+                      <button
+                        type="button"
+                        className="pay-btn"
+                        style={{ marginTop: 12 }}
+                        onClick={() =>
+                          navigate(`/payment/receipt?requestId=${encodeURIComponent(requestId)}`)
+                        }
+                      >
+                        VIEW PAYMENT RECEIPT
+                      </button>
                     )}
                     {isPaid && (
                       <p className="payment-paid-note">

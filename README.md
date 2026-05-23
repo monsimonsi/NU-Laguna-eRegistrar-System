@@ -53,7 +53,24 @@ Real-time status updates:
 - Released
 ## Payment Integration (Sandbox)
 - Supports online payment (GCash, Maya – sandbox mode)
+- **Without PayMongo keys:** imitation GCash/Maya APIs redirect to in-app mock checkout pages
+- **With PayMongo keys:** real GCash/Maya checkout via PayMongo sandbox
 - Secure and trackable transactions
+
+### Mock GCash / Maya APIs (development, no `PAYMONGO_SECRET_KEY`)
+
+| Method | Endpoint | Body |
+|--------|----------|------|
+| POST | `/api/mock/gcash/v1/checkout` | `{ "requestId": "<documentRequestId>" }` |
+| GET | `/api/mock/gcash/v1/sessions/:sessionId` | — |
+| POST | `/api/mock/gcash/v1/sessions/:sessionId/pay` | — |
+| POST | `/api/mock/gcash/v1/sessions/:sessionId/cancel` | — |
+| POST | `/api/mock/maya/v1/checkout` | `{ "requestId": "<documentRequestId>" }` |
+| GET | `/api/mock/maya/v1/sessions/:sessionId` | — |
+| POST | `/api/mock/maya/v1/sessions/:sessionId/pay` | — |
+| POST | `/api/mock/maya/v1/sessions/:sessionId/cancel` | — |
+
+The Payment page uses `POST /api/requests/:id/payment/checkout`, which automatically uses mock checkout when PayMongo is disabled.
 ## Smart Notification System (AI-Enhanced)
 - Sends context-aware and personalized email notifications
 - Provides:

@@ -3,9 +3,29 @@ const Payment = require('../models/Payment');
 const DocumentRequest = require('../models/DocumentRequest');
 const { createNotification } = require('./notifications');
 const mail = require('./mail');
+const {
+  normalizePhilippineMobile,
+  generateReceiptNumber,
+  buildReceiptPayload
+} = require('./receipts');
 
 function paymongoSecret() {
   return String(process.env.PAYMONGO_SECRET_KEY || '').trim();
+}
+
+function validatePaymongoSecretKey() {
+  const sk = paymongoSecret();
+  if (!sk) return;
+  if (sk.startsWith('pk_')) {
+    throw new Error(
+      'PAYMONGO_SECRET_KEY is a public key (pk_). Use your secret key (sk_test_ or sk_live_) from PayMongo Dashboard → API Keys.'
+    );
+  }
+  if (!sk.startsWith('sk_')) {
+    throw new Error(
+      'PAYMONGO_SECRET_KEY looks invalid. It should start with sk_test_ or sk_live_.'
+    );
+  }
 }
 
 function webhookSecret() {
@@ -14,6 +34,14 @@ function webhookSecret() {
 
 function isPaymongoConfigured() {
   return Boolean(paymongoSecret());
+}
+
+function getPaymongoKeyStatus() {
+  const sk = paymongoSecret();
+  if (!sk) return 'missing';
+  if (sk.startsWith('pk_')) return 'public';
+  if (sk.startsWith('sk_')) return 'secret';
+  return 'invalid';
 }
 
 function centavosForRequest(documentRequest) {
@@ -28,6 +56,7 @@ function centavosForRequest(documentRequest) {
 async function paymongoApi(path, method, body) {
   const sk = paymongoSecret();
   if (!sk) throw new Error('PayMongo is not configured');
+  validatePaymongoSecretKey();
 
   const res = await fetch(`https://api.paymongo.com/v1${path}`, {
     method,
@@ -51,6 +80,7 @@ async function paymongoApi(path, method, body) {
 function client() {
   const sk = paymongoSecret();
   if (!sk) return null;
+  validatePaymongoSecretKey();
   return Paymongo(sk);
 }
 
@@ -80,9 +110,6 @@ async function notifyRequestSubmitted(documentRequest, userId) {
   });
 }
 
-/**
- * Creates a PayMongo PaymentIntent and upserts the Payment row for this document request.
- */
 async function createOrRefreshPaymentIntent(documentRequest, existingPayment) {
   const pm = client();
   if (!pm) {
@@ -96,7 +123,6 @@ async function createOrRefreshPaymentIntent(documentRequest, existingPayment) {
     try {
       await pm.paymentIntents.cancel(existingPayment.paymongoPaymentIntentId);
     } catch (_) {
-      /* ignore cancel errors (already terminal) */
     }
   }
 
@@ -122,13 +148,18 @@ async function createOrRefreshPaymentIntent(documentRequest, existingPayment) {
       paymongoClientKey: pi.client_key || ''
     });
   } else {
-    row.amountCentavos = amount;
-    row.paymentStatus = 'pending';
-    row.paymongoPaymentIntentId = pi.id;
-    row.paymongoClientKey = pi.client_key || '';
-    row.transactionReference = '';
-    row.paymentMethod = '';
-    await row.save();
+    row = await Payment.findOneAndUpdate(
+      { documentRequestId: documentRequest._id },
+      {
+        amountCentavos: amount,
+        paymentStatus: 'pending',
+        paymongoPaymentIntentId: pi.id,
+        paymongoClientKey: pi.client_key || '',
+        transactionReference: '',
+        paymentMethod: ''
+      },
+      { new: true }
+    );
   }
 
   return {
@@ -167,6 +198,8 @@ async function markPaidFromPaymongoPayment({
   payment.paymentStatus = 'paid';
   payment.transactionReference = paymongoPaymentId || paymentIntentId;
   if (methodLabel) payment.paymentMethod = methodLabel;
+  if (!payment.receiptNumber) payment.receiptNumber = generateReceiptNumber();
+  if (!payment.paidAt) payment.paidAt = new Date();
   await payment.save();
 
   if (!doc.paymentConfirmed) {
@@ -203,9 +236,6 @@ function extractPaymentPayload(event) {
   return { type, paymentIntentId, paymentId, sourceType };
 }
 
-/**
- * Express handler: raw JSON body (register with express.raw).
- */
 async function handlePayMongoWebhook(req, res) {
   const pm = client();
   const whSecret = webhookSecret();
@@ -256,8 +286,7 @@ async function handlePayMongoWebhook(req, res) {
 }
 
 /**
- * Starts GCash or Maya checkout; returns redirect URL for the e-wallet app/page.
- */
+ * Starts GCash or Maya checkout; returns redirect URL for the e-wallet app/page.*/
 async function startEwalletCheckout(documentRequest, existingPayment, method, returnUrl) {
   const pm = client();
   if (!pm) throw new Error('PayMongo is not configured');
@@ -270,9 +299,14 @@ async function startEwalletCheckout(documentRequest, existingPayment, method, re
   const intent = await createOrRefreshPaymentIntent(documentRequest, existingPayment);
   const paymentIntentId = intent.paymentIntentId;
 
-  const billingName = String(documentRequest.full_name || 'NU Student').trim();
-  const billingEmail = String(documentRequest.email || '').trim();
-  const billingPhone = String(process.env.PAYMONGO_BILLING_PHONE || '09170000000').trim();
+  const paymentRow = await Payment.findOne({ documentRequestId: documentRequest._id }).lean();
+  const billingName = String(
+    paymentRow?.payerName || documentRequest.full_name || 'NU Student'
+  ).trim();
+  const billingEmail = String(paymentRow?.payerEmail || documentRequest.email || '').trim();
+  const billingPhone = String(
+    paymentRow?.payerMobile || process.env.PAYMONGO_BILLING_PHONE || '09170000000'
+  ).trim();
 
   let paymentMethod;
   if (pm.paymentMethods && typeof pm.paymentMethods.create === 'function') {
@@ -338,6 +372,134 @@ async function getPaymentForRequest(documentRequestId) {
   return Payment.findOne({ documentRequestId }).lean();
 }
 
+async function savePayerDetails(documentRequest, { payerName, payerMobile } = {}) {
+  const mobileRaw = String(payerMobile || '').trim();
+  const mobile = mobileRaw ? normalizePhilippineMobile(mobileRaw) : '';
+  if (mobileRaw && !mobile) {
+    throw new Error('Invalid Philippine mobile number. Use format 09XXXXXXXXX.');
+  }
+
+  const amount = centavosForRequest(documentRequest);
+  const name = String(payerName || documentRequest.full_name || '').trim();
+
+  await Payment.findOneAndUpdate(
+    { documentRequestId: documentRequest._id },
+    {
+      payerName: name,
+      payerMobile: mobile,
+      payerEmail: String(documentRequest.email || '').trim()
+    },
+    {
+      upsert: true,
+      setOnInsert: {
+        amountCentavos: amount,
+        currency: 'PHP',
+        paymentStatus: 'pending'
+      }
+    }
+  );
+
+  return { payerName: name, payerMobile: mobile };
+}
+
+async function getPaymentReceipt(documentRequestId) {
+  const payment = await Payment.findOne({ documentRequestId }).lean();
+  if (!payment || payment.paymentStatus !== 'paid') return null;
+
+  const doc = await DocumentRequest.findById(documentRequestId).lean();
+  if (!doc) return null;
+
+  return buildReceiptPayload(payment, doc);
+}
+
+/**
+ * After GCash/Maya redirect: check PayMongo payment intent status and mark paid locally.
+ * Needed when webhooks are not configured (e.g. localhost dev).
+ */
+async function syncPaymentFromPaymongo(documentRequestId) {
+  if (!isPaymongoConfigured()) {
+    return { ok: false, reason: 'paymongo_not_configured' };
+  }
+
+  const payment = await Payment.findOne({ documentRequestId });
+  if (!payment?.paymongoPaymentIntentId) {
+    return { ok: false, reason: 'no_payment_intent' };
+  }
+
+  const doc = await DocumentRequest.findById(documentRequestId);
+  if (!doc) return { ok: false, reason: 'request_not_found' };
+  if (doc.paymentConfirmed) {
+    return { ok: true, paymentConfirmed: true, alreadyPaid: true };
+  }
+
+  const piId = payment.paymongoPaymentIntentId;
+  let pi;
+  try {
+    pi = await paymongoApi(`/payment_intents/${piId}`, 'GET');
+  } catch (err) {
+    return { ok: false, reason: 'paymongo_fetch_failed', message: err.message };
+  }
+
+  const attrs = pi?.attributes || pi;
+  const status = String(attrs?.status || '').toLowerCase();
+
+  if (status === 'succeeded') {
+    let paymongoPaymentId = '';
+    let sourceType = '';
+
+    const embedded = attrs?.payments?.data || attrs?.payments || [];
+    const paymentRows = Array.isArray(embedded) ? embedded : [];
+    if (paymentRows.length > 0) {
+      const last = paymentRows[paymentRows.length - 1];
+      paymongoPaymentId = last.id || '';
+      const pAttrs = last.attributes || last;
+      sourceType = pAttrs?.source?.type || pAttrs?.source?.provider || '';
+    }
+
+    if (!paymongoPaymentId) {
+      try {
+        const sk = paymongoSecret();
+        const res = await fetch(
+          `https://api.paymongo.com/v1/payments?payment_intent_id=${encodeURIComponent(piId)}&limit=5`,
+          {
+            headers: { Authorization: `Basic ${Buffer.from(`${sk}:`).toString('base64')}` }
+          }
+        );
+        const json = await res.json();
+        const rows = Array.isArray(json?.data) ? json.data : [];
+        if (rows.length > 0) {
+          const last = rows[rows.length - 1];
+          paymongoPaymentId = last.id || '';
+          const pAttrs = last.attributes || {};
+          sourceType = pAttrs?.source?.type || pAttrs?.source?.provider || '';
+        }
+      } catch (_) {
+        /* optional lookup */
+      }
+    }
+
+    await markPaidFromPaymongoPayment({
+      paymentIntentId: piId,
+      paymongoPaymentId: paymongoPaymentId || piId,
+      sourceType
+    });
+
+    const updated = await DocumentRequest.findById(documentRequestId).lean();
+    return {
+      ok: true,
+      paymentConfirmed: Boolean(updated?.paymentConfirmed),
+      status: 'succeeded'
+    };
+  }
+
+  if (status === 'failed' || status === 'cancelled') {
+    await markFailedFromPaymongoPayment({ paymentIntentId: piId });
+    return { ok: false, reason: 'failed', status };
+  }
+
+  return { ok: false, reason: 'pending', status: status || 'unknown' };
+}
+
 /**
  * Dev/sandbox: mark request paid when PayMongo is not configured (payment page flow).
  */
@@ -368,7 +530,11 @@ async function confirmSandboxPayment(documentRequest, method = 'sandbox') {
       currency: 'PHP',
       paymentStatus: 'paid',
       paymentMethod: methodLabel,
-      transactionReference: `SANDBOX-${Date.now()}`
+      transactionReference: `SANDBOX-${Date.now()}`,
+      receiptNumber: generateReceiptNumber(),
+      paidAt: new Date(),
+      payerName: String(documentRequest.full_name || '').trim(),
+      payerEmail: String(documentRequest.email || '').trim()
     },
     { upsert: true, new: true }
   );
@@ -385,10 +551,14 @@ async function confirmSandboxPayment(documentRequest, method = 'sandbox') {
 
 module.exports = {
   isPaymongoConfigured,
+  getPaymongoKeyStatus,
   centavosForRequest,
   createOrRefreshPaymentIntent,
   startEwalletCheckout,
   getPaymentForRequest,
+  savePayerDetails,
+  getPaymentReceipt,
+  syncPaymentFromPaymongo,
   confirmSandboxPayment,
   notifyRequestSubmitted,
   handlePayMongoWebhook

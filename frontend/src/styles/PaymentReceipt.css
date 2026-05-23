@@ -1,0 +1,173 @@
+.receipt-wrapper {
+  align-items: center;
+}
+
+.receipt-card {
+  width: 100%;
+  max-width: 520px;
+  background: #fff;
+  border: 1px solid #d1d9e6;
+  border-radius: 12px;
+  padding: 32px 28px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.receipt-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.receipt-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.receipt-title {
+  margin: 0 0 4px;
+  font-size: 22px;
+  color: #35408f;
+}
+
+.receipt-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.receipt-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.receipt-meta .receipt-label {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.receipt-divider {
+  border: 0;
+  border-top: 1px solid #eee;
+  margin: 16px 0;
+}
+
+.receipt-section h2 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #35408f;
+  margin: 0 0 12px;
+}
+
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.receipt-row span {
+  color: #666;
+}
+
+.receipt-ref {
+  font-size: 12px;
+  word-break: break-all;
+  text-align: right;
+  max-width: 55%;
+}
+
+.receipt-total {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #ccc;
+  font-size: 16px;
+}
+
+.receipt-total strong {
+  color: #0a7a3e;
+}
+
+.receipt-footer {
+  margin-top: 20px;
+  font-size: 12px;
+  color: #888;
+  line-height: 1.5;
+}
+
+.receipt-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  width: 100%;
+  max-width: 520px;
+}
+
+.receipt-actions .pay-btn,
+.receipt-actions .methods-back-btn {
+  width: 100%;
+  max-width: 360px;
+}
+
+.receipt-download-error {
+  margin: 0;
+  text-align: center;
+}
+
+.payer-details-card {
+  width: 100%;
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  background: #f8f9fc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.payer-details-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #35408f;
+}
+
+.payer-field {
+  margin-bottom: 12px;
+}
+
+.payer-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 6px;
+}
+
+.payer-field input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 15px;
+  box-sizing: border-box;
+}
+
+.payer-field input:focus {
+  outline: 2px solid #35408f44;
+  border-color: #35408f;
+}
+
+.payer-field-hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #888;
+}

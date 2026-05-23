@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ override: true });
 
 const express = require('express');
 const dns = require('dns'); // Lets Node use custom DNS resolvers.
@@ -10,6 +10,8 @@ const DocumentRequest = require('./models/DocumentRequest');
 const Payment = require('./models/Payment');
 const AlumniVerification = require('./models/AlumniVerification');
 const payments = require('./services/payments');
+const mockEwallet = require('./services/mockEwallet');
+const { createMockPaymentRouter } = require('./routes/mockPayment');
 const {
   createNotification,
   listForUser: listNotificationsForUser,
@@ -24,6 +26,7 @@ const {
   requireStudentOrAlumni
 } = require('./middleware/auth');
 const mail = require('./services/mail');
+const { generateReceiptPdfBuffer } = require('./services/receiptPdf');
 const { hashPassword, verifyPassword } = require('./services/passwords');
 
 const app = express();
@@ -45,14 +48,37 @@ app.post(
 );
 app.use(express.json());
 
+app.use(
+  '/api/mock',
+  createMockPaymentRouter({
+    authMiddleware,
+    requireStudentOrAlumni,
+    isRequestOwner
+  })
+);
+
 app.get('/api/health', (req, res) => {
   const dbConnected = mongoose.connection.readyState === 1;
-  res.status(dbConnected ? 200 : 503).json({
-    ok: dbConnected,
+  const paymongoKeyStatus = payments.getPaymongoKeyStatus();
+  const paymongoOk = paymongoKeyStatus === 'missing' || paymongoKeyStatus === 'secret';
+  res.status(dbConnected && paymongoOk ? 200 : 503).json({
+    ok: dbConnected && paymongoOk,
     database: dbConnected ? 'connected' : 'disconnected',
-    hint: dbConnected
-      ? null
-      : 'Allow your IP in MongoDB Atlas → Network Access, or use 0.0.0.0/0 for development.'
+    paymongo: {
+      configured: payments.isPaymongoConfigured(),
+      keyStatus: paymongoKeyStatus,
+      hint:
+        paymongoKeyStatus === 'public'
+          ? 'PAYMONGO_SECRET_KEY is pk_ (public). Use sk_test_ secret key in backend/.env and restart the backend.'
+          : paymongoKeyStatus === 'invalid'
+            ? 'PAYMONGO_SECRET_KEY must start with sk_test_ or sk_live_.'
+            : null
+    },
+    hint: !dbConnected
+      ? 'Allow your IP in MongoDB Atlas → Network Access, or use 0.0.0.0/0 for development.'
+      : paymongoKeyStatus === 'public'
+        ? 'Restart backend after fixing PAYMONGO_SECRET_KEY in backend/.env (use sk_test_, not pk_test_).'
+        : null
   });
 });
 
@@ -751,10 +777,19 @@ app.patch('/api/me/notifications/:id/read', authMiddleware, requireStudentOrAlum
 // Payment status for a request (student/alumni owner)
 app.get('/api/requests/:id/payment', authMiddleware, requireStudentOrAlumni, async (req, res) => {
   try {
-    const doc = await DocumentRequest.findById(req.params.id).lean();
+    let doc = await DocumentRequest.findById(req.params.id).lean();
     if (!doc) return res.status(404).json({ message: 'Request not found' });
     if (!isRequestOwner(req, doc)) {
       return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    if (!doc.paymentConfirmed && payments.isPaymongoConfigured()) {
+      try {
+        await payments.syncPaymentFromPaymongo(doc._id);
+        doc = await DocumentRequest.findById(req.params.id).lean();
+      } catch (syncErr) {
+        console.warn('[payments] sync on payment status read:', syncErr.message || syncErr);
+      }
     }
 
     const payment = await payments.getPaymentForRequest(doc._id);
@@ -762,11 +797,90 @@ app.get('/api/requests/:id/payment', authMiddleware, requireStudentOrAlumni, asy
       request: doc,
       payment,
       paymentConfirmed: Boolean(doc.paymentConfirmed),
-      paymongoEnabled: payments.isPaymongoConfigured()
+      paymongoEnabled: payments.isPaymongoConfigured(),
+      mockEwalletEnabled: mockEwallet.isMockEwalletEnabled()
     });
   } catch (err) {
     console.error('Get payment status error:', err);
     return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Payment receipt (paid requests only)
+app.get('/api/requests/:id/payment/receipt', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+  try {
+    const doc = await DocumentRequest.findById(req.params.id).lean();
+    if (!doc) return res.status(404).json({ message: 'Request not found' });
+    if (!isRequestOwner(req, doc)) {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    const receipt = await payments.getPaymentReceipt(doc._id);
+    if (!receipt) {
+      return res.status(404).json({ message: 'Receipt not available. Payment may still be pending.' });
+    }
+
+    return res.status(200).json({ receipt });
+  } catch (err) {
+    console.error('Payment receipt error:', err);
+    return res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+app.get(
+  '/api/requests/:id/payment/receipt/pdf',
+  authMiddleware,
+  requireStudentOrAlumni,
+  async (req, res) => {
+    try {
+      const doc = await DocumentRequest.findById(req.params.id).lean();
+      if (!doc) return res.status(404).json({ message: 'Request not found' });
+      if (!isRequestOwner(req, doc)) {
+        return res.status(403).json({ message: 'Access denied.' });
+      }
+
+      const receipt = await payments.getPaymentReceipt(doc._id);
+      if (!receipt) {
+        return res
+          .status(404)
+          .json({ message: 'Receipt not available. Payment may still be pending.' });
+      }
+
+      const pdfBuffer = await generateReceiptPdfBuffer(receipt);
+      const filename = `receipt-${receipt.receiptNumber || doc._id}.pdf`;
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      return res.send(pdfBuffer);
+    } catch (err) {
+      console.error('Payment receipt PDF error:', err);
+      return res.status(500).json({ message: err.message || 'Server error' });
+    }
+  }
+);
+
+// After PayMongo redirect: force sync payment intent (return page)
+app.post('/api/requests/:id/payment/sync', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+  try {
+    const doc = await DocumentRequest.findById(req.params.id);
+    if (!doc) return res.status(404).json({ message: 'Request not found' });
+    if (!isRequestOwner(req, doc)) {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    const result = await payments.syncPaymentFromPaymongo(doc._id);
+    const updated = await DocumentRequest.findById(doc._id).lean();
+    const payment = await payments.getPaymentForRequest(doc._id);
+
+    return res.status(200).json({
+      ...result,
+      paymentConfirmed: Boolean(updated?.paymentConfirmed),
+      payment
+    });
+  } catch (err) {
+    console.error('Payment sync error:', err);
+    return res.status(500).json({ message: err.message || 'Server error' });
   }
 });
 
@@ -803,8 +917,8 @@ app.post('/api/requests/:id/payment/confirm-sandbox', authMiddleware, requireStu
   }
 });
 
-// Start GCash / Maya checkout (redirect URL)
-app.post('/api/requests/:id/payment/checkout', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+// Mock GCash / Maya checkout (imitation APIs — when PayMongo is not configured)
+app.post('/api/requests/:id/payment/mock/checkout', authMiddleware, requireStudentOrAlumni, async (req, res) => {
   try {
     const { id } = req.params;
     const { method } = req.body;
@@ -820,15 +934,75 @@ app.post('/api/requests/:id/payment/checkout', authMiddleware, requireStudentOrA
       return res.status(400).json({ message: 'This request is already paid.' });
     }
 
-    if (!payments.isPaymongoConfigured()) {
+    if (!mockEwallet.isMockEwalletEnabled()) {
       return res.status(503).json({
-        message:
-          'PayMongo is not configured. Use sandbox payment on this page (GCash/Maya buttons) or set PAYMONGO_SECRET_KEY.'
+        message: 'Mock e-wallet is disabled while PayMongo is configured.'
       });
+    }
+
+    const { payerMobile, payerName } = req.body;
+    if (payerMobile) {
+      await payments.savePayerDetails(doc, { payerMobile, payerName });
     }
 
     const frontendBase = String(process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
     const returnUrl = `${frontendBase}/payment/return?requestId=${encodeURIComponent(String(doc._id))}`;
+    const checkout = await mockEwallet.startMockCheckout(doc, method, returnUrl);
+
+    return res.status(200).json({
+      redirectUrl: checkout.redirectUrl,
+      sessionId: checkout.sessionId,
+      payment: {
+        status: checkout.payment.paymentStatus,
+        amountCentavos: checkout.amountCentavos,
+        currency: checkout.currency,
+        provider: checkout.provider
+      }
+    });
+  } catch (err) {
+    console.error('Mock payment checkout error:', err);
+    return res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// Start GCash / Maya checkout (redirect URL — PayMongo or mock fallback)
+app.post('/api/requests/:id/payment/checkout', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { method, payerMobile, payerName } = req.body;
+
+    const doc = await DocumentRequest.findById(id);
+    if (!doc) return res.status(404).json({ message: 'Request not found' });
+
+    if (!isRequestOwner(req, doc)) {
+      return res.status(403).json({ message: 'You can only pay for your own requests.' });
+    }
+
+    if (doc.paymentConfirmed) {
+      return res.status(400).json({ message: 'This request is already paid.' });
+    }
+
+    if (payerMobile) {
+      await payments.savePayerDetails(doc, { payerMobile, payerName });
+    }
+
+    const frontendBase = String(process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const returnUrl = `${frontendBase}/payment/return?requestId=${encodeURIComponent(String(doc._id))}`;
+
+    if (!payments.isPaymongoConfigured()) {
+      const checkout = await mockEwallet.startMockCheckout(doc, method, returnUrl);
+      return res.status(200).json({
+        redirectUrl: checkout.redirectUrl,
+        sessionId: checkout.sessionId,
+        paymentMode: 'mock',
+        payment: {
+          status: checkout.payment.paymentStatus,
+          amountCentavos: checkout.amountCentavos,
+          currency: checkout.currency,
+          provider: checkout.provider
+        }
+      });
+    }
 
     const existingPayment = await payments.getPaymentForRequest(doc._id);
     const checkout = await payments.startEwalletCheckout(doc, existingPayment, method, returnUrl);
@@ -839,6 +1013,7 @@ app.post('/api/requests/:id/payment/checkout', authMiddleware, requireStudentOrA
 
     return res.status(200).json({
       redirectUrl: checkout.redirectUrl,
+      paymentMode: 'paymongo',
       payment: {
         status: checkout.payment?.paymentStatus || 'pending',
         amountCentavos: checkout.amountCentavos,
@@ -1055,10 +1230,17 @@ function logServerReady() {
   } else {
     console.log('SMTP email: disabled — set MAIL_HOST, MAIL_USER, MAIL_PASS to enable');
   }
-  if (payments.isPaymongoConfigured()) {
-    console.log('PayMongo: enabled (document requests require successful payment before registrar queue)');
+  const pmStatus = payments.getPaymongoKeyStatus();
+  if (pmStatus === 'secret') {
+    console.log('PayMongo: enabled (secret key loaded — GCash/Maya checkout ready)');
+  } else if (pmStatus === 'public') {
+    console.warn(
+      'PayMongo: PAYMONGO_SECRET_KEY is still pk_ (public). Put sk_test_ in backend/.env and restart (Ctrl+C, npm run dev).'
+    );
+  } else if (pmStatus === 'invalid') {
+    console.warn('PayMongo: PAYMONGO_SECRET_KEY is set but invalid (must start with sk_test_ or sk_live_).');
   } else {
-    console.log('PayMongo: disabled — set PAYMONGO_SECRET_KEY to require GCash/Maya checkout');
+    console.log('PayMongo: disabled — mock GCash/Maya checkout at /api/mock/gcash|maya/v1/*');
   }
 }
 

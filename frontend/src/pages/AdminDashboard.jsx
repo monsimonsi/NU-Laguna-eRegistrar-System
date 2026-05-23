@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import '../styles/AdminDashboard.css';
 import logo from '../assets/NU_shield.png';
 import {
@@ -23,16 +23,31 @@ const STAT_CONFIG = [
   { label: 'Pending Alumni', key: 'pendingAlumni', sub: 'Needs Verification', icon: <UsersRound size={16} strokeWidth={2.2} />, colorClass: 'orange' },
 ];
 
-function statusOptionsForRequest(request) {
-  const method = String(request?.deliveryMethod || 'pickup').toLowerCase();
-  if (method === 'delivery') {
-    return ['Pending', 'Processing', 'Out for Delivery', 'Released'];
-  }
-  return ['Pending', 'Processing', 'Ready for Pickup', 'Released'];
-}
+const formatDateShort = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  });
+};
+
+const formatDeliveryMethod = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return '-';
+  return normalized === 'delivery' ? 'Delivery' : 'Pickup';
+};
+
+const formatRole = (value) => {
+  const normalized = String(value || '').trim();
+  if (!normalized) return '-';
+  return normalized.toUpperCase();
+};
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const requestsTableRef = useRef(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [sidebarHover, setSidebarHover] = useState(false);
@@ -45,6 +60,8 @@ const AdminDashboard = () => {
   const [alumniIsError, setAlumniIsError] = useState(false);
 
   const isSidebarOpen = sidebarPinned || sidebarHover;
+  const isDashboardActive = location.pathname === '/admin-dashboard';
+  const isDocumentTrackingActive = location.pathname === '/admin-document-tracking';
 
   const stats = STAT_CONFIG.map((item) => ({
     ...item,
@@ -187,34 +204,13 @@ const AdminDashboard = () => {
     }
   };
 
-  const updateStatus = async (id, newStatus) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/requests/${id}`, {
-        method: 'PATCH',
-        headers: authHeaders(true),
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setRequests((prev) => prev.map((r) => (r._id === id ? data.request : r)));
-        fetchAdminStats();
-      } else {
-        console.error('Update failed', data.message);
-      }
-    } catch (err) {
-      console.error('Update error', err);
-    }
-  };
-
   const statusPillClass = (status) => {
     const normalized = String(status || '').toLowerCase();
 
     if (normalized.includes('processing')) return 'status-pill processing';
     if (normalized.includes('ready')) return 'status-pill ready';
     if (normalized.includes('out for delivery')) return 'status-pill ready';
-    if (normalized.includes('completed')) return 'status-pill completed';
+    if (normalized.includes('released') || normalized.includes('completed')) return 'status-pill completed';
     return 'status-pill pending';
   };
 
@@ -250,7 +246,11 @@ const AdminDashboard = () => {
         </div>
 
         <nav className="sidebar-nav">
-          <button className="sidebar-link active" aria-label="Dashboard">
+          <button
+            className={`sidebar-link ${isDashboardActive ? 'active' : ''}`}
+            aria-label="Dashboard"
+            onClick={() => navigate('/admin-dashboard')}
+          >
             <LayoutGrid size={24} strokeWidth={2.2} />
             <span className="sidebar-text">Dashboard</span>
           </button>
@@ -265,7 +265,11 @@ const AdminDashboard = () => {
             <span className="sidebar-text">Alumni Verification</span>
           </button>
 
-          <button className="sidebar-link" aria-label="Document Tracking">
+          <button
+            className={`sidebar-link ${isDocumentTrackingActive ? 'active' : ''}`}
+            aria-label="Document Tracking"
+            onClick={() => navigate('/admin-document-tracking')}
+          >
             <PackageOpen size={24} strokeWidth={2.2} />
             <span className="sidebar-text">Document Tracking</span>
           </button>
@@ -408,35 +412,69 @@ const AdminDashboard = () => {
 
               <div className="request-list request-list-small">
                 {requests.slice(0, 6).map((r) => (
-                  (() => {
-                    const options = statusOptionsForRequest(r);
-                    const selected = options.includes(r.status) ? r.status : options[0];
-                    return (
-                  <div className="small-request-card" key={r._id}>
-                    <div className="small-request-info">
-                      <strong>{r.full_name}</strong>
-                      <span>{r.documentType}</span>
-                      <span>Copies: {r.copies ?? 1}</span>
-                      {r.documentType === 'Course Description 1st Page' && (
-                        <span>Succeeding Pages: {r.succeedingPages ?? 0}</span>
-                      )}
+                  <div className="request-card-compact" key={r._id}>
+                    <div className="request-card-top">
+                      <div className="request-card-title">
+                        <strong>{r.full_name || 'Unknown'}</strong>
+                        <span>{formatRole(r.role)} - {r.email || '-'}</span>
+                      </div>
+                      <div className="request-card-top-actions">
+                        <span className={`${statusPillClass(r.status)} status-pill-compact`}>
+                          {r.status || 'Pending'}
+                        </span>
+                        <button
+                          type="button"
+                          className="request-view-btn"
+                          onClick={() =>
+                            navigate(`/admin-document-tracking?id=${encodeURIComponent(r._id)}`)
+                          }
+                        >
+                          View Details
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="status-row">
-                      <label>Status:</label>
-                      <div className="select-wrap">
-                        <select
-                          value={selected}
-                          onChange={(e) => updateStatus(r._id, e.target.value)}
-                        >
-                          {options.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
+                    <div className="request-card-meta">
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Document</span>
+                        <span className="request-meta-value">{r.documentType || '-'}</span>
+                      </div>
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Copies</span>
+                        <span className="request-meta-value">{r.copies ?? 1}</span>
+                      </div>
+                      {r.documentType === 'Course Description 1st Page' && (
+                        <div className="request-meta-item">
+                          <span className="request-meta-label">Succeeding Pages</span>
+                          <span className="request-meta-value">{r.succeedingPages ?? 0}</span>
+                        </div>
+                      )}
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Delivery</span>
+                        <span className="request-meta-value">{formatDeliveryMethod(r.deliveryMethod)}</span>
+                      </div>
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Tracking #</span>
+                        <span className="request-meta-value">{r.trackingNumber || r._id || '—'}</span>
+                      </div>
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Requested</span>
+                        <span className="request-meta-value">{formatDateShort(r.createdAt)}</span>
+                      </div>
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Purpose</span>
+                        <span className="request-meta-value">{r.purpose || '-'}</span>
                       </div>
                     </div>
                   </div>
-                    );
-                  })()
                 ))}
+                {requests.length === 0 && (
+                  <div className="request-card request-card-empty">
+                    <div className="request-info">
+                      <strong>No recent document requests.</strong>
+                    </div>
+                  </div>
+                )}
               </div>
             </article>
           </section>

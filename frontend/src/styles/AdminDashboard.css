@@ -498,12 +498,107 @@ body {
   gap: 10px;
 }
 
+.request-list-small {
+  gap: 12px;
+}
+
 .request-card,
 .small-request-card {
   border: 1px solid #d7dbe8;
   border-radius: 6px;
   background: #fff;
   padding: 10px;
+}
+
+.request-card-compact {
+  border: 1px solid rgba(101, 117, 183, 0.35);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fdfdff 0%, #f4f7ff 100%);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 6px 12px rgba(51, 70, 143, 0.08);
+}
+
+.request-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.request-card-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.request-card-title strong {
+  font-size: 13px;
+  color: #1e2a52;
+}
+
+.request-card-title span {
+  font-size: 10px;
+  color: #8f97b7;
+  font-weight: 600;
+}
+
+.request-card-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.request-view-btn {
+  border: 1px solid #c9d0ea;
+  background: #eef1fb;
+  color: #33468f;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.request-view-btn:hover {
+  background: #33468f;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px rgba(51, 70, 143, 0.2);
+}
+
+.request-card-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.request-meta-item {
+  background: #fff;
+  border: 1px solid #e1e5f5;
+  border-radius: 8px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.request-meta-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #97a1c4;
+  font-weight: 700;
+}
+
+.request-meta-value {
+  font-size: 11px;
+  color: #1f1f1f;
+  font-weight: 600;
 }
 
 .request-card {
@@ -703,6 +798,14 @@ body {
   color: #6a6a6a;
 }
 
+.status-pill.status-pill-compact {
+  min-width: 70px;
+  padding: 4px 10px;
+  font-size: 9px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
 /* RESPONSIVE */
 @media (min-width: 769px) {
   .sidebar-nav {
@@ -856,6 +959,20 @@ body {
 
   .admin-main {
     padding: 12px;
+  }
+
+  .request-card-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .request-card-top-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .request-card-meta {
+    grid-template-columns: 1fr;
   }
 
   .dashboard-header h1 {

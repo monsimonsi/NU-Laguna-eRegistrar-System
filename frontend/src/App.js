@@ -8,6 +8,8 @@ import DocumentRequest from './pages/DocumentRequest';
 import DocumentTracking from './pages/DocumentTracking';
 import Payment from './pages/Payment';
 import PaymentReturn from './pages/PaymentReturn';
+import PaymentMock from './pages/PaymentMock';
+import PaymentReceipt from './pages/PaymentReceipt';
 import RequestTracking from './pages/RequestTracking';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -71,6 +73,30 @@ function App() {
           element={
             <ProtectedRoute roles={['student', 'alumni']}>
               <PaymentReturn />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment/mock/gcash"
+          element={
+            <ProtectedRoute roles={['student', 'alumni']}>
+              <PaymentMock />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment/mock/maya"
+          element={
+            <ProtectedRoute roles={['student', 'alumni']}>
+              <PaymentMock />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment/receipt"
+          element={
+            <ProtectedRoute roles={['student', 'alumni']}>
+              <PaymentReceipt />
             </ProtectedRoute>
           }
         />

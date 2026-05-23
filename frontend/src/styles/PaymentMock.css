@@ -1,0 +1,161 @@
+.mock-wallet {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.mock-wallet--gcash {
+  background: linear-gradient(160deg, #007cff 0%, #0052b4 100%);
+}
+
+.mock-wallet--maya {
+  background: linear-gradient(160deg, #00b14f 0%, #00843d 100%);
+}
+
+.mock-wallet-card {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  padding: 28px 24px 24px;
+}
+
+.mock-wallet-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.mock-wallet-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #666;
+  background: #f0f2f5;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
+
+.mock-wallet-title {
+  margin: 0 0 6px;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.mock-wallet--gcash .mock-wallet-title {
+  color: #007cff;
+}
+
+.mock-wallet--maya .mock-wallet-title {
+  color: #00b14f;
+}
+
+.mock-wallet-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.mock-wallet-amount-block {
+  text-align: center;
+  padding: 20px 0;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 20px;
+}
+
+.mock-wallet-label {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #666;
+}
+
+.mock-wallet-amount {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: #111;
+}
+
+.mock-wallet-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mock-wallet-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.mock-wallet-row span {
+  color: #666;
+}
+
+.mock-payer-card {
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.mock-payer-card .payer-details-title {
+  color: #333;
+}
+
+.mock-wallet-hint {
+  font-size: 12px;
+  color: #888;
+  line-height: 1.5;
+  margin: 0 0 20px;
+}
+
+.mock-wallet-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mock-wallet-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mock-wallet-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mock-wallet--gcash .mock-wallet-btn--primary {
+  background: #007cff;
+  color: #fff;
+}
+
+.mock-wallet--maya .mock-wallet-btn--primary {
+  background: #00b14f;
+  color: #fff;
+}
+
+.mock-wallet-btn--secondary {
+  background: #f0f2f5;
+  color: #333;
+}
+
+.mock-wallet-message {
+  text-align: center;
+  font-size: 14px;
+  color: #333;
+}
+
+.mock-wallet-message--error {
+  color: #c62828;
+}

@@ -1,6 +1,3 @@
-/**
- * Estimate document request fees from /api/prices rows (matches backend POST /api/requests).
- */
 export function estimateFees(priceRow, { copies = 1, succeedingPages = 0, deliveryMethod = 'pickup' } = {}) {
   if (!priceRow) {
     return { subtotal: 0, deliveryFee: 0, total: 0 };

@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ override: true });
 
 const express = require('express');
 const dns = require('dns'); // Lets Node use custom DNS resolvers.
@@ -10,6 +10,8 @@ const DocumentRequest = require('./models/DocumentRequest');
 const Payment = require('./models/Payment');
 const AlumniVerification = require('./models/AlumniVerification');
 const payments = require('./services/payments');
+const mockEwallet = require('./services/mockEwallet');
+const { createMockPaymentRouter } = require('./routes/mockPayment');
 const {
   createNotification,
   listForUser: listNotificationsForUser,
@@ -24,7 +26,13 @@ const {
   requireStudentOrAlumni
 } = require('./middleware/auth');
 const mail = require('./services/mail');
+const { generateReceiptPdfBuffer } = require('./services/receiptPdf');
 const { hashPassword, verifyPassword } = require('./services/passwords');
+const {
+  ACTIVE_REQUEST_STATUSES,
+  validateDocumentRequestInput,
+  validateStatusTransition
+} = require('./utils/requestLogic');
 
 const app = express();
 
@@ -45,36 +53,42 @@ app.post(
 );
 app.use(express.json());
 
+app.use(
+  '/api/mock',
+  createMockPaymentRouter({
+    authMiddleware,
+    requireStudentOrAlumni,
+    isRequestOwner
+  })
+);
+
 app.get('/api/health', (req, res) => {
   const dbConnected = mongoose.connection.readyState === 1;
-  res.status(dbConnected ? 200 : 503).json({
-    ok: dbConnected,
+  const paymongoKeyStatus = payments.getPaymongoKeyStatus();
+  const paymongoOk = paymongoKeyStatus === 'missing' || paymongoKeyStatus === 'secret';
+  res.status(dbConnected && paymongoOk ? 200 : 503).json({
+    ok: dbConnected && paymongoOk,
     database: dbConnected ? 'connected' : 'disconnected',
-    hint: dbConnected
-      ? null
-      : 'Allow your IP in MongoDB Atlas → Network Access, or use 0.0.0.0/0 for development.'
+    paymongo: {
+      configured: payments.isPaymongoConfigured(),
+      keyStatus: paymongoKeyStatus,
+      hint:
+        paymongoKeyStatus === 'public'
+          ? 'PAYMONGO_SECRET_KEY is pk_ (public). Use sk_test_ secret key in backend/.env and restart the backend.'
+          : paymongoKeyStatus === 'invalid'
+            ? 'PAYMONGO_SECRET_KEY must start with sk_test_ or sk_live_.'
+            : null
+    },
+    hint: !dbConnected
+      ? 'Allow your IP in MongoDB Atlas → Network Access, or use 0.0.0.0/0 for development.'
+      : paymongoKeyStatus === 'public'
+        ? 'Restart backend after fixing PAYMONGO_SECRET_KEY in backend/.env (use sk_test_, not pk_test_).'
+        : null
   });
 });
 
-const ALLOWED_STATUSES = DocumentRequest.REQUEST_STATUSES || [
-  'Pending',
-  'Processing',
-  'Ready for Pickup',
-  'Out for Delivery',
-  'Released'
-];
 const DUPLICATE_WINDOW_DAYS = Number(process.env.DUPLICATE_REQUEST_DAYS || 30);
 const UNPAID_DUPLICATE_WINDOW_DAYS = Number(process.env.UNPAID_REQUEST_DUPLICATE_DAYS || 7);
-
-const ACTIVE_REQUEST_STATUSES = ['Pending', 'Processing', 'Ready for Pickup', 'Out for Delivery'];
-
-function allowedStatusesForRequest(request) {
-  const method = String(request?.deliveryMethod || 'pickup').toLowerCase();
-  if (method === 'delivery') {
-    return ['Pending', 'Processing', 'Out for Delivery', 'Released'];
-  }
-  return ['Pending', 'Processing', 'Ready for Pickup', 'Released'];
-}
 
 function userStatusMessage(request, status) {
   const method = String(request?.deliveryMethod || 'pickup').toLowerCase();
@@ -100,6 +114,30 @@ function makeTrackingNumber() {
   const day = String(d.getDate()).padStart(2, '0');
   const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
   return `NUL-${y}${m}${day}-${rand}`;
+}
+
+async function saveDocumentRequestWithTracking(requestData, maxAttempts = 5) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const request = new DocumentRequest({
+      ...requestData,
+      trackingNumber: makeTrackingNumber()
+    });
+
+    try {
+      await request.save();
+      return request;
+    } catch (err) {
+      const duplicateTracking =
+        err?.code === 11000 &&
+        (err?.keyPattern?.trackingNumber || err?.keyValue?.trackingNumber);
+      if (duplicateTracking && attempt < maxAttempts - 1) {
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw new Error('Could not generate a unique tracking number.');
 }
 
 function isRequestOwner(req, request) {
@@ -406,10 +444,11 @@ app.get('/api/alumni-registrations', authMiddleware, requireAdmin, async (req, r
 app.patch('/api/alumni-registrations/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { verificationStatus, reviewedBy, rejectionReason } = req.body;
+    const { verificationStatus, rejectionReason } = req.body;
 
     const normalizedStatus = String(verificationStatus || '').trim().toLowerCase();
     const normalizedReason = String(rejectionReason || '').trim();
+    const reviewerId = req.auth?.sub || null;
 
     const allowed = ['pending', 'approved', 'rejected'];
     if (!allowed.includes(normalizedStatus)) {
@@ -427,11 +466,9 @@ app.patch('/api/alumni-registrations/:id', authMiddleware, requireAdmin, async (
 
     const update = {
       verificationStatus: normalizedStatus,
-      rejectionReason: normalizedStatus === 'rejected' ? normalizedReason : ''
+      rejectionReason: normalizedStatus === 'rejected' ? normalizedReason : '',
+      reviewedBy: reviewerId
     };
-    if (reviewedBy) {
-      update.reviewedBy = reviewedBy;
-    }
 
     const updated = await AlumniRegistration.findByIdAndUpdate(id, update, { new: true });
     if (!updated) {
@@ -448,7 +485,7 @@ app.patch('/api/alumni-registrations/:id', authMiddleware, requireAdmin, async (
       { user_id: updated.userId },
       {
         verification_status: normalizedStatus,
-        reviewed_by: reviewedBy || null,
+        reviewed_by: reviewerId,
         rejection_reason: normalizedStatus === 'rejected' ? normalizedReason : ''
       },
       { new: true, upsert: true }
@@ -504,65 +541,37 @@ app.get('/api/admin/stats', authMiddleware, requireAdmin, async (req, res) => {
 // Create a new document request
 app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, res) => {
   try {
-    const {
-      full_name,
-      email,
-      role,
-      documentType,
-      purpose,
-      copies,
-      deliveryMethod,
-      address,
-      succeedingPages,
-      notes
-    } = req.body;
-
-    const authSub = String(req.auth?.sub || '').trim();
-    const authEmail = String(req.auth?.email || '').trim().toLowerCase();
-    const authRole = String(req.auth?.role || '').trim();
-    const authName = String(req.auth?.name || '').trim();
-
-    const normalizedDocumentType = String(documentType || '').trim();
-    const normalizedFullName = String(authName || full_name || '').trim();
-    const normalizedEmail = authEmail || String(email || '').trim().toLowerCase();
-    const normalizedRole = authRole || String(role || '').trim();
-
-    if (!normalizedFullName || !normalizedEmail || !normalizedRole || !normalizedDocumentType) {
-      return res.status(400).json({ message: 'Missing required fields.' });
+    const requestedDocumentType = String(req.body?.documentType || '').trim();
+    if (!requestedDocumentType) {
+      return res.status(400).json({ message: 'Document type is required.', field: 'documentType' });
     }
 
     const price = await DocumentPrice.findOne({
-      documentType: normalizedDocumentType,
+      documentType: requestedDocumentType,
       active: true
     }).lean();
 
-    if (!price) {
-      return res.status(400).json({ message: 'No pricing found for this document type.' });
+    const validation = validateDocumentRequestInput({
+      body: req.body,
+      auth: req.auth,
+      price
+    });
+    if (!validation.ok) {
+      return res.status(validation.status || 400).json({
+        message: validation.message,
+        field: validation.field
+      });
     }
 
-    const normalizedCopies = Math.max(1, Number(copies) || 1);
-    const normalizedSucceedingPages = normalizedDocumentType === 'Course Description 1st Page'
-      ? Math.max(0, Number(succeedingPages) || 0)
-      : 0;
-
-    const basePrice = Number(price.basePrice) || 0;
-    const perSucceedingPageFee = Number(price.perSucceedingPageFee) || 0;
-    const succeedingPagesFee = normalizedSucceedingPages * perSucceedingPageFee;
-    const subtotal = (basePrice + succeedingPagesFee) * normalizedCopies;
-    const deliveryFee = deliveryMethod === 'delivery' ? Number(price.deliveryFee) || 150 : 0;
-    const totalFee = subtotal + deliveryFee;
-
-    // #region agent log
-    fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H1',location:'server.js:/api/requests:before-duplicate-check',message:'Starting duplicate request check',data:{userId:authSub,role:authRole,documentType:String(documentType||'')},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    const allowMultipleSameType = normalizedDocumentType === 'Course Description 1st Page';
+    const requestData = validation.value;
+    const allowMultipleSameType = requestData.documentType === 'Course Description 1st Page';
     const cutoff = new Date(Date.now() - DUPLICATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
     const unpaidCutoff = new Date(Date.now() - UNPAID_DUPLICATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
     const duplicate = allowMultipleSameType
       ? null
       : await DocumentRequest.findOne({
-          requesterId: authSub,
-          documentType,
+          requesterId: requestData.requesterId,
+          documentType: requestData.documentType,
           $or: [
             {
               createdAt: { $gte: cutoff },
@@ -576,23 +585,17 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
           ]
         }).sort({ createdAt: -1 });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H1',location:'server.js:/api/requests:after-duplicate-query',message:'Duplicate query result',data:{foundDuplicate:!!duplicate,duplicateId:duplicate?String(duplicate._id):null,cutoffIso:cutoff.toISOString()},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     if (duplicate) {
-      // #region agent log
-      fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H2',location:'server.js:/api/requests:duplicate-blocked',message:'Blocking duplicate request submission',data:{existingTrackingNumber:String(duplicate.trackingNumber||'')},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       if (!duplicate.paymentConfirmed) {
         return res.status(409).json({
-          message: `You already have a ${documentType} request waiting for payment. Use 'Retry payment' on that request or wait before submitting again.`,
+          message: `You already have a ${requestData.documentType} request waiting for payment. Use 'Retry payment' on that request or wait before submitting again.`,
           duplicateRequestId: duplicate._id,
           trackingNumber: duplicate.trackingNumber || null,
           pendingPayment: true
         });
       }
       return res.status(409).json({
-        message: `A recent ${documentType} request already exists and is still being processed.`,
+        message: `A recent ${requestData.documentType} request already exists and is still being processed.`,
         duplicateRequestId: duplicate._id,
         trackingNumber: duplicate.trackingNumber || null
       });
@@ -605,28 +608,10 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
       );
     }
 
-    const newRequest = new DocumentRequest({
-      requesterId: authSub,
-      full_name: normalizedFullName,
-      email: normalizedEmail,
-      role: normalizedRole,
-      documentType: normalizedDocumentType,
-      purpose,
-      copies: normalizedCopies,
-      deliveryMethod: deliveryMethod || 'pickup',
-      address: address || '',
-      succeedingPages: normalizedSucceedingPages,
-      notes: notes || '',
-      trackingNumber: makeTrackingNumber(),
-      paymentConfirmed: false,
-      basePrice,
-      perSucceedingPageFee,
-      succeedingPagesFee,
-      deliveryFee,
-      totalFee
+    const newRequest = await saveDocumentRequestWithTracking({
+      ...requestData,
+      paymentConfirmed: false
     });
-
-    await newRequest.save();
 
     if (skipOnlinePayment) {
       console.warn(
@@ -644,9 +629,6 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
 
     try {
       const intent = await payments.createOrRefreshPaymentIntent(newRequest, null);
-      // #region agent log
-      fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H3',location:'server.js:/api/requests:payment-intent-created',message:'PayMongo payment intent created for new request',data:{userId:authSub,requestId:String(newRequest._id)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
 
       return res.status(201).json({
         message:
@@ -751,10 +733,19 @@ app.patch('/api/me/notifications/:id/read', authMiddleware, requireStudentOrAlum
 // Payment status for a request (student/alumni owner)
 app.get('/api/requests/:id/payment', authMiddleware, requireStudentOrAlumni, async (req, res) => {
   try {
-    const doc = await DocumentRequest.findById(req.params.id).lean();
+    let doc = await DocumentRequest.findById(req.params.id).lean();
     if (!doc) return res.status(404).json({ message: 'Request not found' });
     if (!isRequestOwner(req, doc)) {
       return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    if (!doc.paymentConfirmed && payments.isPaymongoConfigured()) {
+      try {
+        await payments.syncPaymentFromPaymongo(doc._id);
+        doc = await DocumentRequest.findById(req.params.id).lean();
+      } catch (syncErr) {
+        console.warn('[payments] sync on payment status read:', syncErr.message || syncErr);
+      }
     }
 
     const payment = await payments.getPaymentForRequest(doc._id);
@@ -762,11 +753,90 @@ app.get('/api/requests/:id/payment', authMiddleware, requireStudentOrAlumni, asy
       request: doc,
       payment,
       paymentConfirmed: Boolean(doc.paymentConfirmed),
-      paymongoEnabled: payments.isPaymongoConfigured()
+      paymongoEnabled: payments.isPaymongoConfigured(),
+      mockEwalletEnabled: mockEwallet.isMockEwalletEnabled()
     });
   } catch (err) {
     console.error('Get payment status error:', err);
     return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Payment receipt (paid requests only)
+app.get('/api/requests/:id/payment/receipt', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+  try {
+    const doc = await DocumentRequest.findById(req.params.id).lean();
+    if (!doc) return res.status(404).json({ message: 'Request not found' });
+    if (!isRequestOwner(req, doc)) {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    const receipt = await payments.getPaymentReceipt(doc._id);
+    if (!receipt) {
+      return res.status(404).json({ message: 'Receipt not available. Payment may still be pending.' });
+    }
+
+    return res.status(200).json({ receipt });
+  } catch (err) {
+    console.error('Payment receipt error:', err);
+    return res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+app.get(
+  '/api/requests/:id/payment/receipt/pdf',
+  authMiddleware,
+  requireStudentOrAlumni,
+  async (req, res) => {
+    try {
+      const doc = await DocumentRequest.findById(req.params.id).lean();
+      if (!doc) return res.status(404).json({ message: 'Request not found' });
+      if (!isRequestOwner(req, doc)) {
+        return res.status(403).json({ message: 'Access denied.' });
+      }
+
+      const receipt = await payments.getPaymentReceipt(doc._id);
+      if (!receipt) {
+        return res
+          .status(404)
+          .json({ message: 'Receipt not available. Payment may still be pending.' });
+      }
+
+      const pdfBuffer = await generateReceiptPdfBuffer(receipt);
+      const filename = `receipt-${receipt.receiptNumber || doc._id}.pdf`;
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      return res.send(pdfBuffer);
+    } catch (err) {
+      console.error('Payment receipt PDF error:', err);
+      return res.status(500).json({ message: err.message || 'Server error' });
+    }
+  }
+);
+
+// After PayMongo redirect: force sync payment intent (return page)
+app.post('/api/requests/:id/payment/sync', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+  try {
+    const doc = await DocumentRequest.findById(req.params.id);
+    if (!doc) return res.status(404).json({ message: 'Request not found' });
+    if (!isRequestOwner(req, doc)) {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    const result = await payments.syncPaymentFromPaymongo(doc._id);
+    const updated = await DocumentRequest.findById(doc._id).lean();
+    const payment = await payments.getPaymentForRequest(doc._id);
+
+    return res.status(200).json({
+      ...result,
+      paymentConfirmed: Boolean(updated?.paymentConfirmed),
+      payment
+    });
+  } catch (err) {
+    console.error('Payment sync error:', err);
+    return res.status(500).json({ message: err.message || 'Server error' });
   }
 });
 
@@ -803,8 +873,8 @@ app.post('/api/requests/:id/payment/confirm-sandbox', authMiddleware, requireStu
   }
 });
 
-// Start GCash / Maya checkout (redirect URL)
-app.post('/api/requests/:id/payment/checkout', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+// Mock GCash / Maya checkout (imitation APIs — when PayMongo is not configured)
+app.post('/api/requests/:id/payment/mock/checkout', authMiddleware, requireStudentOrAlumni, async (req, res) => {
   try {
     const { id } = req.params;
     const { method } = req.body;
@@ -820,15 +890,75 @@ app.post('/api/requests/:id/payment/checkout', authMiddleware, requireStudentOrA
       return res.status(400).json({ message: 'This request is already paid.' });
     }
 
-    if (!payments.isPaymongoConfigured()) {
+    if (!mockEwallet.isMockEwalletEnabled()) {
       return res.status(503).json({
-        message:
-          'PayMongo is not configured. Use sandbox payment on this page (GCash/Maya buttons) or set PAYMONGO_SECRET_KEY.'
+        message: 'Mock e-wallet is disabled while PayMongo is configured.'
       });
+    }
+
+    const { payerMobile, payerName } = req.body;
+    if (payerMobile) {
+      await payments.savePayerDetails(doc, { payerMobile, payerName });
     }
 
     const frontendBase = String(process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
     const returnUrl = `${frontendBase}/payment/return?requestId=${encodeURIComponent(String(doc._id))}`;
+    const checkout = await mockEwallet.startMockCheckout(doc, method, returnUrl);
+
+    return res.status(200).json({
+      redirectUrl: checkout.redirectUrl,
+      sessionId: checkout.sessionId,
+      payment: {
+        status: checkout.payment.paymentStatus,
+        amountCentavos: checkout.amountCentavos,
+        currency: checkout.currency,
+        provider: checkout.provider
+      }
+    });
+  } catch (err) {
+    console.error('Mock payment checkout error:', err);
+    return res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// Start GCash / Maya checkout (redirect URL — PayMongo or mock fallback)
+app.post('/api/requests/:id/payment/checkout', authMiddleware, requireStudentOrAlumni, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { method, payerMobile, payerName } = req.body;
+
+    const doc = await DocumentRequest.findById(id);
+    if (!doc) return res.status(404).json({ message: 'Request not found' });
+
+    if (!isRequestOwner(req, doc)) {
+      return res.status(403).json({ message: 'You can only pay for your own requests.' });
+    }
+
+    if (doc.paymentConfirmed) {
+      return res.status(400).json({ message: 'This request is already paid.' });
+    }
+
+    if (payerMobile) {
+      await payments.savePayerDetails(doc, { payerMobile, payerName });
+    }
+
+    const frontendBase = String(process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const returnUrl = `${frontendBase}/payment/return?requestId=${encodeURIComponent(String(doc._id))}`;
+
+    if (!payments.isPaymongoConfigured()) {
+      const checkout = await mockEwallet.startMockCheckout(doc, method, returnUrl);
+      return res.status(200).json({
+        redirectUrl: checkout.redirectUrl,
+        sessionId: checkout.sessionId,
+        paymentMode: 'mock',
+        payment: {
+          status: checkout.payment.paymentStatus,
+          amountCentavos: checkout.amountCentavos,
+          currency: checkout.currency,
+          provider: checkout.provider
+        }
+      });
+    }
 
     const existingPayment = await payments.getPaymentForRequest(doc._id);
     const checkout = await payments.startEwalletCheckout(doc, existingPayment, method, returnUrl);
@@ -839,6 +969,7 @@ app.post('/api/requests/:id/payment/checkout', authMiddleware, requireStudentOrA
 
     return res.status(200).json({
       redirectUrl: checkout.redirectUrl,
+      paymentMode: 'paymongo',
       payment: {
         status: checkout.payment?.paymentStatus || 'pending',
         amountCentavos: checkout.amountCentavos,
@@ -990,10 +1121,6 @@ app.patch('/api/requests/:id', authMiddleware, requireAdmin, async (req, res) =>
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!ALLOWED_STATUSES.includes(status)) {
-      return res.status(400).json({ message: 'Invalid status' });
-    }
-
     const previous = await DocumentRequest.findById(id);
     if (!previous) return res.status(404).json({ message: 'Request not found' });
 
@@ -1003,39 +1130,39 @@ app.patch('/api/requests/:id', authMiddleware, requireAdmin, async (req, res) =>
       });
     }
 
-    const allowedForMethod = allowedStatusesForRequest(previous);
-    if (!allowedForMethod.includes(status)) {
+    const transition = validateStatusTransition({
+      currentStatus: previous.status,
+      nextStatus: status,
+      request: previous
+    });
+    if (!transition.ok) {
       return res.status(400).json({
-        message:
-          previous.deliveryMethod === 'delivery'
-            ? 'Invalid status for delivery request. Allowed: Pending, Processing, Out for Delivery, Released.'
-            : 'Invalid status for pickup request. Allowed: Pending, Processing, Ready for Pickup, Released.'
+        message: transition.message,
+        allowedStatuses: transition.allowedStatuses || []
       });
     }
 
-    const updated = await DocumentRequest.findByIdAndUpdate(id, { status }, { new: true });
+    const nextStatus = transition.status;
+    const updated = await DocumentRequest.findByIdAndUpdate(id, { status: nextStatus }, { new: true });
 
-    if (previous.status !== status) {
+    if (previous.status !== nextStatus) {
       await createNotification({
         userId: updated.requesterId,
         category: 'request_status',
-        message: userStatusMessage(updated, status),
+        message: userStatusMessage(updated, nextStatus),
         meta: {
           requestId: String(updated._id),
           trackingNumber: updated.trackingNumber || '',
-          status,
+          status: nextStatus,
           deliveryMethod: updated.deliveryMethod || 'pickup'
         }
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7628/ingest/62e4f0b3-75d5-4fd9-af53-9ecd41c96937',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'58ccd3'},body:JSON.stringify({sessionId:'58ccd3',runId:'pre-fix',hypothesisId:'H4',location:'server.js:/api/requests/:id:status-notification-created',message:'Created notification row for status change',data:{requestId:String(updated._id),status:String(status)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       void mail.notifyDocumentRequestStatus({
         to: updated.email,
         fullName: updated.full_name,
         trackingNumber: updated.trackingNumber || '',
         documentType: updated.documentType,
-        status,
+        status: nextStatus,
         deliveryMethod: updated.deliveryMethod || 'pickup'
       });
     }
@@ -1055,10 +1182,17 @@ function logServerReady() {
   } else {
     console.log('SMTP email: disabled — set MAIL_HOST, MAIL_USER, MAIL_PASS to enable');
   }
-  if (payments.isPaymongoConfigured()) {
-    console.log('PayMongo: enabled (document requests require successful payment before registrar queue)');
+  const pmStatus = payments.getPaymongoKeyStatus();
+  if (pmStatus === 'secret') {
+    console.log('PayMongo: enabled (secret key loaded — GCash/Maya checkout ready)');
+  } else if (pmStatus === 'public') {
+    console.warn(
+      'PayMongo: PAYMONGO_SECRET_KEY is still pk_ (public). Put sk_test_ in backend/.env and restart (Ctrl+C, npm run dev).'
+    );
+  } else if (pmStatus === 'invalid') {
+    console.warn('PayMongo: PAYMONGO_SECRET_KEY is set but invalid (must start with sk_test_ or sk_live_).');
   } else {
-    console.log('PayMongo: disabled — set PAYMONGO_SECRET_KEY to require GCash/Maya checkout');
+    console.log('PayMongo: disabled — mock GCash/Maya checkout at /api/mock/gcash|maya/v1/*');
   }
 }
 

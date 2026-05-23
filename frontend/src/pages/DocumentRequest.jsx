@@ -24,7 +24,7 @@ const DocumentRequest = ({ onBack }) => {
   const [isError, setIsError] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [createdRequest, setCreatedRequest] = useState(null);
-  const [duplicateRequestId, setDuplicateRequestId] = useState('');
+  const [createdPayment, setCreatedPayment] = useState(null);
   const [prices, setPrices] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -147,22 +147,12 @@ const DocumentRequest = ({ onBack }) => {
       if (!res.ok) {
         setIsError(true);
         setMessage(data.message || 'Failed to create request.');
-        if (res.status === 409 && data.duplicateRequestId) {
-          setDuplicateRequestId(data.duplicateRequestId);
-        }
         return;
       }
 
-      setDuplicateRequestId('');
       setIsError(false);
       setCreatedRequest(data.request || null);
-
-      if (data.request?._id && !data.request.paymentConfirmed) {
-        navigate(`/payment?requestId=${encodeURIComponent(data.request._id)}`, {
-          state: { request: data.request, payment: data.payment },
-        });
-        return;
-      }
+      setCreatedPayment(data.payment || null);
 
       setShowModal(true);
       setMessage(data.message || 'Request submitted successfully.');
@@ -182,6 +172,10 @@ const DocumentRequest = ({ onBack }) => {
       setIsSubmitting(false);
     }
   };
+
+  const canProceedToPayment = Boolean(
+    createdRequest?._id && !createdRequest.paymentConfirmed
+  );
 
   return (
     <div className={`doc-page ${isOpen ? 'sidebar-open' : ''}`} onClick={closeSidebar}>
@@ -381,17 +375,6 @@ const DocumentRequest = ({ onBack }) => {
             {message && (
               <div className={`doc-message ${isError ? 'error' : 'success'}`} role="status">
                 <span>{message}</span>
-                {duplicateRequestId && (
-                  <button
-                    type="button"
-                    className="doc-retry-pay-btn"
-                    onClick={() =>
-                      navigate(`/payment?requestId=${encodeURIComponent(duplicateRequestId)}`)
-                    }
-                  >
-                    Retry payment
-                  </button>
-                )}
               </div>
             )}
 
@@ -447,9 +430,28 @@ const DocumentRequest = ({ onBack }) => {
                 View my requests
               </button>
 
+              {canProceedToPayment && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(`/payment?requestId=${encodeURIComponent(createdRequest._id)}`, {
+                      state: { request: createdRequest, payment: createdPayment }
+                    })
+                  }
+                  className="doc-modal-btn doc-modal-btn--accent"
+                >
+                  Proceed to payment
+                </button>
+              )}
+
               <button
                 type="button"
-                onClick={() => { setShowModal(false); setCreatedRequest(null); setMessage(''); }}
+                onClick={() => {
+                  setShowModal(false);
+                  setCreatedRequest(null);
+                  setCreatedPayment(null);
+                  setMessage('');
+                }}
                 className="doc-modal-btn doc-modal-btn--primary"
               >
                 New request

@@ -238,6 +238,7 @@ async function markPaidFromPaymongoPayment({
 
   if (!doc.paymentConfirmed) {
     doc.paymentConfirmed = true;
+    doc.status = 'Pending';
     await doc.save();
     if (doc.requesterId) {
       await notifyRequestSubmitted(doc, doc.requesterId);
@@ -424,7 +425,7 @@ async function savePayerDetails(documentRequest, { payerName, payerMobile } = {}
   const amount = centavosForRequest(documentRequest);
   const name = String(payerName || documentRequest.full_name || '').trim();
 
-  const payment = await Payment.findOneAndUpdate(
+  await Payment.findOneAndUpdate(
     { documentRequestId: documentRequest._id },
     {
       payerName: name,
@@ -585,6 +586,7 @@ async function confirmSandboxPayment(documentRequest, method = 'sandbox') {
   );
 
   documentRequest.paymentConfirmed = true;
+  documentRequest.status = 'Pending';
   await documentRequest.save();
 
   if (documentRequest.requesterId) {

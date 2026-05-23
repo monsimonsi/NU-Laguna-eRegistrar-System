@@ -78,7 +78,11 @@ const PaymentReturn = () => {
 
         if (res.ok && data.paymentConfirmed) {
           setStatus('success');
-          setMessage('Payment successful! You can now view your receipt.');
+          setMessage('Payment successful! Opening your receipt…');
+          timer = setTimeout(
+            () => navigate(`/payment/receipt?requestId=${encodeURIComponent(requestId)}`),
+            1500
+          );
           return;
         }
 
@@ -99,7 +103,7 @@ const PaymentReturn = () => {
 
     poll();
     return () => clearTimeout(timer);
-  }, [requestId]);
+  }, [requestId, navigate]);
 
   const view = STATUS_VIEW[status] || STATUS_VIEW.checking;
   const StatusIcon = view.icon;

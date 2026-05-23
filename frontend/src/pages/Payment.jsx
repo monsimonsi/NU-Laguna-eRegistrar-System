@@ -9,6 +9,7 @@ import {
   Smartphone
 } from 'lucide-react';
 import '../styles/Payment.css';
+import '../styles/PaymentReceipt.css';
 import orderIcon from '../assets/order-icon.png';
 import logo from '../assets/NU_shield.png';
 import { apiFetch, formatPhp } from '../api';

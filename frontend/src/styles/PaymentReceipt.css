@@ -63,7 +63,7 @@
 .receipt-section h2 {
   font-size: 14px;
   text-transform: uppercase;
-  letter-spacing: 0;
+  letter-spacing: 0.04em;
   color: #35408f;
   margin: 0 0 12px;
 }

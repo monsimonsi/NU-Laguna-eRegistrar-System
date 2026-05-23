@@ -4,12 +4,15 @@ const REQUEST_STATUS_FLOWS = {
 };
 
 const REQUEST_STATUSES = Array.from(
-  new Set([...REQUEST_STATUS_FLOWS.pickup, ...REQUEST_STATUS_FLOWS.delivery])
+  new Set(['Waiting for Payment', ...REQUEST_STATUS_FLOWS.pickup, ...REQUEST_STATUS_FLOWS.delivery])
 );
 
 const ACTIVE_REQUEST_STATUSES = REQUEST_STATUSES.filter((status) => status !== 'Released');
 
 const STATUS_ALIASES = new Map([
+  ['waiting for payment', 'Waiting for Payment'],
+  ['waiting', 'Waiting for Payment'],
+  ['unpaid', 'Waiting for Payment'],
   ['pending', 'Pending'],
   ['processing', 'Processing'],
   ['ready', 'Ready for Pickup'],

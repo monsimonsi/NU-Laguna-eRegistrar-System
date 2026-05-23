@@ -26,6 +26,7 @@ function App() {
   const [statusFilter, setStatusFilter] = useState('');
 
   const STATUS_OPTIONS = [
+    'Waiting for Payment',
     'Pending',
     'Processing',
     'Ready for Pickup',
@@ -88,6 +89,7 @@ function App() {
   const stats = useMemo(() => {
     const base = {
       total: requests.length,
+      'Waiting for Payment': 0,
       Pending: 0,
       Processing: 0,
       'Ready for Pickup': 0,
@@ -189,8 +191,8 @@ function App() {
 
   const handleDeleteClick = () => {
     if (!selectedRequest) return;
-    if (selectedRequest.status !== 'Pending') {
-      setActionError('Only pending requests can be deleted.');
+    if (!['Waiting for Payment', 'Pending'].includes(String(selectedRequest.status || '').trim())) {
+      setActionError('Only waiting-for-payment or pending requests can be deleted.');
       return;
     }
 
@@ -238,7 +240,10 @@ function App() {
   };
 
   const isViewDisabled = !selectedRequest;
-  const isDeleteDisabled = !selectedRequest || selectedRequest.status !== 'Pending' || isDeleting;
+  const isDeleteDisabled =
+    !selectedRequest ||
+    !['Waiting for Payment', 'Pending'].includes(String(selectedRequest.status || '').trim()) ||
+    isDeleting;
 
   return (
     <div className={`app-container ${isOpen ? 'sidebar-open' : ''}`} onClick={() => setIsOpen(false)}>
@@ -306,6 +311,7 @@ function App() {
 
           <div className="status-grid">
             <div className="stat-card"><span className="stat-label">Total Requests</span><span className="stat-value blue">{stats.total}</span></div>
+            <div className="stat-card"><span className="stat-label">Waiting for Payment</span><span className="stat-value red">{stats['Waiting for Payment']}</span></div>
             <div className="stat-card"><span className="stat-label">Pending</span><span className="stat-value red">{stats.Pending}</span></div>
             <div className="stat-card"><span className="stat-label">Processing</span><span className="stat-value orange">{stats.Processing}</span></div>
             <div className="stat-card"><span className="stat-label">Ready for Pickup</span><span className="stat-value green">{stats['Ready for Pickup']}</span></div>
@@ -344,7 +350,7 @@ function App() {
               <table className="main-table">
                 <thead>
                   <tr>
-                    <th className="check-column-head"></th>
+                    <th className="check-column-head">Select</th>
                     <th>Date Requested</th>
                     <th>Document Type</th>
                     <th>Document Fee</th>
@@ -393,16 +399,7 @@ function App() {
                         {req.paymentConfirmed ? (
                           <span className="payment-tag paid">Paid</span>
                         ) : (
-                          <button
-                            type="button"
-                            className="payment-tag unpaid-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/payment?requestId=${encodeURIComponent(req._id)}`);
-                            }}
-                          >
-                            Pay now
-                          </button>
+                          <span className="payment-tag unpaid">Unpaid</span>
                         )}
                       </td>
                       <td>{req.status === 'Completed' ? 'Released' : req.status || '-'}</td>

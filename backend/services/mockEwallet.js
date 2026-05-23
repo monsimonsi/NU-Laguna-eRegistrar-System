@@ -212,6 +212,7 @@ async function completeMockSession(sessionId, userId, email, payerDetails = {}) 
 
   if (!doc.paymentConfirmed) {
     doc.paymentConfirmed = true;
+    doc.status = 'Pending';
     await doc.save();
     if (doc.requesterId) {
       await notifyRequestSubmitted(doc, doc.requesterId);

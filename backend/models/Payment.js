@@ -20,7 +20,14 @@ const PaymentSchema = new mongoose.Schema(
     },
     transactionReference: { type: String, default: '' },
     paymongoPaymentIntentId: { type: String, default: '' },
-    paymongoClientKey: { type: String, default: '' }
+    paymongoClientKey: { type: String, default: '' },
+    mockSessionId: { type: String, default: '' },
+    mockProvider: { type: String, default: '' },
+    payerName: { type: String, default: '' },
+    payerMobile: { type: String, default: '' },
+    payerEmail: { type: String, default: '' },
+    receiptNumber: { type: String, default: '' },
+    paidAt: { type: Date, default: null }
   },
   { timestamps: true }
 );

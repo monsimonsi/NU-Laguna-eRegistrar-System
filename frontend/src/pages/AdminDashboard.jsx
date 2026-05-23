@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import '../styles/AdminDashboard.css';
 import logo from '../assets/NU_shield.png';
 import {
@@ -12,8 +12,10 @@ import {
   Clock3,
   BadgeCheck,
   UsersRound,
+  PackageOpen,
 } from 'lucide-react';
 import { API_BASE, authHeaders, clearSession } from '../api';
+import NotificationsPanel from '../components/NotificationsPanel';
 
 const STAT_CONFIG = [
   { label: 'Total Requests', key: 'totalRequests', sub: 'All-Time', icon: <FileText size={16} strokeWidth={2.2} />, colorClass: 'violet' },
@@ -22,24 +24,45 @@ const STAT_CONFIG = [
   { label: 'Pending Alumni', key: 'pendingAlumni', sub: 'Needs Verification', icon: <UsersRound size={16} strokeWidth={2.2} />, colorClass: 'orange' },
 ];
 
-function statusOptionsForRequest(request) {
-  const method = String(request?.deliveryMethod || 'pickup').toLowerCase();
-  if (method === 'delivery') {
-    return ['Pending', 'Processing', 'Out for Delivery', 'Released'];
-  }
-  return ['Pending', 'Processing', 'Ready for Pickup', 'Released'];
-}
+const formatDateShort = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  });
+};
+
+const formatDeliveryMethod = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return '-';
+  return normalized === 'delivery' ? 'Delivery' : 'Pickup';
+};
+
+const formatRole = (value) => {
+  const normalized = String(value || '').trim();
+  if (!normalized) return '-';
+  return normalized.toUpperCase();
+};
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const requestsTableRef = useRef(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [sidebarHover, setSidebarHover] = useState(false);
+  const [sidebarPinned, setSidebarPinned] = useState(false);
   const [requests, setRequests] = useState([]);
   const [alumniRegistrations, setAlumniRegistrations] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [alumniMessage, setAlumniMessage] = useState('');
   const [alumniIsError, setAlumniIsError] = useState(false);
+
+  const isSidebarOpen = sidebarPinned || sidebarHover;
+  const isDashboardActive = location.pathname === '/admin-dashboard';
+  const isDocumentTrackingActive = location.pathname === '/admin-document-tracking';
 
   const stats = STAT_CONFIG.map((item) => ({
     ...item,
@@ -76,6 +99,7 @@ const AdminDashboard = () => {
         headers: authHeaders(false),
       });
       const data = await res.json();
+
       if (res.ok) {
         setRequests(data.requests || []);
       } else {
@@ -93,10 +117,11 @@ const AdminDashboard = () => {
         headers: authHeaders(false),
       });
       const data = await res.json();
+
       if (res.ok) {
         setAlumniRegistrations(data.registrations || []);
       } else {
-        setLoadError(data.message || 'Failed to load alumni registrations.');
+        console.error('Failed to fetch alumni registrations', data.message);
       }
     } catch (err) {
       console.error('Failed to fetch alumni registrations', err);
@@ -112,6 +137,10 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  const handleSidebarToggle = () => {
+    setSidebarPinned((prev) => !prev);
+  };
 
   const handleLogout = () => {
     clearSession();
@@ -134,9 +163,8 @@ const AdminDashboard = () => {
     let rejectionReason = '';
     if (newStatus === 'rejected') {
       const reason = window.prompt('Enter rejection reason');
-      if (reason === null) {
-        return;
-      }
+      if (reason === null) return;
+
       rejectionReason = String(reason).trim();
       if (!rejectionReason) {
         setAlumniIsError(true);
@@ -157,13 +185,16 @@ const AdminDashboard = () => {
       });
 
       const data = await res.json();
+
       if (!res.ok) {
         setAlumniIsError(true);
         setAlumniMessage(data.message || 'Failed to update status.');
         return;
       }
 
-      setAlumniRegistrations((prev) => prev.map((r) => (r._id === id ? data.registration : r)));
+      setAlumniRegistrations((prev) =>
+        prev.map((r) => (r._id === id ? data.registration : r))
+      );
       setAlumniIsError(false);
       setAlumniMessage('Verification status updated.');
       fetchAdminStats();
@@ -174,51 +205,80 @@ const AdminDashboard = () => {
     }
   };
 
-  const updateStatus = async (id, newStatus) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/requests/${id}`, {
-        method: 'PATCH',
-        headers: authHeaders(true),
-        body: JSON.stringify({ status: newStatus })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setRequests((prev) => prev.map((r) => (r._id === id ? data.request : r)));
-        fetchAdminStats();
-      } else {
-        console.error('Update failed', data.message);
-      }
-    } catch (err) {
-      console.error('Update error', err);
-    }
-  };
+  const statusPillClass = (status) => {
+    const normalized = String(status || '').toLowerCase();
 
-  const statusPillClass = (status) =>
-    `status-pill ${String(status || '')
-      .toLowerCase()
-      .replace(/ /g, '-')}`;
+    if (normalized.includes('processing')) return 'status-pill processing';
+    if (normalized.includes('ready')) return 'status-pill ready';
+    if (normalized.includes('out for delivery')) return 'status-pill ready';
+    if (normalized.includes('released') || normalized.includes('completed')) return 'status-pill completed';
+    return 'status-pill pending';
+  };
 
   return (
     <div className="admin-page">
-      <aside className="admin-sidebar">
-        <button className="sidebar-toggle" aria-label="Menu">
+      <aside
+        className={`admin-sidebar ${isSidebarOpen ? 'open' : ''}`}
+        onMouseEnter={() => setSidebarHover(true)}
+        onMouseLeave={() => setSidebarHover(false)}
+      >
+        <button
+          className="sidebar-toggle"
+          aria-label="Toggle sidebar"
+          aria-expanded={isSidebarOpen}
+          onClick={handleSidebarToggle}
+        >
           <Menu size={26} strokeWidth={2.4} />
         </button>
 
+        <div className="sidebar-brand">
+          <img src={logo} alt="NU Logo" className="sidebar-brand-logo" />
+          <div className="sidebar-brand-text">
+            <span className="brand-line1">NU-LAGUNA</span>
+            <span className="brand-line2">e-registrar</span>
+          </div>
+        </div>
+
+        <div className="sidebar-user">
+          <div className="sidebar-user-avatar">
+            <Users size={24} strokeWidth={2.2} />
+          </div>
+          <span className="sidebar-user-label">ADMIN</span>
+        </div>
+
         <nav className="sidebar-nav">
-          <button className="sidebar-icon active" aria-label="Dashboard">
-            <LayoutGrid size={20} strokeWidth={2.2} />
+          <button
+            className={`sidebar-link ${isDashboardActive ? 'active' : ''}`}
+            aria-label="Dashboard"
+            onClick={() => navigate('/admin-dashboard')}
+          >
+            <LayoutGrid size={24} strokeWidth={2.2} />
+            <span className="sidebar-text">Dashboard</span>
           </button>
-          <button className="sidebar-icon" aria-label="Documents">
-            <FileText size={20} strokeWidth={2.2} />
+
+          <button className="sidebar-link" aria-label="Requests">
+            <FileText size={24} strokeWidth={2.2} />
+            <span className="sidebar-text">Requests</span>
           </button>
-          <button className="sidebar-icon" aria-label="Users">
-            <Users size={20} strokeWidth={2.2} />
+
+          <button className="sidebar-link" aria-label="Alumni Verification">
+            <Users size={24} strokeWidth={2.2} />
+            <span className="sidebar-text">Alumni Verification</span>
+          </button>
+
+          <button
+            className={`sidebar-link ${isDocumentTrackingActive ? 'active' : ''}`}
+            aria-label="Document Tracking"
+            onClick={() => navigate('/admin-document-tracking')}
+          >
+            <PackageOpen size={24} strokeWidth={2.2} />
+            <span className="sidebar-text">Document Tracking</span>
           </button>
         </nav>
 
         <button type="button" className="logout-btn" aria-label="Logout" onClick={handleLogout}>
           <LogOut size={20} strokeWidth={2.2} />
+          <span className="sidebar-text">LOG OUT</span>
         </button>
       </aside>
 
@@ -229,27 +289,39 @@ const AdminDashboard = () => {
             <span className="admin-title">ADMIN DASHBOARD</span>
           </button>
 
-          <div className="admin-profile-wrap">
-            <button
-              type="button"
-              className="admin-profile"
-              onClick={() => setProfileOpen((prev) => !prev)}
-              aria-expanded={profileOpen}
-              aria-label="Open profile menu"
-            >
-              <div className="avatar">A</div>
-              <ChevronDown size={18} strokeWidth={2.4} className={`profile-caret ${profileOpen ? 'open' : ''}`} />
-            </button>
+          <div className="admin-topbar-actions">
+            <NotificationsPanel />
 
-            {profileOpen && (
-              <div className="profile-dropdown">
-                <button type="button" className="profile-item">Profile</button>
-                <button type="button" className="profile-item">Settings</button>
-                <button type="button" className="profile-item" onClick={handleLogout}>
-                  Logout
-                </button>
-              </div>
-            )}
+            <div className="admin-profile-wrap">
+              <button
+                type="button"
+                className="admin-profile"
+                onClick={() => setProfileOpen((prev) => !prev)}
+                aria-expanded={profileOpen}
+                aria-label="Open profile menu"
+              >
+                <div className="avatar">A</div>
+                <ChevronDown
+                  size={18}
+                  strokeWidth={2.4}
+                  className={`profile-caret ${profileOpen ? 'open' : ''}`}
+                />
+              </button>
+
+              {profileOpen && (
+                <div className="profile-dropdown">
+                  <button type="button" className="profile-item">
+                    Profile
+                  </button>
+                  <button type="button" className="profile-item">
+                    Settings
+                  </button>
+                  <button type="button" className="profile-item" onClick={handleLogout}>
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -318,6 +390,7 @@ const AdminDashboard = () => {
                   </div>
                 )}
               </div>
+
               {alumniMessage && (
                 <div className={`alumni-message ${alumniIsError ? 'error' : 'success'}`}>
                   {alumniMessage}
@@ -344,35 +417,69 @@ const AdminDashboard = () => {
 
               <div className="request-list request-list-small">
                 {requests.slice(0, 6).map((r) => (
-                  (() => {
-                    const options = statusOptionsForRequest(r);
-                    const selected = options.includes(r.status) ? r.status : options[0];
-                    return (
-                  <div className="small-request-card" key={r._id}>
-                    <div className="small-request-info">
-                      <strong>{r.full_name}</strong>
-                      <span>{r.documentType}</span>
-                      <span>Copies: {r.copies ?? 1}</span>
-                      {r.documentType === 'Course Description 1st Page' && (
-                        <span>Succeeding Pages: {r.succeedingPages ?? 0}</span>
-                      )}
+                  <div className="request-card-compact" key={r._id}>
+                    <div className="request-card-top">
+                      <div className="request-card-title">
+                        <strong>{r.full_name || 'Unknown'}</strong>
+                        <span>{formatRole(r.role)} - {r.email || '-'}</span>
+                      </div>
+                      <div className="request-card-top-actions">
+                        <span className={`${statusPillClass(r.status)} status-pill-compact`}>
+                          {r.status || 'Pending'}
+                        </span>
+                        <button
+                          type="button"
+                          className="request-view-btn"
+                          onClick={() =>
+                            navigate(`/admin-document-tracking?id=${encodeURIComponent(r._id)}`)
+                          }
+                        >
+                          View Details
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="status-row">
-                      <label>Status:</label>
-                      <div className="select-wrap">
-                        <select
-                          value={selected}
-                          onChange={(e) => updateStatus(r._id, e.target.value)}
-                        >
-                          {options.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
+                    <div className="request-card-meta">
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Document</span>
+                        <span className="request-meta-value">{r.documentType || '-'}</span>
+                      </div>
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Copies</span>
+                        <span className="request-meta-value">{r.copies ?? 1}</span>
+                      </div>
+                      {r.documentType === 'Course Description 1st Page' && (
+                        <div className="request-meta-item">
+                          <span className="request-meta-label">Succeeding Pages</span>
+                          <span className="request-meta-value">{r.succeedingPages ?? 0}</span>
+                        </div>
+                      )}
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Delivery</span>
+                        <span className="request-meta-value">{formatDeliveryMethod(r.deliveryMethod)}</span>
+                      </div>
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Tracking #</span>
+                        <span className="request-meta-value">{r.trackingNumber || r._id || '—'}</span>
+                      </div>
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Requested</span>
+                        <span className="request-meta-value">{formatDateShort(r.createdAt)}</span>
+                      </div>
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Purpose</span>
+                        <span className="request-meta-value">{r.purpose || '-'}</span>
                       </div>
                     </div>
                   </div>
-                    );
-                  })()
                 ))}
+                {requests.length === 0 && (
+                  <div className="request-card request-card-empty">
+                    <div className="request-info">
+                      <strong>No recent document requests.</strong>
+                    </div>
+                  </div>
+                )}
               </div>
             </article>
           </section>
@@ -403,7 +510,9 @@ const AdminDashboard = () => {
                       <td>{r.documentType}</td>
                       <td>{r.address || '-'}</td>
                       <td>
-                        <div className={statusPillClass(r.status)}>{r.status}</div>
+                        <span className={statusPillClass(r.status)}>
+                          {r.status}
+                        </span>
                       </td>
                       <td>{r.trackingNumber || r._id || '—'}</td>
                     </tr>

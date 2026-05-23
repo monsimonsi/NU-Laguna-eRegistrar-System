@@ -16,9 +16,7 @@ export function getStoredUser() {
   }
 }
 
-/**
- * @param {boolean} includeJson - set false for GET-only calls if you prefer no Content-Type
- */
+
 export function authHeaders(includeJson = true) {
   const token = getStoredToken();
   /** @type {Record<string, string>} */

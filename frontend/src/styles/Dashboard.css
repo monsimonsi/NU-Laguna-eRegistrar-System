@@ -45,17 +45,22 @@ body, html { width: 100%; height: 100%; font-family: 'Inter', sans-serif; backgr
 
 .sidebar {
   position: fixed;
-  left: -280px;
   top: 70px;
+  left: 0;
   width: 280px;
   height: calc(100vh - 70px);
   background-color: #9096c9;
-  transition: 0.3s ease-in-out;
+
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-in-out;
+
   z-index: 1500;
   box-shadow: 4px 0 10px rgba(0,0,0,0.1);
-  
+
   display: flex;
   flex-direction: column;
+
+  overflow: hidden;
 }
 .sidebar-content {
   flex-grow: 1;
@@ -95,7 +100,9 @@ body, html { width: 100%; height: 100%; font-family: 'Inter', sans-serif; backgr
   padding-right: 26px;
 }
 .sidebar-icon { width: 32px; height: auto; object-fit: contain; flex-shrink: 0; }
-.sidebar.active { left: 0; }
+.sidebar.active {
+  transform: translateX(0);
+}
 .sidebar-nav .sidebar-link {
   padding: 12px 18px;
   color: #35408f;
@@ -139,7 +146,7 @@ body, html { width: 100%; height: 100%; font-family: 'Inter', sans-serif; backgr
 .stat-label { font-weight: 800; font-size: 13px; color: #000; display: block; margin-bottom: 10px; }
 .stat-value { font-size: 38px; font-weight: 600; display: block; }
 
-.blue { color: #35408f; } .red { color: #d9534f; } .orange { color: #f0ad4e; } .green { color: #5cb85c; } .yellow { color: #f0ad4e; } .teal { color: #2f9e9a; }
+.blue { color: #35408f; } .red { color: #d9534f; } .orange { color: #f0ad4e; } .green { color: #5cb85c; } .yellow { color: #ffd400; } .teal { color: #5cb85c; }
 
 .table-controls-row {
   display: flex;
@@ -200,10 +207,7 @@ label {
 }
 
 .check-column-head { 
-    background-color: #35408f !important; 
-    border: 1px solid #35408f !important;
     width: 50px; 
-    top: -0.5px !important;
 }
 
 .check-column-cell { 
@@ -400,11 +404,19 @@ label {
   border: 1px solid #35408f;
   background: #fff;
   color: #35408f;
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: 13px;
+  padding: 10px 25px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
+}
+
+.notifications-icon {
+  font-size: 18px;
+  line-height: 1;
 }
 
 .notifications-badge {
@@ -470,13 +482,8 @@ label {
   font-size: 12px;
 }
 
-.payment-tag.unpaid-btn {
-  border: 1px solid #c0392b;
-  background: #fff5f5;
+.payment-tag.unpaid {
   color: #c0392b;
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
 }

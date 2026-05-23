@@ -2,6 +2,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "test": "node --test tests/*.test.js",
+    "check:paymongo": "node scripts/check-paymongo-env.js",
     "seed:login-users": "node scripts/seedFakeLoginUsers.js",
     "migrate:statuses": "node scripts/migrateStatuses.js"
   },
@@ -13,6 +15,7 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.5.0",
     "nodemailer": "^8.0.7",
-    "paymongo-node": "^10.17.0"
+    "paymongo-node": "^10.17.0",
+    "pdfkit": "^0.18.0"
   }
 }

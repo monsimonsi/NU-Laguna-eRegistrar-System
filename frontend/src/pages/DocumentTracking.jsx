@@ -16,15 +16,17 @@ import { API_BASE, authHeaders } from '../api';
 import '../styles/DocumentTracking.css';
 
 const STATUS_STEP_MAP = {
-  pending: 1,
-  processing: 2,
-  'ready for pickup': 3,
-  'out for delivery': 3,
-  released: 4,
-  completed: 4
+  'waiting for payment': 1,
+  pending: 2,
+  processing: 3,
+  'ready for pickup': 4,
+  'out for delivery': 4,
+  released: 5,
+  completed: 5
 };
 
 const STATUS_CLASS_MAP = {
+  'waiting for payment': 'pending',
   pending: 'pending',
   processing: 'processing',
   'ready for pickup': 'ready',
@@ -123,15 +125,24 @@ const DocumentTracking = () => {
   }, [requestId]);
 
   const statusLabel = request?.status || '-';
-  const normalizedStatus = String(request?.status || 'pending').trim().toLowerCase();
+  const normalizedStatus = String(request?.status || 'waiting for payment').trim().toLowerCase();
   const statusStep = STATUS_STEP_MAP[normalizedStatus] || 1;
   const statusClass = STATUS_CLASS_MAP[normalizedStatus] || 'pending';
   const activeStep = statusStep;
-  const statusKey = activeStep === 2 ? 'processing' : activeStep === 3 ? 'ready' : activeStep === 4 ? 'released' : 'pending';
-  const progressPercent = `${(statusStep / 4) * 100}%`;
+  const statusKey =
+    normalizedStatus === 'waiting for payment'
+      ? 'waiting'
+      : normalizedStatus === 'pending'
+        ? 'pending'
+        : normalizedStatus === 'processing'
+          ? 'processing'
+          : normalizedStatus === 'ready for pickup' || normalizedStatus === 'out for delivery'
+            ? 'ready'
+            : 'released';
+  const progressPercent = `${(statusStep / 5) * 100}%`;
   const showDetails = Boolean(request) && !loading && !error;
   const isPaid = Boolean(request?.paymentConfirmed);
-  const needsPayment = showDetails && !isPaid;
+  const canProceedToPayment = showDetails && !isPaid && normalizedStatus === 'waiting for payment';
 
   return (
     <div className="track-page">
@@ -189,24 +200,25 @@ const DocumentTracking = () => {
               </div>
 
               <div className="track-summary-right">
-                {needsPayment && (
-                  <button
-                    className="track-proceed-btn"
-                    type="button"
-                    onClick={() =>
-                      navigate(`/payment?requestId=${encodeURIComponent(request._id)}`, {
-                        state: { request },
-                      })
-                    }
-                  >
-                    PROCEED TO PAYMENT
-                  </button>
-                )}
+                <button
+                  className="track-proceed-btn"
+                  type="button"
+                  disabled={!canProceedToPayment}
+                  title={
+                    canProceedToPayment
+                      ? 'Proceed to the payment page.'
+                      : 'Payment is only available while the request is Waiting for Payment.'
+                  }
+                  onClick={() => {
+                    if (!canProceedToPayment) return;
+                    navigate(`/payment?requestId=${encodeURIComponent(request._id)}`, {
+                      state: { request }
+                    });
+                  }}
+                >
+                  PROCEED TO PAYMENT
+                </button>
                 <div className="track-status-row">
-                  <span className={`track-status-pill ${isPaid ? 'paid' : 'unpaid'}`}>
-                    <CircleDollarSign size={15} strokeWidth={2.2} />
-                    {isPaid ? 'Paid' : 'Unpaid'}
-                  </span>
                   <span className={`track-status-pill ${statusClass}`}>
                     <Clock3 size={15} strokeWidth={2.2} />
                     {statusLabel}
@@ -226,28 +238,35 @@ const DocumentTracking = () => {
               </div>
 
               <div className="track-steps" data-status={statusKey}>
-                <div className={`track-step ${activeStep === 1 ? 'active' : ''}`} data-step="pending">
+                <div className={`track-step ${activeStep === 1 ? 'active' : ''}`} data-step="waiting">
                   <div className="track-step-icon">
                     <CircleDollarSign size={64} strokeWidth={2.2} />
                   </div>
                   <div className="track-step-label">Waiting for Payment</div>
                 </div>
 
-                <div className={`track-step ${activeStep === 2 ? 'active' : ''}`} data-step="processing">
+                <div className={`track-step ${activeStep === 2 ? 'active' : ''}`} data-step="pending">
+                  <div className="track-step-icon">
+                    <Clock3 size={64} strokeWidth={2.2} />
+                  </div>
+                  <div className="track-step-label">Pending</div>
+                </div>
+
+                <div className={`track-step ${activeStep === 3 ? 'active' : ''}`} data-step="processing">
                   <div className="track-step-icon">
                     <Clock3 size={64} strokeWidth={2.2} />
                   </div>
                   <div className="track-step-label">Processing</div>
                 </div>
 
-                <div className={`track-step ${activeStep === 3 ? 'active' : ''}`} data-step="ready">
+                <div className={`track-step ${activeStep === 4 ? 'active' : ''}`} data-step="ready">
                   <div className="track-step-icon">
                     <PackageOpen size={64} strokeWidth={2.2} />
                   </div>
                   <div className="track-step-label">Ready for<br />Pickup / Delivery</div>
                 </div>
 
-                <div className={`track-step ${activeStep === 4 ? 'active' : ''}`} data-step="released">
+                <div className={`track-step ${activeStep === 5 ? 'active' : ''}`} data-step="released">
                   <div className="track-step-icon">
                     <ClipboardCheck size={64} strokeWidth={2.2} />
                   </div>

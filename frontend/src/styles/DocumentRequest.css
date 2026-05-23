@@ -384,6 +384,7 @@ body {
   gap: 12px;
   justify-content: flex-end;
   margin-top: 18px;
+  flex-wrap: wrap;
 }
 
 .doc-modal-btn {
@@ -400,6 +401,21 @@ body {
 .doc-modal-btn--primary {
   background: #9ca4d7;
   color: #16307a;
+}
+
+.doc-modal-btn--accent {
+  background: #4052a6;
+  color: #fff;
+}
+
+@media (max-width: 520px) {
+  .doc-modal-actions {
+    justify-content: flex-start;
+  }
+
+  .doc-modal-btn {
+    flex: 1 1 auto;
+  }
 }
 
 .cancel-btn,

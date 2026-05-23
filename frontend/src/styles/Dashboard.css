@@ -207,10 +207,7 @@ label {
 }
 
 .check-column-head { 
-    background-color: #35408f !important; 
-    border: 1px solid #35408f !important;
     width: 50px; 
-    top: -0.5px !important;
 }
 
 .check-column-cell { 
@@ -485,13 +482,8 @@ label {
   font-size: 12px;
 }
 
-.payment-tag.unpaid-btn {
-  border: 1px solid #c0392b;
-  background: #fff5f5;
+.payment-tag.unpaid {
   color: #c0392b;
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
 }

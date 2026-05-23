@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 /** Matches registrar workflow: Released = claimed / closed (was previously "Completed"). */
 const REQUEST_STATUSES = [
+  'Waiting for Payment',
   'Pending',
   'Processing',
   'Ready for Pickup',
@@ -29,7 +30,7 @@ const DocumentRequestSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: REQUEST_STATUSES,
-    default: 'Pending'
+    default: 'Waiting for Payment'
   },
   trackingNumber: { type: String, unique: true, sparse: true, index: true },
   /** When false, the registrar queue hides this row until PayMongo reports a successful payment. */

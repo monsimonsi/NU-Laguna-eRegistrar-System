@@ -29,7 +29,6 @@ const mail = require('./services/mail');
 const { generateReceiptPdfBuffer } = require('./services/receiptPdf');
 const { hashPassword, verifyPassword } = require('./services/passwords');
 const {
-  ACTIVE_REQUEST_STATUSES,
   validateDocumentRequestInput,
   validateStatusTransition
 } = require('./utils/requestLogic');
@@ -86,9 +85,6 @@ app.get('/api/health', (req, res) => {
         : null
   });
 });
-
-const DUPLICATE_WINDOW_DAYS = Number(process.env.DUPLICATE_REQUEST_DAYS || 30);
-const UNPAID_DUPLICATE_WINDOW_DAYS = Number(process.env.UNPAID_REQUEST_DUPLICATE_DAYS || 7);
 
 function userStatusMessage(request, status) {
   const method = String(request?.deliveryMethod || 'pickup').toLowerCase();
@@ -564,42 +560,6 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
     }
 
     const requestData = validation.value;
-    const allowMultipleSameType = requestData.documentType === 'Course Description 1st Page';
-    const cutoff = new Date(Date.now() - DUPLICATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-    const unpaidCutoff = new Date(Date.now() - UNPAID_DUPLICATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-    const duplicate = allowMultipleSameType
-      ? null
-      : await DocumentRequest.findOne({
-          requesterId: requestData.requesterId,
-          documentType: requestData.documentType,
-          $or: [
-            {
-              createdAt: { $gte: cutoff },
-              paymentConfirmed: true,
-              status: { $in: ACTIVE_REQUEST_STATUSES }
-            },
-            {
-              createdAt: { $gte: unpaidCutoff },
-              paymentConfirmed: false
-            }
-          ]
-        }).sort({ createdAt: -1 });
-
-    if (duplicate) {
-      if (!duplicate.paymentConfirmed) {
-        return res.status(409).json({
-          message: `You already have a ${requestData.documentType} request waiting for payment. Use 'Retry payment' on that request or wait before submitting again.`,
-          duplicateRequestId: duplicate._id,
-          trackingNumber: duplicate.trackingNumber || null,
-          pendingPayment: true
-        });
-      }
-      return res.status(409).json({
-        message: `A recent ${requestData.documentType} request already exists and is still being processed.`,
-        duplicateRequestId: duplicate._id,
-        trackingNumber: duplicate.trackingNumber || null
-      });
-    }
 
     const skipOnlinePayment = !payments.isPaymongoConfigured();
     if (!skipOnlinePayment && !process.env.PAYMONGO_WEBHOOK_SECRET) {
@@ -1092,7 +1052,7 @@ app.get('/api/requests/:id', authMiddleware, requireStudentOrAlumni, async (req,
   }
 });
 
-// Delete a request (student/alumni only, pending status)
+// Delete a request (student/alumni only, waiting for payment or pending status)
 app.delete('/api/requests/:id', authMiddleware, requireStudentOrAlumni, async (req, res) => {
   try {
     const { id } = req.params;
@@ -1103,8 +1063,9 @@ app.delete('/api/requests/:id', authMiddleware, requireStudentOrAlumni, async (r
       return res.status(403).json({ message: 'Access denied.' });
     }
 
-    if (request.status !== 'Pending') {
-      return res.status(409).json({ message: 'Only pending requests can be deleted.' });
+    const allowedDeleteStatuses = new Set(['Waiting for Payment', 'Pending']);
+    if (!allowedDeleteStatuses.has(String(request.status || '').trim())) {
+      return res.status(409).json({ message: 'Only waiting-for-payment or pending requests can be deleted.' });
     }
 
     await DocumentRequest.findByIdAndDelete(id);

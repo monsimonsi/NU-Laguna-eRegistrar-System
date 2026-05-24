@@ -147,16 +147,19 @@ const REQUESTS = [
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
-  const [sidebarHover, setSidebarHover] = useState(false);
-  const [sidebarPinned, setSidebarPinned] = useState(false);
-  const [requests, setRequests] = useState([]);
-  const [alumniRegistrations, setAlumniRegistrations] = useState([]);
-  const [dashboardStats, setDashboardStats] = useState(null);
-  const [loadError, setLoadError] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [requests, setRequests] = useState(REQUESTS);
+  const [alumniRegistrations, setAlumniRegistrations] = useState(ALUMNI_REQUESTS);
   const [alumniMessage, setAlumniMessage] = useState('');
   const [alumniIsError, setAlumniIsError] = useState(false);
 
-  const isSidebarOpen = sidebarPinned || sidebarHover;
+  const pendingRequests = requests.filter((r) => r.status === 'Pending').length;
+  const approvedAlumni = alumniRegistrations.filter(
+    (r) => r.verificationStatus === 'approved'
+  ).length;
+  const pendingAlumni = alumniRegistrations.filter(
+    (r) => r.verificationStatus === 'pending'
+  ).length;
 
   const stats = STAT_CONFIG.map((item) => ({
     ...item,
@@ -170,74 +173,8 @@ const AdminDashboard = () => {
             : String(pendingAlumni),
   }));
 
-  const pendingAlumniList = alumniRegistrations.filter(
-    (r) => r.verificationStatus === 'pending'
-  );
-
-  const fetchAdminStats = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/stats`, {
-        headers: authHeaders(false),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setDashboardStats(data);
-      } else {
-        setLoadError(data.message || 'Failed to load dashboard stats.');
-      }
-    } catch (err) {
-      console.error('Failed to fetch admin stats', err);
-      setLoadError('Cannot connect to server.');
-    }
-  }, []);
-
-  const fetchRequests = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/requests`, {
-        headers: authHeaders(false),
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        setRequests(data.requests || []);
-      } else {
-        setLoadError(data.message || 'Failed to load document requests.');
-      }
-    } catch (err) {
-      console.error('Failed to fetch requests', err);
-      setLoadError('Cannot connect to server.');
-    }
-  }, []);
-
-  const fetchAlumniRegistrations = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/alumni-registrations`, {
-        headers: authHeaders(false),
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        setAlumniRegistrations(data.registrations || []);
-      } else {
-        console.error('Failed to fetch alumni registrations', data.message);
-      }
-    } catch (err) {
-      console.error('Failed to fetch alumni registrations', err);
-      setLoadError('Cannot connect to server.');
-    }
-  }, []);
-
-  const fetchDashboardData = useCallback(async () => {
-    setLoadError('');
-    await Promise.all([fetchAdminStats(), fetchRequests(), fetchAlumniRegistrations()]);
-  }, [fetchAdminStats, fetchRequests, fetchAlumniRegistrations]);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
-
   const handleSidebarToggle = () => {
-    setSidebarPinned((prev) => !prev);
+    setSidebarOpen((prev) => !prev);
   };
 
   const handleLogout = () => {
@@ -294,15 +231,11 @@ const AdminDashboard = () => {
 
   return (
     <div className="admin-page">
-      <aside
-        className={`admin-sidebar ${isSidebarOpen ? 'open' : ''}`}
-        onMouseEnter={() => setSidebarHover(true)}
-        onMouseLeave={() => setSidebarHover(false)}
-      >
+      <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <button
           className="sidebar-toggle"
           aria-label="Toggle sidebar"
-          aria-expanded={isSidebarOpen}
+          aria-expanded={sidebarOpen}
           onClick={handleSidebarToggle}
         >
           <Menu size={26} strokeWidth={2.4} />
@@ -329,12 +262,20 @@ const AdminDashboard = () => {
             <span className="sidebar-text">Dashboard</span>
           </button>
 
-          <button className="sidebar-link" aria-label="Requests">
+          <button
+            className="sidebar-link"
+            aria-label="Requests"
+            onClick={() => navigate('/admin-document-requests')}
+          >
             <FileText size={24} strokeWidth={2.2} />
             <span className="sidebar-text">Requests</span>
           </button>
 
-          <button className="sidebar-link" aria-label="Alumni Verification">
+          <button
+            className="sidebar-link"
+            aria-label="Alumni Verification"
+            onClick={() => navigate('/admin-alumni-verification')}
+          >
             <Users size={24} strokeWidth={2.2} />
             <span className="sidebar-text">Alumni Verification</span>
           </button>
@@ -406,9 +347,7 @@ const AdminDashboard = () => {
               <article key={item.label} className={`stat-card ${item.colorClass}`}>
                 <div className="stat-top">
                   <h2>{item.label}</h2>
-                  <span className={`stat-mini-icon ${item.colorClass}`}>
-                    {item.icon}
-                  </span>
+                  <span className={`stat-mini-icon ${item.colorClass}`}>{item.icon}</span>
                 </div>
                 <div className="stat-value">{item.value}</div>
                 <div className="stat-sub">{item.sub}</div>
@@ -556,9 +495,7 @@ const AdminDashboard = () => {
                       <td>{r.documentType}</td>
                       <td>{r.address || '-'}</td>
                       <td>
-                        <span className={statusPillClass(r.status)}>
-                          {r.status}
-                        </span>
+                        <span className={statusPillClass(r.status)}>{r.status}</span>
                       </td>
                       <td>{r.trackingNumber || r._id || '—'}</td>
                     </tr>

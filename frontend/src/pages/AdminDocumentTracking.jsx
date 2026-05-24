@@ -274,7 +274,7 @@ const AdminDocumentTracking = () => {
             type="button"
             className="sidebar-link"
             aria-label="Requests"
-            onClick={() => navigate('/document-request')}
+            onClick={() => navigate('/admin-document-requests')}
           >
             <FileText size={24} strokeWidth={2.2} />
             <span className="sidebar-text">Requests</span>
@@ -284,7 +284,7 @@ const AdminDocumentTracking = () => {
             type="button"
             className="sidebar-link"
             aria-label="Alumni Verification"
-            onClick={() => navigate('/admin-dashboard')}
+            onClick={() => navigate('/admin-alumni-verification')}
           >
             <Users size={24} strokeWidth={2.2} />
             <span className="sidebar-text">Alumni Verification</span>

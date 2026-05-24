@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
 import AlumniRegistration from './pages/AlumniRegistration';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminDocumentRequests from './pages/AdminDocumentRequests';
 import AdminDocumentTracking from './pages/AdminDocumentTracking';
 import Dashboard from './pages/Dashboard';
 import DocumentRequest from './pages/DocumentRequest';
@@ -18,6 +19,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/alumni-registration" element={<AlumniRegistration />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
+        <Route path="/admin-document-requests" element={<AdminDocumentRequests />} />
         <Route path="/admin-document-tracking" element={<AdminDocumentTracking />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/document-request" element={<DocumentRequest />} />

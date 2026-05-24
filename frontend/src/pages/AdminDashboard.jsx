@@ -8,7 +8,6 @@ import {
   FileText,
   Users,
   LogOut,
-  ChevronDown,
   Clock3,
   BadgeCheck,
   UsersRound,
@@ -18,8 +17,8 @@ import { API_BASE, authHeaders, clearSession } from '../api';
 import NotificationsPanel from '../components/NotificationsPanel';
 
 const STAT_CONFIG = [
-  { label: 'Total Requests', key: 'totalRequests', sub: 'All-Time', icon: <FileText size={16} strokeWidth={2.2} />, colorClass: 'violet' },
-  { label: 'Pending', key: 'pendingRequests', sub: 'Awaiting Action', icon: <Clock3 size={16} strokeWidth={2.2} />, colorClass: 'yellow' },
+  { label: 'Total Document Requests', key: 'totalRequests', sub: 'All-Time', icon: <FileText size={16} strokeWidth={2.2} />, colorClass: 'violet' },
+  { label: 'Pending Document Requests', key: 'pendingRequests', sub: 'Awaiting Action', icon: <Clock3 size={16} strokeWidth={2.2} />, colorClass: 'yellow' },
   { label: 'Approved Alumni', key: 'approvedAlumni', sub: 'Verified', icon: <BadgeCheck size={16} strokeWidth={2.2} />, colorClass: 'green' },
   { label: 'Pending Alumni', key: 'pendingAlumni', sub: 'Needs Verification', icon: <UsersRound size={16} strokeWidth={2.2} />, colorClass: 'orange' },
 ];
@@ -46,11 +45,16 @@ const formatRole = (value) => {
   return normalized.toUpperCase();
 };
 
+const formatStatusTitle = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return '-';
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const requestsTableRef = useRef(null);
-  const [profileOpen, setProfileOpen] = useState(false);
   const [sidebarHover, setSidebarHover] = useState(false);
   const [sidebarPinned, setSidebarPinned] = useState(false);
   const [requests, setRequests] = useState([]);
@@ -62,6 +66,7 @@ const AdminDashboard = () => {
 
   const isSidebarOpen = sidebarPinned || sidebarHover;
   const isDashboardActive = location.pathname === '/admin-dashboard';
+  const isAlumniVerificationActive = location.pathname === '/admin-alumni-verification';
   const isDocumentTrackingActive = location.pathname === '/admin-document-tracking';
 
   const stats = STAT_CONFIG.map((item) => ({
@@ -261,7 +266,11 @@ const AdminDashboard = () => {
             <span className="sidebar-text">Requests</span>
           </button>
 
-          <button className="sidebar-link" aria-label="Alumni Verification">
+          <button
+            className={`sidebar-link ${isAlumniVerificationActive ? 'active' : ''}`}
+            aria-label="Alumni Verification"
+            onClick={() => navigate('/admin-alumni-verification')}
+          >
             <Users size={24} strokeWidth={2.2} />
             <span className="sidebar-text">Alumni Verification</span>
           </button>
@@ -291,37 +300,6 @@ const AdminDashboard = () => {
 
           <div className="admin-topbar-actions">
             <NotificationsPanel />
-
-            <div className="admin-profile-wrap">
-              <button
-                type="button"
-                className="admin-profile"
-                onClick={() => setProfileOpen((prev) => !prev)}
-                aria-expanded={profileOpen}
-                aria-label="Open profile menu"
-              >
-                <div className="avatar">A</div>
-                <ChevronDown
-                  size={18}
-                  strokeWidth={2.4}
-                  className={`profile-caret ${profileOpen ? 'open' : ''}`}
-                />
-              </button>
-
-              {profileOpen && (
-                <div className="profile-dropdown">
-                  <button type="button" className="profile-item">
-                    Profile
-                  </button>
-                  <button type="button" className="profile-item">
-                    Settings
-                  </button>
-                  <button type="button" className="profile-item" onClick={handleLogout}>
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
         </header>
 
@@ -332,7 +310,7 @@ const AdminDashboard = () => {
             {loadError && <p className="dashboard-load-error">{loadError}</p>}
           </section>
 
-          <section className="stats-grid">
+          <section className="dashboard-stats-grid">
             {stats.map((item) => (
               <article key={item.label} className={`stat-card ${item.colorClass}`}>
                 <div className="stat-top">
@@ -357,9 +335,7 @@ const AdminDashboard = () => {
                 <button
                   type="button"
                   className="view-all-btn"
-                  onClick={() =>
-                    requestsTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  }
+                  onClick={() => navigate('/admin-alumni-verification')}
                 >
                   View All
                 </button>
@@ -367,18 +343,51 @@ const AdminDashboard = () => {
 
               <div className="request-list">
                 {pendingAlumniList.map((item) => (
-                  <div className="request-card" key={item._id}>
-                    <div className="request-info">
-                      <strong>{item.full_name}</strong>
-                      <span>{item.student_id}</span>
-                      <span>{item.course}</span>
-                      <span>Year: {item.year_graduated}</span>
-                      <span className={`alumni-status ${item.verificationStatus}`}>{item.verificationStatus}</span>
+                  <div className="request-card-compact alumni-card" key={item._id}>
+                    <div className="request-card-top">
+                      <div className="request-card-title">
+                        <strong>{item.full_name}</strong>
+                        <span>Pending alumni verification request</span>
+                      </div>
+                      <div className="request-card-top-actions">
+                        <span className={`status-pill ${item.verificationStatus}`}>
+                          {String(item.verificationStatus || '').toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="request-card-meta alumni-card-meta">
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Student ID</span>
+                        <span className="request-meta-value">{item.student_id || '-'}</span>
+                      </div>
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Course</span>
+                        <span className="request-meta-value">{item.course || '-'}</span>
+                      </div>
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Year Graduated</span>
+                        <span className="request-meta-value">{item.year_graduated || '-'}</span>
+                      </div>
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Status</span>
+                        <span className="request-meta-value">{formatStatusTitle(item.verificationStatus)}</span>
+                      </div>
                     </div>
 
                     <div className="request-actions">
-                      <button className="approve-btn" onClick={() => updateAlumniStatus(item._id, 'approved')}>Approve</button>
-                      <button className="reject-btn" onClick={() => updateAlumniStatus(item._id, 'rejected')}>Reject</button>
+                      <button
+                        className="approve-btn"
+                        onClick={() => updateAlumniStatus(item._id, 'approved')}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        className="reject-btn"
+                        onClick={() => updateAlumniStatus(item._id, 'rejected')}
+                      >
+                        Reject
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -416,7 +425,7 @@ const AdminDashboard = () => {
               </div>
 
               <div className="request-list request-list-small">
-                {requests.slice(0, 6).map((r) => (
+                {requests.map((r) => (
                   <div className="request-card-compact" key={r._id}>
                     <div className="request-card-top">
                       <div className="request-card-title">

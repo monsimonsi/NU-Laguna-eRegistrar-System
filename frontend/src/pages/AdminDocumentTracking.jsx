@@ -598,7 +598,6 @@ const AdminDocumentTracking = () => {
 
                   <div className="detail-summary-copy">
                     <h2>{selectedRequest.documentType || 'Document request'}</h2>
-                    <p>Request ID: {selectedRequest._id || '-'}</p>
                     <p>Tracking #: {getTrackingNumber(selectedRequest)}</p>
                     <p>Request Date: {formatDate(selectedRequest.createdAt)}</p>
                   </div>

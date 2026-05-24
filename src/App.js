@@ -1,8 +1,8 @@
 import './App.css';
-import AlumniVerification from './components/AlumniVerification';
+import AccountProfile from './components/AccountProfile';
 
 function App() {
-  return <AlumniVerification />;
+  return <AccountProfile />;
 }
 
 export default App;

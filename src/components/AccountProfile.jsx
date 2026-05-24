@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import '../styles/AlumniVerification.css';
+import '../styles/AccountProfile.css';
 import submitIcon from '../assets/submit-icon.png';
 import trackIcon from '../assets/track-icon.png';
 import settingsIcon from '../assets/settings-icon.png';

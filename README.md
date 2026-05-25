@@ -47,6 +47,7 @@ Users can request documents such as:
 
 Real-time status updates:
 
+- Waiting for Payment
 - Pending
 - Processing
 - Ready for Pickup
@@ -141,7 +142,7 @@ Group 4
 - Quality Assurance: Antonio Luis Ignacio
 ## Project Timeline
 - Start Date: April 08, 2026
-- End Date: June 05, 2026
+- End Date: May 29, 2026
 ## Future Enhancements
 - SMS notification support
 - Mobile application version

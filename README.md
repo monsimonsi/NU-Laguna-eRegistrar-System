@@ -50,7 +50,7 @@ Real-time status updates:
 - Waiting for Payment
 - Pending
 - Processing
-- Ready for Pickup
+- Ready for Pickup / Out for Delivery
 - Released
 ## Payment Integration (Sandbox)
 - Supports online payment (GCash, Maya – sandbox mode)
@@ -91,7 +91,7 @@ The Payment page uses `POST /api/requests/:id/payment/checkout`, which automatic
 4. Proceed to payment
 5. Registrar processes request
 6. Receive email notification
-7. Pick up document
+7. Pick up/Receive document
 ### Alumni Workflow
 1. Register account
 2. Status: Pending Verification
@@ -101,7 +101,7 @@ The Payment page uses `POST /api/requests/:id/payment/checkout`, which automatic
 6. Proceed to payment
 7. Registrar processes request
 8. Receive notification
-9. Pick up document
+9. Pick up/Receive document
 ## Technology Stack
 - Frontend: React, HTML, CSS, JavaScript
 - Backend: Node.js, Express.js

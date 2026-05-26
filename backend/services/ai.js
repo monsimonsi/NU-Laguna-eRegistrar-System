@@ -66,6 +66,16 @@ function textContainsValue(text, value) {
   return raw.includes(target);
 }
 
+function stripTrailingSignature(text) {
+  let raw = String(text || '').trim();
+  if (!raw) return '';
+
+  raw = raw.replace(/\s*kind regards,\s*nu laguna e-registrar\s*$/i, '').trim();
+  raw = raw.replace(/\s*kind regards\.?\s*$/i, '').trim();
+
+  return raw;
+}
+
 function logAiReject(reason, detail) {
   if (detail) {
     console.warn('[ai] rejected:', reason, '-', detail);
@@ -102,7 +112,6 @@ async function generateNotification({ event, recipientName, facts }) {
     'Do not invent dates, timelines, or other details that are not provided in facts.',
     'Return valid JSON only with keys: subject, intro, body, outro.',
     'intro/body/outro must be plain text only, no markdown.',
-    "End the outro with 'Kind Regards,' on one line and 'NU Laguna e-Registrar' on the next line."
   ].join(' ');
 
   const userPrompt = JSON.stringify({
@@ -123,7 +132,7 @@ async function generateNotification({ event, recipientName, facts }) {
           includeDeliveryMethodIfProvided: true,
           avoidDatesUnlessProvided: true,
           introRule: 'Mention the document type in the intro, not the body.',
-          outroRule: "End the outro with 'Kind Regards,' on one line and 'NU Laguna e-Registrar' on the next line."
+          outroRule: 'End the outro with a brief closing sentence. Do not include the mail signature; it is appended separately.'
         }
       : undefined,
     factSlots: factLines
@@ -161,6 +170,7 @@ async function generateNotification({ event, recipientName, facts }) {
     let intro = trimToSentenceCount(parsed.intro, 3);
     let body = trimToSentenceCount(parsed.body, 3);
     let outro = trimToSentenceCount(parsed.outro, 3);
+    outro = stripTrailingSignature(outro);
 
     if (documentType && !textContainsValue(intro, documentType)) {
       intro = appendSentence(intro, `This message is about your ${documentType} request.`);
@@ -176,14 +186,8 @@ async function generateNotification({ event, recipientName, facts }) {
       'If you have questions, reply to this email for assistance.'
     ]);
 
-    if (isDocumentRequestEvent) {
-      if (!/kind regards/i.test(outro)) {
-        outro = appendSentence(outro, 'Kind Regards.');
-      }
-    }
-
     outro = ensureMinSentences(outro, 1, [
-      'Kind Regards.'
+      'Please let us know if you need any further assistance.'
     ]);
 
     if (countSentences(intro) < 2 || countSentences(body) < 2 || countSentences(outro) < 1) {
@@ -209,13 +213,6 @@ async function generateNotification({ event, recipientName, facts }) {
     if (needsDocumentType && textContainsValue(body, facts.documentType)) {
       logAiReject('document_in_body');
       return null;
-    }
-    if (isDocumentRequestEvent) {
-      const outroLower = String(outro || '').toLowerCase();
-      if (!outroLower.includes('kind regards')) {
-        logAiReject('outro_missing_kind_regards');
-        return null;
-      }
     }
     if (!requiresFactValue(facts, 'date') && !requiresFactValue(facts, 'requestDate') && hasDateLikeText(combined)) {
       logAiReject('unexpected_date');

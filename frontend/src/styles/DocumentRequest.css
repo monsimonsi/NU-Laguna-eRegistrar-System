@@ -104,6 +104,8 @@ body {
   padding: 0;
 }
 
+/* Request-tracking specific styles moved to RequestTracking.css */
+
 .doc-card {
   width: min(870px, 100%);
   margin: 0 auto;

@@ -3,9 +3,12 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 
 async function createNotification({ userId, message, category = 'general', meta = {} }) {
-  if (!userId || !message) return null;
+  if (!userId || !message) {
+    console.warn('[notifications] createNotification called with missing userId or message', { userId, message, category, meta });
+    return null;
+  }
   try {
-    return await Notification.create({
+    const created = await Notification.create({
       user_id: userId,
       message,
       status: 'sent',
@@ -13,8 +16,10 @@ async function createNotification({ userId, message, category = 'general', meta 
       category,
       meta
     });
+    console.log('[notifications] created', { id: created._id, userId, category });
+    return created;
   } catch (err) {
-    console.error('[notifications] create failed:', err.message);
+    console.error('[notifications] create failed:', err && err.message ? err.message : err);
     return null;
   }
 }
@@ -33,6 +38,7 @@ async function createForRole({ role, message, category = 'general', meta = {}, d
     const resolvedMeta = dedupeKey ? { ...meta, dedupeKey } : meta;
 
     if (dedupeKey) {
+      console.log('[notifications] createForRole dedupe', { role, category, dedupeKey, count: users.length });
       const writes = await Promise.all(
         users.map((user) =>
           Notification.updateOne(
@@ -58,6 +64,7 @@ async function createForRole({ role, message, category = 'general', meta = {}, d
       return writes;
     }
 
+    console.log('[notifications] createForRole insertMany', { role, category, count: users.length });
     return Notification.insertMany(
       users.map((user) => ({
         user_id: user._id,
@@ -70,7 +77,7 @@ async function createForRole({ role, message, category = 'general', meta = {}, d
       { ordered: false }
     );
   } catch (err) {
-    console.error('[notifications] createForRole failed:', err.message);
+    console.error('[notifications] createForRole failed:', err && err.message ? err.message : err);
     return [];
   }
 }
@@ -105,7 +112,7 @@ async function markRead(userId, notificationId) {
   const updated = await Notification.findOneAndUpdate(
     { _id: notificationId, user_id: uid },
     { $set: { status: 'read' } },
-    { new: true }
+    { returnDocument: 'after' }
   ).lean();
   if (!updated) return { ok: false, reason: 'not_found' };
   return { ok: true, notification: updated };

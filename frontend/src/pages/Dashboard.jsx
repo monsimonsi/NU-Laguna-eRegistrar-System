@@ -1,20 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../styles/Dashboard.css'
-import DocumentRequest from './DocumentRequest'
+import StudentShell from '../components/StudentShell'
 import NotificationsPanel from '../components/NotificationsPanel'
-import { API_BASE, authHeaders, clearSession } from '../api'
-import logo from '../assets/NU_shield.png'
-import settingslogo from '../assets/settings-icon.png'
-import tracklogo from '../assets/track-icon.png'
+import { API_BASE, authHeaders } from '../api'
 import pluslogo from '../assets/plus-icon.png'
-import submitlogo from '../assets/submit-icon.png'
-import logoutlogo from '../assets/logout-icon.png'
 
 function App() {
   const navigate = useNavigate();
-  const [isOpen, setIsOpen] = useState(false);
-  const [view, setView] = useState('dashboard');
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -33,11 +26,6 @@ function App() {
     'Out for Delivery',
     'Released'
   ];
-
-  const toggleSidebar = (e) => {
-    e.stopPropagation();
-    setIsOpen(!isOpen);
-  };
 
   const getUser = () => {
     try {
@@ -81,10 +69,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (view === 'dashboard') {
-      fetchRequests();
-    }
-  }, [view, fetchRequests]);
+    fetchRequests();
+  }, [fetchRequests]);
 
   const stats = useMemo(() => {
     const base = {
@@ -234,11 +220,6 @@ function App() {
     setIsConfirmOpen(false);
   };
 
-  const handleLogout = () => {
-    clearSession();
-    navigate('/login');
-  };
-
   const isViewDisabled = !selectedRequest;
   const isDeleteDisabled =
     !selectedRequest ||
@@ -246,59 +227,7 @@ function App() {
     isDeleting;
 
   return (
-    <div className={`app-container ${isOpen ? 'sidebar-open' : ''}`} onClick={() => setIsOpen(false)}>
-      
-      {/* Overlay background */}
-      {view === 'dashboard' && (
-        <div className={`overlay ${isOpen ? 'active' : ''}`} onClick={() => setIsOpen(false)}></div>
-      )}
-
-      {view === 'dashboard' && (
-        <>
-          {/* Header */}
-          <header className="main-header">
-            <div className="header-left">
-              <div className="menu-burger" onClick={toggleSidebar}>☰</div>
-              <button
-                type="button"
-                className="header-brand"
-                onClick={() => navigate('/dashboard')}
-              >
-                <img src={logo} alt="Logo" className="nav-logo" />
-                <span className="system-name">NU Laguna e-Registrar</span>
-              </button>
-            </div>
-          </header>
-
-          {/* Sidebar */}
-          <div className={`sidebar ${isOpen ? 'active' : ''}`} onClick={(e) => e.stopPropagation()}>
-        <nav className="sidebar-nav">
-          <div className="sidebar-link" onClick={() => { navigate('/document-request'); setIsOpen(false); }}>
-            <img src={submitlogo} alt="Submit Logo" className="sidebar-icon" />
-            <span className="sidebar-label">Submit Document Requests</span>
-          </div>
-          <div className="sidebar-link" onClick={() => { navigate('/my-requests'); setIsOpen(false); }}>
-            <img src={tracklogo} alt="" className="sidebar-icon" />
-            <span className="sidebar-label">Track Document Requests</span>
-          </div>
-          <div className="sidebar-link" onClick={() => { setView('dashboard'); setIsOpen(false); }}>
-            <img src={settingslogo} alt="" className="sidebar-icon" />
-            <span className="sidebar-label">Account Settings</span>
-          </div>
-        </nav>
-        
-        <div className="sidebar-footer">
-          <div className="sidebar-link logout-sidebar" onClick={handleLogout}>
-            <img src={logoutlogo} alt="Logout Logo" className="sidebar-icon" />
-            <span className="sidebar-label">LOG OUT</span>
-          </div>
-        </div>
-          </div>
-        </>
-      )}
-
-      {/* Main Content Area */}
-      {view === 'dashboard' ? (
+    <StudentShell>
         <main className="dashboard-wrapper" key="dashboard">
           <div className="dashboard-header-row">
             <h2 className="page-title">Document Requests Dashboard</h2>
@@ -458,10 +387,7 @@ function App() {
             </div>
           )}
         </main>
-      ) : (
-        <DocumentRequest onBack={() => setView('dashboard')} />
-      )}
-    </div>
+    </StudentShell>
   )
 }
 

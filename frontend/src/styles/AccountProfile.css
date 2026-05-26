@@ -1,0 +1,177 @@
+.account-profile-main {
+  padding: 60px 0 60px 0;
+  width: 100%;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-back-row {
+  width: 100%;
+  max-width: 680px;
+  padding: 0 20px 12px 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: #4456aa;
+  font-size: 18px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.back-btn:hover {
+  opacity: 0.7;
+}
+
+.profile-centered {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.container {
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.profile-card {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 28px 30px;
+  border: 1px solid #d6dbe8;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
+  width: 100%;
+}
+
+.profile-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  position: relative;
+}
+
+.avatar {
+  width: 150px;
+  height: 164px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.profile-info {
+  flex: 1;
+}
+
+.name {
+  color: #2b3b8a;
+  margin: 6px 0 10px 0;
+  font-size: 20px;
+}
+
+.meta-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  color: #444444;
+}
+
+.meta-list li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 6px 0;
+}
+
+.meta-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.meta-key {
+  color: #2b3b8a;
+  font-weight: 300;
+  width: 130px;
+}
+
+.meta-val {
+  color: #333333;
+}
+
+.profile-error {
+  margin-top: 8px;
+  color: #b42318;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.profile-loading {
+  margin-top: 8px;
+  color: #5b657a;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.divider {
+  height: 1px;
+  background: #e6ecf5;
+  margin: 18px 0;
+}
+
+.about-me h4 {
+  color: #2b3b8a;
+  margin: 0 0 12px 0;
+  font-weight: 300;
+}
+
+.about-grid {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 12px 18px;
+  align-items: center;
+}
+
+.about-grid label {
+  font-size: 13px;
+  color: #111111;
+  font-weight: 600;
+}
+
+.input-box {
+  min-height: 24px;
+  background: #ecf0f9;
+  border: 1px solid #d6dbe8;
+  border-radius: 4px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: #333333;
+}
+
+
+
+@media (max-width: 720px) {
+  .profile-top {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .meta-key {
+    width: 100px;
+  }
+
+  .about-grid {
+    grid-template-columns: 1fr;
+  }
+}

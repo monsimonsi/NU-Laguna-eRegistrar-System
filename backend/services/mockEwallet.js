@@ -61,7 +61,7 @@ async function upsertPendingPayment(documentRequest, provider, sessionId) {
       mockSessionId: sessionId,
       mockProvider: provider
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   );
 
   return { payment: row, amountCentavos: amount, provider: meta };

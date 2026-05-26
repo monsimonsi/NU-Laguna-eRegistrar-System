@@ -1,6 +1,9 @@
 const nodemailer = require('nodemailer');
 const ai = require('./ai');
 
+// Env: MAIL_HOST/SMTP_HOST, MAIL_USER/SMTP_USER, MAIL_PASS/SMTP_PASS, MAIL_PORT/SMTP_PORT,
+// MAIL_SECURE, MAIL_FROM/EMAIL_FROM, MAIL_REGISTRAR_TO/MAIL_ADMIN_NOTIFY
+
 let transporter = null;
 
 function isMailConfigured() {
@@ -56,12 +59,13 @@ async function withAiCopy({ event, fullName, facts, fallback }) {
     '',
     generated.outro,
     '',
-    '— NU Laguna e-Registrar'
+    'Kind Regards,',
+    'NU Laguna e-Registrar'
   ].join('\n');
 
   const html = `<p>Hello ${escapeHtml(fullName)},</p><p>${escapeHtml(
     generated.intro
-  )}</p><p>${escapeHtml(generated.body)}</p><p>${escapeHtml(generated.outro)}</p>`;
+  )}</p><p>${escapeHtml(generated.body)}</p><p>${escapeHtml(generated.outro)}</p><p>Kind Regards,<br/>NU Laguna e-Registrar</p>`;
 
   return {
     subject: generated.subject,
@@ -93,7 +97,7 @@ async function sendSafe(options) {
   }
 }
 
-function notifyAlumniRegistrationPending({ to, fullName, isReapplication }) {
+async function notifyAlumniRegistrationPending({ to, fullName, isReapplication }) {
   const subject = isReapplication
     ? 'Alumni registration resubmitted — pending verification'
     : 'Alumni registration received — pending verification';
@@ -103,18 +107,35 @@ function notifyAlumniRegistrationPending({ to, fullName, isReapplication }) {
     isReapplication
       ? 'We received your updated alumni registration. Your account is pending verification again by the Registrar office.'
       : 'Thank you for registering with NU Laguna e-Registrar. Your alumni account is pending verification by the Registrar office.',
+    'We appreciate your patience while the registrar reviews your details.',
     '',
     'You cannot log in until your registration is approved. You will receive another email once a decision has been made.',
+    'If you need to update any information, you can submit a new registration after a decision is issued.',
     '',
-    '— NU Laguna e-Registrar'
+    'Kind Regards,',
+    'NU Laguna e-Registrar'
   ];
   const text = lines.join('\n');
   const htmlBody = `<p>Hello ${escapeHtml(fullName)},</p><p>${escapeHtml(
     isReapplication
       ? 'We received your updated alumni registration. Your account is pending verification again by the Registrar office.'
       : 'Thank you for registering with NU Laguna e-Registrar. Your alumni account is pending verification by the Registrar office.'
-  )}</p><p>You cannot log in until your registration is approved. You will receive another email once a decision has been made.</p>`;
-  return sendSafe({ to, subject, text, html: htmlBody });
+  )}</p><p>We appreciate your patience while the registrar reviews your details.</p><p>You cannot log in until your registration is approved. You will receive another email once a decision has been made.</p><p>If you need to update any information, you can submit a new registration after a decision is issued.</p><p>Kind Regards,<br/>NU Laguna e-Registrar</p>`;
+  const fallback = { subject, text, html: htmlBody };
+
+  const message = await withAiCopy({
+    event: 'alumni_registration_pending',
+    fullName,
+    facts: { isReapplication: !!isReapplication },
+    fallback
+  });
+
+  return sendSafe({
+    to,
+    subject: message.subject,
+    text: message.text,
+    html: message.html
+  });
 }
 
 function notifyRegistrarAlumniPending(payload) {
@@ -146,24 +167,39 @@ function notifyRegistrarAlumniPending(payload) {
   return Promise.all(toList.map((to) => sendSafe({ to, subject, text })));
 }
 
-function notifyAlumniApproved({ to, fullName }) {
+async function notifyAlumniApproved({ to, fullName }) {
   const subject = 'Your NU Laguna alumni account has been approved';
   const text = [
     `Hello ${fullName},`,
     '',
     'Your alumni registration has been approved. You may now log in to the NU Laguna e-Registrar system to submit document requests.',
+    'If you need help signing in, use the same email you registered with and reset your password if needed.',
     '',
-    '— NU Laguna e-Registrar'
+    'Kind Regards,',
+    'NU Laguna e-Registrar'
   ].join('\n');
-  return sendSafe({
-    to,
+  const fallback = {
     subject,
     text,
-    html: `<p>Hello ${escapeHtml(fullName)},</p><p>Your alumni registration has been approved. You may now log in to submit document requests.</p>`
+    html: `<p>Hello ${escapeHtml(fullName)},</p><p>Your alumni registration has been approved. You may now log in to submit document requests.</p><p>If you need help signing in, use the same email you registered with and reset your password if needed.</p><p>Kind Regards,<br/>NU Laguna e-Registrar</p>`
+  };
+
+  const message = await withAiCopy({
+    event: 'alumni_approved',
+    fullName,
+    facts: {},
+    fallback
+  });
+
+  return sendSafe({
+    to,
+    subject: message.subject,
+    text: message.text,
+    html: message.html
   });
 }
 
-function notifyAlumniRejected({ to, fullName, reason }) {
+async function notifyAlumniRejected({ to, fullName, reason }) {
   const subject = 'Update on your NU Laguna alumni registration';
   const text = [
     `Hello ${fullName},`,
@@ -173,14 +209,31 @@ function notifyAlumniRejected({ to, fullName, reason }) {
     `Reason: ${reason}`,
     '',
     'You may submit a new registration through the Alumni Registration page with corrected information.',
+    'If you are unsure what to update, reply to this message or contact the registrar for guidance.',
     '',
-    '— NU Laguna e-Registrar'
+    'Kind Regards,',
+    'NU Laguna e-Registrar'
   ].join('\n');
-  return sendSafe({
-    to,
+  const fallback = {
     subject,
     text,
-    html: `<p>Hello ${fullName},</p><p>We were unable to approve your alumni registration.</p><p><strong>Reason:</strong> ${escapeHtml(reason)}</p><p>You may register again with corrected information.</p>`
+    html: `<p>Hello ${escapeHtml(fullName)},</p><p>We were unable to approve your alumni registration.</p><p><strong>Reason:</strong> ${escapeHtml(
+      reason
+    )}</p><p>You may register again with corrected information.</p><p>If you are unsure what to update, reply to this message or contact the registrar for guidance.</p><p>Kind Regards,<br/>NU Laguna e-Registrar</p>`
+  };
+
+  const message = await withAiCopy({
+    event: 'alumni_rejected',
+    fullName,
+    facts: { reason: String(reason || '').trim() },
+    fallback
+  });
+
+  return sendSafe({
+    to,
+    subject: message.subject,
+    text: message.text,
+    html: message.html
   });
 }
 
@@ -191,17 +244,19 @@ async function notifyDocumentRequestSubmitted({ to, fullName, trackingNumber, do
     `Hello ${fullName},`,
     '',
     'Your document request was received.',
+    'We are preparing your request and will notify you when its status changes.',
     '',
     `Tracking number: ${trackingNumber}`,
     `Document type: ${documentType}`,
     '',
-    'We will notify you again when the status changes.',
+    'You can use the tracking number to monitor progress in your dashboard.',
     '',
-    '— NU Laguna e-Registrar'
+    'Kind Regards,',
+    'NU Laguna e-Registrar'
   ].join('\n'),
-    html: `<p>Hello ${escapeHtml(fullName)},</p><p>Your document request was received.</p><p><strong>Tracking:</strong> ${escapeHtml(
+    html: `<p>Hello ${escapeHtml(fullName)},</p><p>Your document request was received. We are preparing your request and will notify you when its status changes.</p><p><strong>Tracking:</strong> ${escapeHtml(
       trackingNumber
-    )}</p><p><strong>Document:</strong> ${escapeHtml(documentType)}</p>`
+    )}</p><p><strong>Document:</strong> ${escapeHtml(documentType)}</p><p>You can use the tracking number to monitor progress in your dashboard.</p><p>Kind Regards,<br/>NU Laguna e-Registrar</p>`
   };
 
   const message = await withAiCopy({
@@ -245,6 +300,7 @@ async function notifyDocumentRequestStatus({
     `Hello ${fullName},`,
     '',
     statusLine,
+    'If you have questions about your request, reply to this email or contact the registrar office.',
     '',
     `Tracking number: ${trackingNumber}`,
     `Document type: ${documentType}`,
@@ -252,11 +308,14 @@ async function notifyDocumentRequestStatus({
     '',
     'Thank you for using NU Laguna e-Registrar.',
     '',
-    '— NU Laguna e-Registrar'
+    'Kind Regards,',
+    'NU Laguna e-Registrar'
   ].join('\n'),
     html: `<p>Hello ${escapeHtml(fullName)},</p><p>Your request status has been updated to <strong>${escapeHtml(
       status
-    )}</strong>.</p><p>Tracking: ${escapeHtml(trackingNumber)}<br/>Document: ${escapeHtml(documentType)}</p>`
+    )}</strong>.</p><p>${escapeHtml(statusLine)} If you have questions about your request, reply to this email or contact the registrar office.</p><p>Tracking: ${escapeHtml(
+      trackingNumber
+    )}<br/>Document: ${escapeHtml(documentType)}</p><p>Kind Regards,<br/>NU Laguna e-Registrar</p>`
   };
 
   const message = await withAiCopy({

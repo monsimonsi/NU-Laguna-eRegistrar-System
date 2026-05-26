@@ -13,18 +13,22 @@ const fakeUsers = [
     full_name: 'John Simon Ray Umadac',
     email: 'umadacjc@students.nu-laguna.edu.ph',
     password: '123456',
-    role: 'student',
-    status: 'active'
+    "role": "student",
+    "status": "active",
+    "program": "BS Computer Science",
+    "department": "School of Computer Studies",
+    "id_num": "2023-120694",
+    "year_level": "Year 3",
   },
   {
-    full_name: 'Admin One',
+    full_name: 'Admin 1',
     email: 'admin1@registrar.nu-laguna.edu.ph',
     password: 'Admin123!',
     role: 'admin',
     status: 'active'
   },
   {
-    full_name: 'Admin Two',
+    full_name: 'Admin 2',
     email: 'admin2@registrar.nu-laguna.edu.ph',
     password: 'Registrar456!',
     role: 'admin',

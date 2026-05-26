@@ -1,3 +1,4 @@
+// Env: OPENAI_API_KEY (required), OPENAI_MODEL (optional), OPENAI_BASE_URL (optional)
 function isAiConfigured() {
   return !!process.env.OPENAI_API_KEY;
 }
@@ -18,25 +19,114 @@ function trimToSentenceCount(text, maxSentences) {
   return parts.slice(0, maxSentences).join(' ');
 }
 
+function countSentences(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return 0;
+  return raw.split(/(?<=[.!?])\s+/).filter(Boolean).length;
+}
+
+function appendSentence(text, sentence) {
+  const current = String(text || '').trim();
+  const next = String(sentence || '').trim();
+  if (!next) return current;
+  if (!current) return next;
+  return `${current} ${next}`;
+}
+
+function ensureMinSentences(text, minSentences, fallbackSentences) {
+  let current = String(text || '').trim();
+  let count = countSentences(current);
+  let index = 0;
+  const fallbacks = Array.isArray(fallbackSentences) ? fallbackSentences : [];
+  while (count < minSentences && index < fallbacks.length) {
+    current = appendSentence(current, fallbacks[index]);
+    count = countSentences(current);
+    index += 1;
+  }
+  return current;
+}
+
+function hasDateLikeText(text) {
+  const raw = String(text || '');
+  if (!raw) return false;
+  const monthPattern = /\b(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\b/i;
+  const numericDatePattern = /\b\d{1,2}[\/-]\d{1,2}([\/-]\d{2,4})?\b/;
+  const yearPattern = /\b20\d{2}\b/;
+  return monthPattern.test(raw) || numericDatePattern.test(raw) || yearPattern.test(raw);
+}
+
+function requiresFactValue(facts, key) {
+  return Boolean(String(facts?.[key] || '').trim());
+}
+
+function textContainsValue(text, value) {
+  const raw = String(text || '').toLowerCase();
+  const target = String(value || '').trim().toLowerCase();
+  if (!target) return true;
+  return raw.includes(target);
+}
+
+function logAiReject(reason, detail) {
+  if (detail) {
+    console.warn('[ai] rejected:', reason, '-', detail);
+    return;
+  }
+  console.warn('[ai] rejected:', reason);
+}
+
 async function generateNotification({ event, recipientName, facts }) {
   if (!isAiConfigured()) return null;
 
+  const normalizedEvent = String(event || '').trim().toLowerCase();
+  const isDocumentRequestEvent = normalizedEvent === 'document_request_submitted'
+    || normalizedEvent === 'document_request_status_updated';
+
+  const trackingNumber = String(facts?.trackingNumber || '').trim();
+  const documentType = String(facts?.documentType || '').trim();
+  const status = String(facts?.status || '').trim();
+  const deliveryMethod = String(facts?.deliveryMethod || '').trim();
+
+  const factLines = isDocumentRequestEvent
+    ? [
+        trackingNumber ? `Tracking number: ${trackingNumber}` : null,
+        documentType ? `Document type: ${documentType}` : null,
+        status ? `Status: ${status}` : null,
+        deliveryMethod ? `Delivery method: ${deliveryMethod}` : null
+      ].filter(Boolean)
+    : [];
+
   const systemPrompt = [
     'You write transactional school registrar emails.',
-    'Tone: clear, professional, concise, friendly.',
+    'Tone: warm, friendly, clear, and professional.',
+    'Be concise but helpful: include key facts and a brief next step if available.',
+    'Do not invent dates, timelines, or other details that are not provided in facts.',
     'Return valid JSON only with keys: subject, intro, body, outro.',
-    'intro/body/outro must be plain text only, no markdown.'
+    'intro/body/outro must be plain text only, no markdown.',
+    "End the outro with 'Kind Regards,' on one line and 'NU Laguna e-Registrar' on the next line."
   ].join(' ');
 
   const userPrompt = JSON.stringify({
     task: 'Create concise email copy for e-Registrar notification',
     constraints: {
-      maxSentencesPerField: 2,
+      maxSentencesPerField: 3,
+      minSentencesIntro: 2,
+      minSentencesBody: 2,
       noHallucinations: true
     },
     event,
     recipientName,
-    facts
+    facts,
+    instructions: isDocumentRequestEvent
+      ? {
+          requiredFacts: ['tracking number', 'document type'],
+          includeStatusIfProvided: true,
+          includeDeliveryMethodIfProvided: true,
+          avoidDatesUnlessProvided: true,
+          introRule: 'Mention the document type in the intro, not the body.',
+          outroRule: "End the outro with 'Kind Regards,' on one line and 'NU Laguna e-Registrar' on the next line."
+        }
+      : undefined,
+    factSlots: factLines
   });
 
   try {
@@ -68,11 +158,75 @@ async function generateNotification({ event, recipientName, facts }) {
     if (!content) return null;
 
     const parsed = JSON.parse(content);
+    let intro = trimToSentenceCount(parsed.intro, 3);
+    let body = trimToSentenceCount(parsed.body, 3);
+    let outro = trimToSentenceCount(parsed.outro, 3);
+
+    if (documentType && !textContainsValue(intro, documentType)) {
+      intro = appendSentence(intro, `This message is about your ${documentType} request.`);
+    }
+
+    intro = ensureMinSentences(intro, 2, [
+      `Hello${recipientName ? ` ${recipientName}` : ''}.`,
+      'Thank you for reaching out to the NU Laguna e-Registrar team.'
+    ]);
+
+    body = ensureMinSentences(body, 2, [
+      'We are reviewing your request and will keep you updated.',
+      'If you have questions, reply to this email for assistance.'
+    ]);
+
+    if (isDocumentRequestEvent) {
+      if (!/kind regards/i.test(outro)) {
+        outro = appendSentence(outro, 'Kind Regards.');
+      }
+    }
+
+    outro = ensureMinSentences(outro, 1, [
+      'Kind Regards.'
+    ]);
+
+    if (countSentences(intro) < 2 || countSentences(body) < 2 || countSentences(outro) < 1) {
+      logAiReject('too_short', 'intro/body/outro below minimum sentence count');
+      return null;
+    }
+
+    let combined = `${intro} ${body} ${outro}`.trim();
+    const needsTracking = requiresFactValue(facts, 'trackingNumber');
+    const needsDocumentType = requiresFactValue(facts, 'documentType');
+    if (needsTracking && !textContainsValue(combined, facts.trackingNumber)) {
+      body = appendSentence(body, `Your tracking number is ${facts.trackingNumber}.`);
+      combined = `${intro} ${body} ${outro}`.trim();
+    }
+    if (needsDocumentType && !textContainsValue(combined, facts.documentType)) {
+      logAiReject('missing_document_type');
+      return null;
+    }
+    if (needsDocumentType && !textContainsValue(intro, facts.documentType)) {
+      logAiReject('document_not_in_intro');
+      return null;
+    }
+    if (needsDocumentType && textContainsValue(body, facts.documentType)) {
+      logAiReject('document_in_body');
+      return null;
+    }
+    if (isDocumentRequestEvent) {
+      const outroLower = String(outro || '').toLowerCase();
+      if (!outroLower.includes('kind regards')) {
+        logAiReject('outro_missing_kind_regards');
+        return null;
+      }
+    }
+    if (!requiresFactValue(facts, 'date') && !requiresFactValue(facts, 'requestDate') && hasDateLikeText(combined)) {
+      logAiReject('unexpected_date');
+      return null;
+    }
+
     return {
       subject: String(parsed.subject || '').trim(),
-      intro: trimToSentenceCount(parsed.intro, 2),
-      body: trimToSentenceCount(parsed.body, 2),
-      outro: trimToSentenceCount(parsed.outro, 2)
+      intro,
+      body,
+      outro
     };
   } catch (err) {
     console.error('[ai] generate notification failed:', err.message);

@@ -192,7 +192,7 @@ async function createOrRefreshPaymentIntent(documentRequest, existingPayment) {
         transactionReference: '',
         paymentMethod: ''
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
   }
 
@@ -582,7 +582,7 @@ async function confirmSandboxPayment(documentRequest, method = 'sandbox') {
       payerName: String(documentRequest.full_name || '').trim(),
       payerEmail: String(documentRequest.email || '').trim()
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   );
 
   documentRequest.paymentConfirmed = true;

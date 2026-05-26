@@ -1,25 +1,38 @@
 import { useCallback, useEffect, useState } from 'react';
 import { IoIosNotifications } from 'react-icons/io';
-import { apiFetch } from '../api';
+import { apiFetch, getStoredToken } from '../api';
 
 export default function NotificationsPanel() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [open, setOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError('');
+    if (!getStoredToken()) {
+      setLoading(false);
+      setNotifications([]);
+      setError('Not authenticated');
+      return;
+    }
     try {
       const { res, data } = await apiFetch('/api/me/notifications?limit=20', {
         method: 'GET',
-        auth: true,
-        json: false,
+        auth: true
       });
       if (res.ok) {
         setNotifications(data.notifications || []);
+      } else if (res.status === 401) {
+        setError('Session expired. Please log in again.');
+        setNotifications([]);
+      } else {
+        setError(data.message || 'Failed to load notifications');
       }
     } catch {
       setNotifications([]);
+      setError('Cannot connect to server');
     } finally {
       setLoading(false);
     }
@@ -29,14 +42,13 @@ export default function NotificationsPanel() {
     try {
       const { res } = await apiFetch('/api/me/notifications/read-all', {
         method: 'PATCH',
-        auth: true,
-        json: false,
+        auth: true
       });
       if (res.ok) {
         setNotifications((prev) => prev.map((n) => ({ ...n, status: 'read' })));
       }
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.error('[notifications] markAllRead failed:', err);
     }
   }, []);
 
@@ -58,8 +70,7 @@ export default function NotificationsPanel() {
     try {
       const { res } = await apiFetch(`/api/me/notifications/${encodeURIComponent(id)}/read`, {
         method: 'PATCH',
-        auth: true,
-        json: false,
+        auth: true
       });
       if (res.ok) {
         setNotifications((prev) =>
@@ -67,7 +78,7 @@ export default function NotificationsPanel() {
         );
       }
     } catch {
-      /* ignore */
+      console.error('[notifications] markRead failed for', id);
     }
   };
 
@@ -99,10 +110,11 @@ export default function NotificationsPanel() {
       {open && (
         <div className="notifications-dropdown">
           {loading && <p className="notifications-empty">Loading…</p>}
-          {!loading && notifications.length === 0 && (
+          {!loading && error && <p className="notifications-empty">{error}</p>}
+          {!loading && !error && notifications.length === 0 && (
             <p className="notifications-empty">No notifications yet.</p>
           )}
-          {!loading &&
+          {!loading && !error &&
             notifications.map((n) => (
               <button
                 key={n._id}

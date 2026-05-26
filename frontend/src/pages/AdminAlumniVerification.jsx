@@ -1,21 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import '../styles/AdminAlumniVerification.css';
-import logo from '../assets/NU_shield.png';
 import approveIcon from '../assets/approve-icon.png';
 import rejectIcon from '../assets/reject-icon.png';
 import {
-  Menu,
-  LayoutGrid,
   FileText,
-  Users,
-  LogOut,
-  ChevronDown,
-  PackageOpen,
   Clock,
   UserCheck,
 } from 'lucide-react';
-import { apiFetch, clearSession } from '../api';
+import { apiFetch } from '../api';
+import AdminShell from '../components/AdminShell';
 
 const formatDateShort = (value) => {
   const date = new Date(value);
@@ -60,19 +54,11 @@ const StatCard = ({ icon: Icon, title, count, subtitle, color = 'blue' }) => (
 
 const AlumniVerification = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [sidebarHover, setSidebarHover] = useState(false);
-  const [sidebarPinned, setSidebarPinned] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const [alumni, setAlumni] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [alumniMessage, setAlumniMessage] = useState('');
   const [alumniIsError, setAlumniIsError] = useState(false);
-  const isSidebarOpen = sidebarPinned || sidebarHover;
-  const isDashboardActive = location.pathname === '/admin-dashboard';
-  const isAlumniVerificationActive = location.pathname === '/admin-alumni-verification';
-  const isDocumentTrackingActive = location.pathname === '/admin-document-tracking';
 
   const pendingAlumni = alumni.filter((item) => item.status === 'pending');
   const resolvedAlumni = alumni.filter(
@@ -107,11 +93,6 @@ const AlumniVerification = () => {
   useEffect(() => {
     fetchAlumniRegistrations();
   }, [fetchAlumniRegistrations]);
-
-  const handleLogout = () => {
-    clearSession();
-    navigate('/login');
-  };
 
   const updateAlumniStatus = async (id, newStatus) => {
     setAlumniMessage('');
@@ -158,129 +139,8 @@ const AlumniVerification = () => {
   };
 
   return (
-    <div className="admin-page">
-      <aside
-        className={`admin-sidebar ${isSidebarOpen ? 'open' : ''}`}
-        onMouseEnter={() => setSidebarHover(true)}
-        onMouseLeave={() => setSidebarHover(false)}
-      >
-        <button
-          className="sidebar-toggle"
-          aria-label="Toggle sidebar"
-          aria-expanded={isSidebarOpen}
-          onClick={() => setSidebarPinned((prev) => !prev)}
-        >
-          <Menu size={26} strokeWidth={2.4} />
-        </button>
-
-        <div className="sidebar-brand">
-          <img src={logo} alt="NU Logo" className="sidebar-brand-logo" />
-          <div className="sidebar-brand-text">
-            <span className="brand-line1">NU-LAGUNA</span>
-            <span className="brand-line2">e-registrar</span>
-          </div>
-        </div>
-
-        <div className="sidebar-user">
-          <div className="sidebar-user-avatar">
-            <Users size={24} strokeWidth={2.2} />
-          </div>
-          <span className="sidebar-user-label">ADMIN</span>
-        </div>
-
-        <nav className="sidebar-nav">
-          <button
-            className={`sidebar-link ${isDashboardActive ? 'active' : ''}`}
-            aria-label="Dashboard"
-            onClick={() => navigate('/admin-dashboard')}
-          >
-            <LayoutGrid size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Dashboard</span>
-          </button>
-
-          <button
-            className="sidebar-link"
-            aria-label="Requests"
-            onClick={() => navigate('/admin-dashboard')}
-          >
-            <FileText size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Requests</span>
-          </button>
-
-          <button
-            className={`sidebar-link ${isAlumniVerificationActive ? 'active' : ''}`}
-            aria-label="Alumni Verification"
-            onClick={() => navigate('/admin-alumni-verification')}
-          >
-            <Users size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Alumni Verification</span>
-          </button>
-
-          <button
-            className={`sidebar-link ${isDocumentTrackingActive ? 'active' : ''}`}
-            aria-label="Document Tracking"
-            onClick={() => navigate('/admin-document-tracking')}
-          >
-            <PackageOpen size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Document Tracking</span>
-          </button>
-        </nav>
-
-        <button
-          type="button"
-          className="logout-btn"
-          aria-label="Logout"
-          onClick={handleLogout}
-        >
-          <LogOut size={20} strokeWidth={2.2} />
-          <span className="sidebar-text">LOG OUT</span>
-        </button>
-      </aside>
-
-      <div className="admin-shell">
-        <header className="admin-topbar">
-          <button
-            type="button"
-            className="admin-brand"
-            onClick={() => navigate('/admin-dashboard')}
-          >
-            <img src={logo} alt="NU Logo" className="admin-logo" />
-            <span className="admin-title">ADMIN DASHBOARD</span>
-          </button>
-
-          <div className="admin-profile-wrap">
-            <button
-              type="button"
-              className="admin-profile"
-              onClick={() => setProfileOpen((prev) => !prev)}
-              aria-expanded={profileOpen}
-              aria-label="Open profile menu"
-            >
-              <div className="avatar">A</div>
-              <ChevronDown
-                size={18}
-                strokeWidth={2.4}
-                className={`profile-caret ${profileOpen ? 'open' : ''}`}
-              />
-            </button>
-
-            {profileOpen && (
-              <div className="profile-dropdown">
-                <button type="button" className="profile-item">
-                  Profile
-                </button>
-                <button type="button" className="profile-item">
-                  Settings
-                </button>
-                <button type="button" className="profile-item" onClick={handleLogout}>
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
-        </header>
-
-        <main className="admin-main">
+    <AdminShell>
+      <main className="admin-main">
           <section className="page-header">
             <h1>ALUMNI VERIFICATION</h1>
             <p>Review and approve alumni verification requests from the database.</p>
@@ -418,9 +278,8 @@ const AlumniVerification = () => {
               </table>
             </div>
           </section>
-        </main>
-      </div>
-    </div>
+      </main>
+    </AdminShell>
   );
 };
 

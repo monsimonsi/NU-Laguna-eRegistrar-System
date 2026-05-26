@@ -1,14 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import '../styles/AdminDocumentTracking.css';
-import logo from '../assets/NU_shield.png';
 import {
-  Menu,
-  LayoutGrid,
   FileText,
-  Users,
-  LogOut,
-  ChevronDown,
   PackageOpen,
   Search,
   ChevronRight,
@@ -22,7 +16,8 @@ import {
   Copy,
   DollarSign,
 } from 'lucide-react';
-import { API_BASE, authHeaders, clearSession, formatPhp } from '../api';
+import { API_BASE, authHeaders, formatPhp } from '../api';
+import AdminShell from '../components/AdminShell';
 
 const STATUS_FLOW = [
   {
@@ -160,9 +155,6 @@ const MetaCell = ({ icon: Icon, label, primary, secondary, className = '' }) => 
 const AdminDocumentTracking = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [sidebarHover, setSidebarHover] = useState(false);
-  const [sidebarPinned, setSidebarPinned] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -176,9 +168,6 @@ const AdminDocumentTracking = () => {
   const [confirmAction, setConfirmAction] = useState('');
   const [confirmTargetStatus, setConfirmTargetStatus] = useState('');
   const autoSelectRef = useRef(null);
-  const isSidebarOpen = sidebarPinned || sidebarHover;
-  const isDashboardActive = location.pathname === '/admin-dashboard';
-  const isDocumentTrackingActive = location.pathname === '/admin-document-tracking';
   const requestIdFromQuery = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('id');
@@ -279,15 +268,6 @@ const AdminDocumentTracking = () => {
     return idx >= 0 ? idx : 0;
   }, [selectedRequest]);
 
-  const handleSidebarToggle = () => {
-    setSidebarPinned((prev) => !prev);
-  };
-
-  const handleLogout = () => {
-    clearSession();
-    navigate('/login');
-  };
-
   const handleSearchSubmit = (e) => {
     e.preventDefault();
 
@@ -385,128 +365,8 @@ const AdminDocumentTracking = () => {
     : `${(1 / STATUS_FLOW.length) * 100}%`;
 
   return (
-    <div className="admin-page">
-      <aside
-        className={`admin-sidebar ${isSidebarOpen ? 'open' : ''}`}
-        onMouseEnter={() => setSidebarHover(true)}
-        onMouseLeave={() => setSidebarHover(false)}
-      >
-        <button
-          className="sidebar-toggle"
-          aria-label="Toggle sidebar"
-          aria-expanded={isSidebarOpen}
-          onClick={handleSidebarToggle}
-        >
-          <Menu size={26} strokeWidth={2.4} />
-        </button>
-
-        <div className="sidebar-brand">
-          <img src={logo} alt="NU Logo" className="sidebar-brand-logo" />
-          <div className="sidebar-brand-text">
-            <span className="brand-line1">NU-LAGUNA</span>
-            <span className="brand-line2">e-registrar</span>
-          </div>
-        </div>
-
-        <div className="sidebar-user">
-          <div className="sidebar-user-avatar">
-            <Users size={24} strokeWidth={2.2} />
-          </div>
-          <span className="sidebar-user-label">ADMIN</span>
-        </div>
-
-        <nav className="sidebar-nav">
-          <button
-            type="button"
-            className={`sidebar-link ${isDashboardActive ? 'active' : ''}`}
-            aria-label="Dashboard"
-            onClick={() => navigate('/admin-dashboard')}
-          >
-            <LayoutGrid size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Dashboard</span>
-          </button>
-
-          <button
-            type="button"
-            className="sidebar-link"
-            aria-label="Requests"
-            onClick={() => navigate('/document-request')}
-          >
-            <FileText size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Requests</span>
-          </button>
-
-          <button
-            type="button"
-            className="sidebar-link"
-            aria-label="Alumni Verification"
-            onClick={() => navigate('/admin-dashboard')}
-          >
-            <Users size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Alumni Verification</span>
-          </button>
-
-          <button
-            type="button"
-            className={`sidebar-link ${isDocumentTrackingActive ? 'active' : ''}`}
-            aria-label="Document Tracking"
-            onClick={() => navigate('/admin-document-tracking')}
-          >
-            <PackageOpen size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Document Tracking</span>
-          </button>
-        </nav>
-
-        <button type="button" className="logout-btn" aria-label="Logout" onClick={handleLogout}>
-          <LogOut size={20} strokeWidth={2.2} />
-          <span className="sidebar-text">LOG OUT</span>
-        </button>
-      </aside>
-
-      <div className="admin-shell">
-        <header className="admin-topbar">
-          <button
-            type="button"
-            className="admin-brand"
-            onClick={() => navigate('/admin-dashboard')}
-          >
-            <img src={logo} alt="NU Logo" className="admin-logo" />
-            <span className="admin-title">ADMIN DASHBOARD</span>
-          </button>
-
-          <div className="admin-profile-wrap">
-            <button
-              type="button"
-              className="admin-profile"
-              onClick={() => setProfileOpen((prev) => !prev)}
-              aria-expanded={profileOpen}
-              aria-label="Open profile menu"
-            >
-              <div className="avatar">A</div>
-              <ChevronDown
-                size={18}
-                strokeWidth={2.4}
-                className={`profile-caret ${profileOpen ? 'open' : ''}`}
-              />
-            </button>
-
-            {profileOpen && (
-              <div className="profile-dropdown">
-                <button type="button" className="profile-item">
-                  Profile
-                </button>
-                <button type="button" className="profile-item">
-                  Settings
-                </button>
-                <button type="button" className="profile-item" onClick={handleLogout}>
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
-        </header>
-
-        <main className="admin-main">
+    <AdminShell>
+      <main className="admin-main">
           <section className="tracking-header">
             <h1>DOCUMENT TRACKING</h1>
             {!selectedRequest && (
@@ -731,45 +591,44 @@ const AdminDocumentTracking = () => {
               </section>
             </section>
           )}
-        </main>
+      </main>
 
-        {confirmOpen && selectedRequest && (
-          <div className="status-modal-backdrop" role="dialog" aria-modal="true">
-            <div className="status-modal">
-              <div className="status-modal-header">
-                <h4>{confirmAction === 'rollback' ? 'Step Back Status' : 'Advance Status'}</h4>
-                <p>Confirm the status update for this request.</p>
+      {confirmOpen && selectedRequest && (
+        <div className="status-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="status-modal">
+            <div className="status-modal-header">
+              <h4>{confirmAction === 'rollback' ? 'Step Back Status' : 'Advance Status'}</h4>
+              <p>Confirm the status update for this request.</p>
+            </div>
+
+            <div className="status-modal-meta">
+              <div className="status-modal-row">
+                <span className="status-modal-label">Current</span>
+                <span className="status-modal-value">{getStatusLabel(selectedRequest.status)}</span>
               </div>
-
-              <div className="status-modal-meta">
-                <div className="status-modal-row">
-                  <span className="status-modal-label">Current</span>
-                  <span className="status-modal-value">{getStatusLabel(selectedRequest.status)}</span>
-                </div>
-                <div className="status-modal-row">
-                  <span className="status-modal-label">Target</span>
-                  <span className="status-modal-value">{getStatusLabel(confirmTargetStatus)}</span>
-                </div>
-              </div>
-
-              <div className="status-modal-actions">
-                <button type="button" className="status-modal-cancel" onClick={closeConfirm}>
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className={`status-modal-confirm ${confirmAction === 'rollback' ? 'rollback' : 'advance'}`}
-                  onClick={handleConfirmStatusChange}
-                  disabled={isUpdatingStatus}
-                >
-                  {isUpdatingStatus ? 'Updating...' : 'Confirm'}
-                </button>
+              <div className="status-modal-row">
+                <span className="status-modal-label">Target</span>
+                <span className="status-modal-value">{getStatusLabel(confirmTargetStatus)}</span>
               </div>
             </div>
+
+            <div className="status-modal-actions">
+              <button type="button" className="status-modal-cancel" onClick={closeConfirm}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={`status-modal-confirm ${confirmAction === 'rollback' ? 'rollback' : 'advance'}`}
+                onClick={handleConfirmStatusChange}
+                disabled={isUpdatingStatus}
+              >
+                {isUpdatingStatus ? 'Updating...' : 'Confirm'}
+              </button>
+            </div>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+    </AdminShell>
   );
 };
 

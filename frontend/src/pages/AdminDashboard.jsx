@@ -1,20 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import '../styles/AdminDashboard.css';
-import logo from '../assets/NU_shield.png';
-import {
-  Menu,
-  LayoutGrid,
-  FileText,
-  Users,
-  LogOut,
-  Clock3,
-  BadgeCheck,
-  UsersRound,
-  PackageOpen,
-} from 'lucide-react';
-import { API_BASE, authHeaders, clearSession } from '../api';
-import NotificationsPanel from '../components/NotificationsPanel';
+import { FileText, Clock3, BadgeCheck, UsersRound } from 'lucide-react';
+import { API_BASE, authHeaders } from '../api';
+import AdminShell from '../components/AdminShell';
 
 const STAT_CONFIG = [
   { label: 'Total Document Requests', key: 'totalRequests', sub: 'All-Time', icon: <FileText size={16} strokeWidth={2.2} />, colorClass: 'violet' },
@@ -53,10 +42,7 @@ const formatStatusTitle = (value) => {
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const requestsTableRef = useRef(null);
-  const [sidebarHover, setSidebarHover] = useState(false);
-  const [sidebarPinned, setSidebarPinned] = useState(false);
   const [requests, setRequests] = useState([]);
   const [alumniRegistrations, setAlumniRegistrations] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
@@ -64,10 +50,7 @@ const AdminDashboard = () => {
   const [alumniMessage, setAlumniMessage] = useState('');
   const [alumniIsError, setAlumniIsError] = useState(false);
 
-  const isSidebarOpen = sidebarPinned || sidebarHover;
-  const isDashboardActive = location.pathname === '/admin-dashboard';
-  const isAlumniVerificationActive = location.pathname === '/admin-alumni-verification';
-  const isDocumentTrackingActive = location.pathname === '/admin-document-tracking';
+  // AdminShell handles active route highlighting and sidebar state
 
   const stats = STAT_CONFIG.map((item) => ({
     ...item,
@@ -143,14 +126,7 @@ const AdminDashboard = () => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const handleSidebarToggle = () => {
-    setSidebarPinned((prev) => !prev);
-  };
-
-  const handleLogout = () => {
-    clearSession();
-    navigate('/login');
-  };
+  // AdminShell handles sidebar state and logout
 
   const getCurrentAdminId = () => {
     try {
@@ -221,89 +197,8 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="admin-page">
-      <aside
-        className={`admin-sidebar ${isSidebarOpen ? 'open' : ''}`}
-        onMouseEnter={() => setSidebarHover(true)}
-        onMouseLeave={() => setSidebarHover(false)}
-      >
-        <button
-          className="sidebar-toggle"
-          aria-label="Toggle sidebar"
-          aria-expanded={isSidebarOpen}
-          onClick={handleSidebarToggle}
-        >
-          <Menu size={26} strokeWidth={2.4} />
-        </button>
-
-        <div className="sidebar-brand">
-          <img src={logo} alt="NU Logo" className="sidebar-brand-logo" />
-          <div className="sidebar-brand-text">
-            <span className="brand-line1">NU-LAGUNA</span>
-            <span className="brand-line2">e-registrar</span>
-          </div>
-        </div>
-
-        <div className="sidebar-user">
-          <div className="sidebar-user-avatar">
-            <Users size={24} strokeWidth={2.2} />
-          </div>
-          <span className="sidebar-user-label">ADMIN</span>
-        </div>
-
-        <nav className="sidebar-nav">
-          <button
-            className={`sidebar-link ${isDashboardActive ? 'active' : ''}`}
-            aria-label="Dashboard"
-            onClick={() => navigate('/admin-dashboard')}
-          >
-            <LayoutGrid size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Dashboard</span>
-          </button>
-
-          <button className="sidebar-link" aria-label="Requests">
-            <FileText size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Requests</span>
-          </button>
-
-          <button
-            className={`sidebar-link ${isAlumniVerificationActive ? 'active' : ''}`}
-            aria-label="Alumni Verification"
-            onClick={() => navigate('/admin-alumni-verification')}
-          >
-            <Users size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Alumni Verification</span>
-          </button>
-
-          <button
-            className={`sidebar-link ${isDocumentTrackingActive ? 'active' : ''}`}
-            aria-label="Document Tracking"
-            onClick={() => navigate('/admin-document-tracking')}
-          >
-            <PackageOpen size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Document Tracking</span>
-          </button>
-        </nav>
-
-        <button type="button" className="logout-btn" aria-label="Logout" onClick={handleLogout}>
-          <LogOut size={20} strokeWidth={2.2} />
-          <span className="sidebar-text">LOG OUT</span>
-        </button>
-      </aside>
-
-      <div className="admin-shell">
-        <header className="admin-topbar">
-          <button type="button" className="admin-brand" onClick={() => navigate('/admin-dashboard')}>
-            <img src={logo} alt="NU Logo" className="admin-logo" />
-            <span className="admin-title">ADMIN DASHBOARD</span>
-          </button>
-
-          <div className="admin-topbar-actions">
-            <NotificationsPanel />
-          </div>
-        </header>
-
-        <main className="admin-main">
+    <AdminShell>
+      <main className="admin-main">
           <section className="dashboard-header">
             <h1>DASHBOARD</h1>
             <p>Welcome back! Everything is under your control.</p>
@@ -531,8 +426,7 @@ const AdminDashboard = () => {
             </div>
           </section>
         </main>
-      </div>
-    </div>
+    </AdminShell>
   );
 };
 

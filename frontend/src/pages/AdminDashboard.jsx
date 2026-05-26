@@ -1,25 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../styles/AdminDashboard.css';
-import logo from '../assets/NU_shield.png';
-import {
-  Menu,
-  LayoutGrid,
-  FileText,
-  Users,
-  LogOut,
-  ChevronDown,
-  Clock3,
-  BadgeCheck,
-  UsersRound,
-  PackageOpen,
-} from 'lucide-react';
-import { API_BASE, authHeaders, clearSession } from '../api';
-import NotificationsPanel from '../components/NotificationsPanel';
+import { FileText, Clock3, BadgeCheck, UsersRound } from 'lucide-react';
+import { API_BASE, authHeaders } from '../api';
+import AdminShell from '../components/AdminShell';
 
 const STAT_CONFIG = [
-  { label: 'Total Requests', key: 'totalRequests', sub: 'All-Time', icon: <FileText size={16} strokeWidth={2.2} />, colorClass: 'violet' },
-  { label: 'Pending', key: 'pendingRequests', sub: 'Awaiting Action', icon: <Clock3 size={16} strokeWidth={2.2} />, colorClass: 'yellow' },
+  { label: 'Total Document Requests', key: 'totalRequests', sub: 'All-Time', icon: <FileText size={16} strokeWidth={2.2} />, colorClass: 'violet' },
+  { label: 'Pending Document Requests', key: 'pendingRequests', sub: 'Awaiting Action', icon: <Clock3 size={16} strokeWidth={2.2} />, colorClass: 'yellow' },
   { label: 'Approved Alumni', key: 'approvedAlumni', sub: 'Verified', icon: <BadgeCheck size={16} strokeWidth={2.2} />, colorClass: 'green' },
   { label: 'Pending Alumni', key: 'pendingAlumni', sub: 'Needs Verification', icon: <UsersRound size={16} strokeWidth={2.2} />, colorClass: 'orange' },
 ];
@@ -46,13 +34,14 @@ const formatRole = (value) => {
   return normalized.toUpperCase();
 };
 
+const formatStatusTitle = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return '-';
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const requestsTableRef = useRef(null);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [sidebarHover, setSidebarHover] = useState(false);
-  const [sidebarPinned, setSidebarPinned] = useState(false);
   const [requests, setRequests] = useState([]);
   const [alumniRegistrations, setAlumniRegistrations] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
@@ -60,9 +49,7 @@ const AdminDashboard = () => {
   const [alumniMessage, setAlumniMessage] = useState('');
   const [alumniIsError, setAlumniIsError] = useState(false);
 
-  const isSidebarOpen = sidebarPinned || sidebarHover;
-  const isDashboardActive = location.pathname === '/admin-dashboard';
-  const isDocumentTrackingActive = location.pathname === '/admin-document-tracking';
+  // AdminShell handles active route highlighting and sidebar state
 
   const stats = STAT_CONFIG.map((item) => ({
     ...item,
@@ -138,14 +125,7 @@ const AdminDashboard = () => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const handleSidebarToggle = () => {
-    setSidebarPinned((prev) => !prev);
-  };
-
-  const handleLogout = () => {
-    clearSession();
-    navigate('/login');
-  };
+  // AdminShell handles sidebar state and logout
 
   const getCurrentAdminId = () => {
     try {
@@ -216,123 +196,15 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="admin-page">
-      <aside
-        className={`admin-sidebar ${isSidebarOpen ? 'open' : ''}`}
-        onMouseEnter={() => setSidebarHover(true)}
-        onMouseLeave={() => setSidebarHover(false)}
-      >
-        <button
-          className="sidebar-toggle"
-          aria-label="Toggle sidebar"
-          aria-expanded={isSidebarOpen}
-          onClick={handleSidebarToggle}
-        >
-          <Menu size={26} strokeWidth={2.4} />
-        </button>
-
-        <div className="sidebar-brand">
-          <img src={logo} alt="NU Logo" className="sidebar-brand-logo" />
-          <div className="sidebar-brand-text">
-            <span className="brand-line1">NU-LAGUNA</span>
-            <span className="brand-line2">e-registrar</span>
-          </div>
-        </div>
-
-        <div className="sidebar-user">
-          <div className="sidebar-user-avatar">
-            <Users size={24} strokeWidth={2.2} />
-          </div>
-          <span className="sidebar-user-label">ADMIN</span>
-        </div>
-
-        <nav className="sidebar-nav">
-          <button
-            className={`sidebar-link ${isDashboardActive ? 'active' : ''}`}
-            aria-label="Dashboard"
-            onClick={() => navigate('/admin-dashboard')}
-          >
-            <LayoutGrid size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Dashboard</span>
-          </button>
-
-          <button className="sidebar-link" aria-label="Requests">
-            <FileText size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Requests</span>
-          </button>
-
-          <button className="sidebar-link" aria-label="Alumni Verification">
-            <Users size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Alumni Verification</span>
-          </button>
-
-          <button
-            className={`sidebar-link ${isDocumentTrackingActive ? 'active' : ''}`}
-            aria-label="Document Tracking"
-            onClick={() => navigate('/admin-document-tracking')}
-          >
-            <PackageOpen size={24} strokeWidth={2.2} />
-            <span className="sidebar-text">Document Tracking</span>
-          </button>
-        </nav>
-
-        <button type="button" className="logout-btn" aria-label="Logout" onClick={handleLogout}>
-          <LogOut size={20} strokeWidth={2.2} />
-          <span className="sidebar-text">LOG OUT</span>
-        </button>
-      </aside>
-
-      <div className="admin-shell">
-        <header className="admin-topbar">
-          <button type="button" className="admin-brand" onClick={() => navigate('/admin-dashboard')}>
-            <img src={logo} alt="NU Logo" className="admin-logo" />
-            <span className="admin-title">ADMIN DASHBOARD</span>
-          </button>
-
-          <div className="admin-topbar-actions">
-            <NotificationsPanel />
-
-            <div className="admin-profile-wrap">
-              <button
-                type="button"
-                className="admin-profile"
-                onClick={() => setProfileOpen((prev) => !prev)}
-                aria-expanded={profileOpen}
-                aria-label="Open profile menu"
-              >
-                <div className="avatar">A</div>
-                <ChevronDown
-                  size={18}
-                  strokeWidth={2.4}
-                  className={`profile-caret ${profileOpen ? 'open' : ''}`}
-                />
-              </button>
-
-              {profileOpen && (
-                <div className="profile-dropdown">
-                  <button type="button" className="profile-item">
-                    Profile
-                  </button>
-                  <button type="button" className="profile-item">
-                    Settings
-                  </button>
-                  <button type="button" className="profile-item" onClick={handleLogout}>
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-
-        <main className="admin-main">
+    <AdminShell>
+      <main className="admin-main">
           <section className="dashboard-header">
             <h1>DASHBOARD</h1>
             <p>Welcome back! Everything is under your control.</p>
             {loadError && <p className="dashboard-load-error">{loadError}</p>}
           </section>
 
-          <section className="stats-grid">
+          <section className="dashboard-stats-grid">
             {stats.map((item) => (
               <article key={item.label} className={`stat-card ${item.colorClass}`}>
                 <div className="stat-top">
@@ -357,9 +229,7 @@ const AdminDashboard = () => {
                 <button
                   type="button"
                   className="view-all-btn"
-                  onClick={() =>
-                    requestsTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  }
+                  onClick={() => navigate('/admin-alumni-verification')}
                 >
                   View All
                 </button>
@@ -367,18 +237,51 @@ const AdminDashboard = () => {
 
               <div className="request-list">
                 {pendingAlumniList.map((item) => (
-                  <div className="request-card" key={item._id}>
-                    <div className="request-info">
-                      <strong>{item.full_name}</strong>
-                      <span>{item.student_id}</span>
-                      <span>{item.course}</span>
-                      <span>Year: {item.year_graduated}</span>
-                      <span className={`alumni-status ${item.verificationStatus}`}>{item.verificationStatus}</span>
+                  <div className="request-card-compact alumni-card" key={item._id}>
+                    <div className="request-card-top">
+                      <div className="request-card-title">
+                        <strong>{item.full_name}</strong>
+                        <span>Pending alumni verification request</span>
+                      </div>
+                      <div className="request-card-top-actions">
+                        <span className={`status-pill ${item.verificationStatus}`}>
+                          {String(item.verificationStatus || '').toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="request-card-meta alumni-card-meta">
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Student ID</span>
+                        <span className="request-meta-value">{item.student_id || '-'}</span>
+                      </div>
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Course</span>
+                        <span className="request-meta-value">{item.course || '-'}</span>
+                      </div>
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Year Graduated</span>
+                        <span className="request-meta-value">{item.year_graduated || '-'}</span>
+                      </div>
+                      <div className="request-meta-item">
+                        <span className="request-meta-label">Status</span>
+                        <span className="request-meta-value">{formatStatusTitle(item.verificationStatus)}</span>
+                      </div>
                     </div>
 
                     <div className="request-actions">
-                      <button className="approve-btn" onClick={() => updateAlumniStatus(item._id, 'approved')}>Approve</button>
-                      <button className="reject-btn" onClick={() => updateAlumniStatus(item._id, 'rejected')}>Reject</button>
+                      <button
+                        className="approve-btn"
+                        onClick={() => updateAlumniStatus(item._id, 'approved')}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        className="reject-btn"
+                        onClick={() => updateAlumniStatus(item._id, 'rejected')}
+                      >
+                        Reject
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -404,19 +307,10 @@ const AdminDashboard = () => {
                   <h3>Request Management</h3>
                   <p>Recent Document Requests</p>
                 </div>
-                <button
-                  type="button"
-                  className="view-all-btn"
-                  onClick={() =>
-                    requestsTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  }
-                >
-                  View All
-                </button>
               </div>
 
               <div className="request-list request-list-small">
-                {requests.slice(0, 6).map((r) => (
+                {requests.map((r) => (
                   <div className="request-card-compact" key={r._id}>
                     <div className="request-card-top">
                       <div className="request-card-title">
@@ -484,46 +378,8 @@ const AdminDashboard = () => {
             </article>
           </section>
 
-          <section className="table-card" ref={requestsTableRef}>
-            <div className="table-header">
-              <div className="table-header-left">
-                <h3>Recent Document Requests</h3>
-                <p>Latest Requests</p>
-              </div>
-            </div>
-
-            <div className="table-wrap">
-              <table className="request-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Document Type</th>
-                    <th>Address</th>
-                    <th>Status</th>
-                    <th>Tracking Number</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {requests.map((r) => (
-                    <tr key={r._id}>
-                      <td>{r.full_name}</td>
-                      <td>{r.documentType}</td>
-                      <td>{r.address || '-'}</td>
-                      <td>
-                        <span className={statusPillClass(r.status)}>
-                          {r.status}
-                        </span>
-                      </td>
-                      <td>{r.trackingNumber || r._id || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
         </main>
-      </div>
-    </div>
+    </AdminShell>
   );
 };
 

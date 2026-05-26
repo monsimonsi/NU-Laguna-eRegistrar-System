@@ -2,8 +2,11 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
 import AlumniRegistration from './pages/AlumniRegistration';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminAlumniVerification from './pages/AdminAlumniVerification';
+import AdminDocumentRequests from './pages/AdminDocumentRequests';
 import AdminDocumentTracking from './pages/AdminDocumentTracking';
 import Dashboard from './pages/Dashboard';
+import AccountProfile from './pages/AccountProfile';
 import DocumentRequest from './pages/DocumentRequest';
 import DocumentTracking from './pages/DocumentTracking';
 import Payment from './pages/Payment';
@@ -37,10 +40,34 @@ function App() {
           }
         />
         <Route
+          path="/admin-document-requests"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <AdminDocumentRequests />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-alumni-verification"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <AdminAlumniVerification />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/dashboard"
           element={
             <ProtectedRoute roles={['student', 'alumni']}>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/account-profile"
+          element={
+            <ProtectedRoute roles={['student', 'alumni']}>
+              <AccountProfile />
             </ProtectedRoute>
           }
         />

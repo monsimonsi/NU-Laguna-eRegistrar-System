@@ -1,0 +1,302 @@
+/* Styles moved from DocumentRequest.css for RequestTracking page */
+
+.doc-back-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.request-tracking-main {
+  padding-top: 28px;
+}
+
+.request-tracking-card {
+  width: min(1280px, 100%);
+  padding: 28px 20px 28px;
+  position: relative;
+}
+
+.request-tracking-header h1 {
+  font-size: 30px;
+  line-height: 1.03;
+}
+
+.request-tracking-header p {
+  font-size: 16px;
+}
+
+.request-tracking-icon {
+  color: #4052a6;
+}
+
+.request-controls {
+  display: grid;
+  grid-template-columns: minmax(320px, 2fr) repeat(3, minmax(180px, 1fr));
+  gap: 18px;
+  margin-top: 26px;
+}
+
+.request-search,
+.request-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.request-search span,
+.request-filter span {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1d1d1d;
+}
+
+.request-search-input-wrap {
+  position: relative;
+}
+
+.request-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #4052a6;
+}
+
+.request-search-input-wrap input,
+.request-filter select {
+  width: 100%;
+  min-height: 44px;
+  border: 1.5px solid #b5bdf0;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 15px;
+  color: #111;
+  outline: none;
+}
+
+.request-search-input-wrap input {
+  padding: 0 18px 0 48px;
+}
+
+.request-filter select {
+  padding: 0 16px;
+}
+
+.request-search-input-wrap input:focus,
+.request-filter select:focus {
+  border-color: #6f7ddb;
+  box-shadow: 0 0 0 2px rgba(111, 125, 219, 0.12);
+}
+
+.request-summary {
+  display: flex;
+  justify-content: flex-start;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #dbe2f4;
+  font-size: 14px;
+  color: #33468f;
+  font-weight: 600;
+}
+
+.request-state {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  font-size: 18px;
+}
+
+.request-state-loading {
+  background: #f8fafc;
+  color: #33468f;
+  border: 1px solid #dbe2f4;
+}
+
+.request-state-error {
+  background: #fff1f1;
+  color: #9b1c1c;
+  border: 1px solid #f0a7a7;
+}
+
+.request-state-empty {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #dbe2f4;
+}
+
+.request-table-wrap {
+  margin-top: 20px;
+  overflow-x: auto;
+}
+
+.request-tracking-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.request-tracking-table thead th {
+  padding: 16px 12px;
+  text-align: left;
+  border-bottom: 2px solid #d9e0f5;
+  color: #1f2f73;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+
+.request-tracking-table tbody td {
+  padding: 18px 12px; /* increased vertical padding */
+  border-bottom: 1px solid #edf1fb;
+  color: #111;
+  vertical-align: top;
+  font-size: 14px;
+}
+
+.status-pill {
+  display: inline-block;
+  min-width: 72px;
+  text-align: center;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 400;
+  text-transform: none;
+}
+
+.status-pill.pending,
+.status-pill.payment-unpaid {
+  background: #f6c1c6;
+  color: #9c1b26;
+}
+
+.status-pill.processing {
+  background: #ffd6ad;
+  color: #a35600;
+}
+
+.status-pill.ready,
+.status-pill.payment-paid {
+  background: #c4efc3;
+  color: #2e7a32;
+}
+
+.status-pill.completed {
+  background: #ffd21a;
+  color: #7a5600;
+}
+
+.status-pill.payment-paid,
+.status-pill.payment-unpaid {
+  min-width: 64px;
+}
+
+.request-tracking-table tbody tr {
+  transition: background-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.request-row {
+  cursor: pointer;
+}
+
+.request-row:hover,
+.request-row:focus-visible {
+  background: #f6f8ff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(47, 63, 135, 0.06);
+}
+
+.request-row:focus-visible {
+  outline: 2px solid #6f7ddb;
+  outline-offset: -2px;
+}
+
+.request-tracking-cell {
+  font-weight: 700;
+  color: #33468f;
+  font-size: 14px;
+}
+
+.request-tracking-back-row {
+  margin: 0 auto 10px;
+  text-align: right;
+  width: min(1280px, 100%);
+  padding-right: 8px; /* nudge the button closer to the card edge */
+}
+
+.request-tracking-back-link {
+  color: #4456aa;
+  font-size: 18px;
+  font-weight: 500;
+  text-decoration: none;
+  padding: 6px 10px; /* slightly larger clickable area */
+}
+
+.request-table-empty {
+  padding: 28px 18px !important;
+  text-align: center;
+  color: #64748b;
+  font-size: 18px;
+}
+
+@media (max-width: 1100px) {
+  .request-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .request-search {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .request-tracking-main {
+    padding-top: 22px;
+  }
+
+  .request-tracking-card {
+    width: 100%;
+    padding: 20px 16px 22px;
+  }
+
+  .request-tracking-header h1 {
+    font-size: 26px;
+  }
+
+  .request-tracking-header p {
+    font-size: 16px;
+  }
+
+  .request-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .request-summary {
+    flex-direction: column;
+    font-size: 16px;
+  }
+
+  .request-tracking-table {
+    font-size: 16px;
+  }
+
+  .request-tracking-table thead th,
+  .request-tracking-table tbody td {
+    padding: 14px 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .request-search-input-wrap input,
+  .request-filter select {
+    min-height: 46px;
+    font-size: 16px;
+  }
+
+  .request-table-empty {
+    font-size: 14px;
+  }
+}

@@ -27,7 +27,8 @@ const PaymentSchema = new mongoose.Schema(
     payerMobile: { type: String, default: '' },
     payerEmail: { type: String, default: '' },
     receiptNumber: { type: String, default: '' },
-    paidAt: { type: Date, default: null }
+    paidAt: { type: Date, default: null },
+    paymentSuccessDispatchedAt: { type: Date, default: null }
   },
   { timestamps: true }
 );

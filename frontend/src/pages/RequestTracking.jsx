@@ -1,28 +1,81 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Menu, FileText } from 'lucide-react';
-import logo from '../assets/NU_shield.png';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FileText, Search } from 'lucide-react';
 import { API_BASE, authHeaders } from '../api';
-import '../styles/DocumentRequest.css';
+import StudentShell from '../components/StudentShell';
+import '../styles/RequestTracking.css';
+
+const PAYMENT_OPTIONS = [
+  { value: '', label: 'All Payments' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'unpaid', label: 'Unpaid' },
+];
+
+const STATUS_LABELS = {
+  pending: 'Pending',
+  processing: 'Processing',
+  ready: 'Ready for Pickup',
+  'ready for pickup': 'Ready for Pickup',
+  'out for delivery': 'Out for Delivery',
+  released: 'Released',
+  completed: 'Released',
+};
+
+const STATUS_ORDER = {
+  pending: 0,
+  processing: 1,
+  'ready for pickup': 2,
+  'out for delivery': 3,
+  released: 4,
+  completed: 4,
+};
+
+const normalizeStatus = (status) => String(status || '').trim().toLowerCase();
+
+const getStatusLabel = (status) => {
+  const normalized = normalizeStatus(status);
+  return STATUS_LABELS[normalized] || String(status || '-');
+};
+
+const getStatusCellClass = (status) => {
+  const normalized = normalizeStatus(status);
+  if (normalized === 'processing') return 'status-pill processing';
+  if (normalized === 'pending') return 'status-pill pending';
+  if (normalized === 'ready' || normalized === 'ready for pickup' || normalized === 'out for delivery') {
+    return 'status-pill ready';
+  }
+  if (normalized === 'released' || normalized === 'completed') return 'status-pill completed';
+  return 'status-pill pending';
+};
+
+const getPaymentCellClass = (paymentConfirmed) =>
+  paymentConfirmed ? 'status-pill payment-paid' : 'status-pill payment-unpaid';
 
 const RequestTracking = () => {
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [documentFilter, setDocumentFilter] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
     let cancelled = false;
+
     (async () => {
       try {
         const res = await fetch(`${API_BASE}/api/me/requests`, {
-          headers: authHeaders(false)
+          headers: authHeaders(false),
         });
         const data = await res.json();
+
         if (!res.ok) {
-          setError(data.message || 'Could not load requests.');
+          if (!cancelled) setError(data.message || 'Could not load requests.');
           return;
         }
+
         if (!cancelled) setRequests(data.requests || []);
       } catch {
         if (!cancelled) setError('Cannot reach the server.');
@@ -30,86 +83,220 @@ const RequestTracking = () => {
         if (!cancelled) setLoading(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
   }, []);
 
+  const documentOptions = useMemo(() => {
+    const uniqueDocuments = new Set();
+    requests.forEach((request) => {
+      if (request.documentType) uniqueDocuments.add(request.documentType);
+    });
+    return Array.from(uniqueDocuments).sort((a, b) => a.localeCompare(b));
+  }, [requests]);
+
+  const statusOptions = useMemo(() => {
+    const uniqueStatuses = new Map();
+    requests.forEach((request) => {
+      const normalized = normalizeStatus(request.status);
+      if (!normalized) return;
+      if (!uniqueStatuses.has(normalized)) {
+        uniqueStatuses.set(normalized, getStatusLabel(request.status));
+      }
+    });
+    return Array.from(uniqueStatuses.entries())
+      .sort(([left], [right]) => (STATUS_ORDER[left] ?? 99) - (STATUS_ORDER[right] ?? 99))
+      .map(([value, label]) => ({ value, label }));
+  }, [requests]);
+
+  const filteredRequests = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    const documentValue = documentFilter.trim();
+    const paymentValue = paymentFilter.trim();
+    const statusValue = statusFilter.trim();
+
+    return requests.filter((request) => {
+      const matchesDocument = documentValue ? request.documentType === documentValue : true;
+      const matchesPayment = paymentValue
+        ? paymentValue === 'paid'
+          ? request.paymentConfirmed
+          : !request.paymentConfirmed
+        : true;
+      const matchesStatus = statusValue ? normalizeStatus(request.status) === statusValue : true;
+
+      if (!term) return matchesDocument && matchesPayment && matchesStatus;
+
+      const haystack = [
+        request.trackingNumber,
+        request.documentType,
+        request.paymentConfirmed ? 'paid' : 'unpaid',
+        getStatusLabel(request.status),
+        request.status,
+        request.createdAt,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return matchesDocument && matchesPayment && matchesStatus && haystack.includes(term);
+    });
+  }, [documentFilter, paymentFilter, requests, searchTerm, statusFilter]);
+
+  const formatRequestedDate = (value) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleString();
+  };
+
   return (
-    <div className="doc-page">
-      <header className="doc-topbar">
-        <button className="doc-menu-btn" aria-label="Menu" type="button">
-          <Menu size={30} strokeWidth={2.5} />
-        </button>
+    <StudentShell activeItem="track">
+      <main className="doc-main request-tracking-main">
 
-        <button type="button" className="doc-brand" onClick={() => navigate('/dashboard')}>
-          <img src={logo} alt="NU Logo" className="doc-logo" />
-          <span className="doc-title">NU Laguna e-Registrar</span>
-        </button>
-      </header>
-
-      <main className="doc-main">
-        <div className="doc-back-row">
-          <Link to="/document-request" className="doc-back-link">
-            &lsaquo; New request
-          </Link>
+        <div className="request-tracking-back-row">
+          <button
+            type="button"
+            className="request-tracking-back-link doc-back-button"
+            onClick={() => navigate('/dashboard')}
+            aria-label="Back to dashboard"
+          >
+            &lsaquo; Back to Dashboard
+          </button>
         </div>
 
-        <section className="doc-card">
-          <div className="doc-card-header">
-            <FileText className="doc-card-icon" size={34} strokeWidth={2.2} />
+        <section className="doc-card request-tracking-card">
+          <div className="doc-card-header request-tracking-header">
+            <FileText className="doc-card-icon request-tracking-icon" size={40} strokeWidth={2.1} />
             <div>
-              <h1>My document requests</h1>
-              <p>Track status using your tracking number.</p>
+              <h1>My Document Requests</h1>
+              <p>Search and track every request in one view.</p>
             </div>
           </div>
 
-          {loading && <p style={{ padding: '1rem' }}>Loading…</p>}
-          {error && <p style={{ padding: '1rem', color: '#b91c1c' }}>{error}</p>}
+          <div className="request-controls">
+            <label className="request-search">
+              <span>Search</span>
+              <div className="request-search-input-wrap">
+                <Search size={18} strokeWidth={2.2} className="request-search-icon" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search tracking number, document, payment, or status"
+                />
+              </div>
+            </label>
+
+            <label className="request-filter">
+              <span>Document</span>
+              <select value={documentFilter} onChange={(event) => setDocumentFilter(event.target.value)}>
+                <option value="">All documents</option>
+                {documentOptions.map((documentType) => (
+                  <option key={documentType} value={documentType}>
+                    {documentType}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="request-filter">
+              <span>Payment</span>
+              <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
+                {PAYMENT_OPTIONS.map((option) => (
+                  <option key={option.value || 'all'} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="request-filter">
+              <span>Status</span>
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                <option value="">All statuses</option>
+                {statusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="request-summary">
+            <span>
+              {filteredRequests.length} request{filteredRequests.length === 1 ? '' : 's'} found
+            </span>
+          </div>
+
+          {loading && <p className="request-state request-state-loading">Loading requests...</p>}
+          {error && <p className="request-state request-state-error">{error}</p>}
 
           {!loading && !error && requests.length === 0 && (
-            <p style={{ padding: '1rem', color: '#64748b' }}>You have no requests yet.</p>
+            <p className="request-state request-state-empty">You have no requests yet.</p>
           )}
 
-          {!loading && requests.length > 0 && (
-            <div className="table-wrap" style={{ overflowX: 'auto', padding: '0 0 1rem' }}>
-              <table className="request-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          {!loading && !error && requests.length > 0 && (
+            <div className="table-wrap request-table-wrap">
+              <table className="request-table request-tracking-table">
                 <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
-                    <th style={{ padding: '8px 6px' }}>Tracking #</th>
-                    <th style={{ padding: '8px 6px' }}>Document</th>
-                    <th style={{ padding: '8px 6px' }}>Payment</th>
-                    <th style={{ padding: '8px 6px' }}>Status</th>
-                    <th style={{ padding: '8px 6px' }}>Requested</th>
+                  <tr>
+                    <th>Tracking #</th>
+                    <th>Document</th>
+                    <th>Payment</th>
+                    <th>Status</th>
+                    <th>Requested</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {requests.map((r) => (
-                    <tr
-                      key={r._id}
-                      style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
-                      onClick={() =>
-                        navigate(`/document-tracking?id=${encodeURIComponent(r._id)}`)
-                      }
-                    >
-                      <td style={{ padding: '10px 6px', fontWeight: 600 }}>{r.trackingNumber || '—'}</td>
-                      <td style={{ padding: '10px 6px' }}>{r.documentType}</td>
-                      <td style={{ padding: '10px 6px' }}>
-                        {r.paymentConfirmed ? 'Paid' : 'Awaiting payment'}
-                      </td>
-                      <td style={{ padding: '10px 6px' }}>{r.status === 'Completed' ? 'Released' : r.status}</td>
-                      <td style={{ padding: '10px 6px', color: '#64748b' }}>
-                        {r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}
+                  {filteredRequests.length === 0 ? (
+                    <tr>
+                      <td className="request-table-empty" colSpan={5}>
+                        No requests match your search and filters.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredRequests.map((request) => (
+                      <tr
+                        key={request._id}
+                        className="request-row"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() =>
+                          navigate(`/document-tracking?id=${encodeURIComponent(request._id)}`)
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            navigate(`/document-tracking?id=${encodeURIComponent(request._id)}`);
+                          }
+                        }}
+                      >
+                        <td className="request-tracking-cell">{request.trackingNumber || '—'}</td>
+                        <td>{request.documentType || '—'}</td>
+                        <td>
+                          <span className={getPaymentCellClass(request.paymentConfirmed)}>
+                            {request.paymentConfirmed ? 'Paid' : 'Unpaid'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={getStatusCellClass(request.status)}>
+                            {getStatusLabel(request.status)}
+                          </span>
+                        </td>
+                        <td>{formatRequestedDate(request.createdAt)}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           )}
         </section>
       </main>
-    </div>
+    </StudentShell>
   );
 };
 

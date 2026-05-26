@@ -3,11 +3,12 @@ const Payment = require('../models/Payment');
 const DocumentRequest = require('../models/DocumentRequest');
 const {
   centavosForRequest,
-  notifyRequestSubmitted,
   notifyRegistrarRequestPaid,
   notifyPaymentFailed,
   isPaymongoConfigured
 } = require('./payments');
+const { notifyPaymentSuccessful: notifyPaymentNotification } = require('./notifications');
+const mail = require('./mail');
 const { normalizePhilippineMobile, generateReceiptNumber } = require('./receipts');
 
 const MOCK_PROVIDERS = {
@@ -61,7 +62,7 @@ async function upsertPendingPayment(documentRequest, provider, sessionId) {
       mockSessionId: sessionId,
       mockProvider: provider
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   );
 
   return { payment: row, amountCentavos: amount, provider: meta };
@@ -210,14 +211,47 @@ async function completeMockSession(sessionId, userId, email, payerDetails = {}) 
   payment.paidAt = new Date();
   await payment.save();
 
+  const claimed = await Payment.findOneAndUpdate(
+    {
+      _id: payment._id,
+      paymentSuccessDispatchedAt: null
+    },
+    {
+      $set: { paymentSuccessDispatchedAt: new Date() }
+    },
+    { returnDocument: 'after' }
+  ).lean();
+
   if (!doc.paymentConfirmed) {
     doc.paymentConfirmed = true;
     doc.status = 'Pending';
     await doc.save();
+  }
+
+  if (claimed) {
     if (doc.requesterId) {
-      await notifyRequestSubmitted(doc, doc.requesterId);
+      await notifyPaymentNotification({
+        userId: doc.requesterId,
+        documentRequest: doc,
+        payment: {
+          amountCentavos: claimed.amountCentavos || payment.amountCentavos || 0,
+          currency: claimed.currency || payment.currency || 'PHP',
+          receiptNumber: claimed.receiptNumber || payment.receiptNumber || '',
+          transactionReference: claimed.transactionReference || payment.transactionReference || '',
+          paymentMethod: claimed.paymentMethod || payment.paymentMethod || ''
+        }
+      });
     }
-    await notifyRegistrarRequestPaid(doc, payment);
+    void mail.notifyPaymentSuccessful({
+      to: doc.email,
+      fullName: doc.full_name,
+      documentType: doc.documentType,
+      amount: Number(claimed.amountCentavos || payment.amountCentavos || 0) / 100,
+      currency: claimed.currency || payment.currency || 'PHP',
+      referenceNumber: claimed.receiptNumber || payment.receiptNumber || claimed.transactionReference || payment.transactionReference || '',
+      paymentMethod: claimed.paymentMethod || payment.paymentMethod || ''
+    });
+    await notifyRegistrarRequestPaid(doc, claimed);
   }
 
   return {

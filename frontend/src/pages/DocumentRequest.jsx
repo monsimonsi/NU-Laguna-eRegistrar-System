@@ -423,7 +423,7 @@ const DocumentRequest = ({ onBack }) => {
             <div className="doc-modal-actions">
               <button
                 type="button"
-                onClick={() => onBack ? onBack() : navigate('/dashboard')}
+                onClick={() => onBack ? onBack() : navigate('/my-requests')}
                 className="doc-modal-btn doc-modal-btn--secondary"
               >
                 View my requests

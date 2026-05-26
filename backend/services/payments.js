@@ -1,7 +1,7 @@
 const Paymongo = require('paymongo-node');
 const Payment = require('../models/Payment');
 const DocumentRequest = require('../models/DocumentRequest');
-const { createNotification, createForRole } = require('./notifications');
+const { createNotification, createForRole, notifyPaymentSuccessful: notifyPaymentNotification } = require('./notifications');
 const mail = require('./mail');
 const {
   normalizePhilippineMobile,
@@ -89,6 +89,56 @@ function mapSourceTypeToLabel(sourceType) {
   if (t === 'gcash') return 'GCash';
   if (t === 'paymaya') return 'Maya';
   return t ? t.replace(/_/g, ' ') : '';
+}
+
+async function dispatchPaymentSuccessOnce(documentRequest, payment) {
+  if (!documentRequest || !payment?._id) {
+    return { ok: false, reason: 'missing_payment_context' };
+  }
+
+  const claimed = await Payment.findOneAndUpdate(
+    {
+      _id: payment._id,
+      paymentSuccessDispatchedAt: null
+    },
+    {
+      $set: {
+        paymentSuccessDispatchedAt: new Date()
+      }
+    },
+    { returnDocument: 'after' }
+  ).lean();
+
+  if (!claimed) {
+    return { ok: true, duplicate: true };
+  }
+
+  if (documentRequest.requesterId) {
+    await notifyPaymentNotification({
+      userId: documentRequest.requesterId,
+      documentRequest,
+      payment: {
+        amountCentavos: claimed.amountCentavos || payment.amountCentavos || 0,
+        currency: claimed.currency || payment.currency || 'PHP',
+        receiptNumber: claimed.receiptNumber || payment.receiptNumber || '',
+        transactionReference: claimed.transactionReference || payment.transactionReference || '',
+        paymentMethod: claimed.paymentMethod || payment.paymentMethod || ''
+      }
+    });
+  }
+
+  void mail.notifyPaymentSuccessful({
+    to: documentRequest.email,
+    fullName: documentRequest.full_name,
+    documentType: documentRequest.documentType,
+    amount: Number(claimed.amountCentavos || payment.amountCentavos || 0) / 100,
+    currency: claimed.currency || payment.currency || 'PHP',
+    referenceNumber: claimed.receiptNumber || payment.receiptNumber || claimed.transactionReference || payment.transactionReference || '',
+    paymentMethod: claimed.paymentMethod || payment.paymentMethod || ''
+  });
+
+  await notifyRegistrarRequestPaid(documentRequest, claimed);
+  return { ok: true, duplicate: false };
 }
 
 async function notifyRequestSubmitted(documentRequest, userId) {
@@ -192,7 +242,7 @@ async function createOrRefreshPaymentIntent(documentRequest, existingPayment) {
         transactionReference: '',
         paymentMethod: ''
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
   }
 
@@ -240,11 +290,9 @@ async function markPaidFromPaymongoPayment({
     doc.paymentConfirmed = true;
     doc.status = 'Pending';
     await doc.save();
-    if (doc.requesterId) {
-      await notifyRequestSubmitted(doc, doc.requesterId);
-    }
-    await notifyRegistrarRequestPaid(doc, payment);
   }
+
+  await dispatchPaymentSuccessOnce(doc, payment);
 
   return { ok: true };
 }
@@ -567,8 +615,9 @@ async function confirmSandboxPayment(documentRequest, method = 'sandbox') {
         : 'Sandbox';
 
   const amount = centavosForRequest(documentRequest);
+  const receiptNumber = generateReceiptNumber();
 
-  await Payment.findOneAndUpdate(
+  const payment = await Payment.findOneAndUpdate(
     { documentRequestId: documentRequest._id },
     {
       documentRequestId: documentRequest._id,
@@ -577,22 +626,19 @@ async function confirmSandboxPayment(documentRequest, method = 'sandbox') {
       paymentStatus: 'paid',
       paymentMethod: methodLabel,
       transactionReference: `SANDBOX-${Date.now()}`,
-      receiptNumber: generateReceiptNumber(),
+      receiptNumber,
       paidAt: new Date(),
       payerName: String(documentRequest.full_name || '').trim(),
       payerEmail: String(documentRequest.email || '').trim()
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after', new: true }
   );
 
   documentRequest.paymentConfirmed = true;
   documentRequest.status = 'Pending';
   await documentRequest.save();
 
-  if (documentRequest.requesterId) {
-    await notifyRequestSubmitted(documentRequest, documentRequest.requesterId);
-  }
-  await notifyRegistrarRequestPaid(documentRequest, payment);
+  await dispatchPaymentSuccessOnce(documentRequest, payment);
 
   return { ok: true, request: documentRequest };
 }

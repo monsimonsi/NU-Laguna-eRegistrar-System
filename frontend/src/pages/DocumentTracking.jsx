@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Menu,
   FileText,
   Clock3,
   PackageOpen,
@@ -11,8 +10,8 @@ import {
   CalendarDays,
   UserRound
 } from 'lucide-react';
-import logo from '../assets/NU_shield.png';
 import { API_BASE, authHeaders } from '../api';
+import StudentShell from '../components/StudentShell';
 import '../styles/DocumentTracking.css';
 
 const STATUS_STEP_MAP = {
@@ -84,9 +83,7 @@ const DocumentTracking = () => {
     if (!requestId) {
       setLoading(false);
       setError('No request selected.');
-      return () => {
-        cancelled = true;
-      };
+      return () => { cancelled = true; };
     }
 
     (async () => {
@@ -97,15 +94,11 @@ const DocumentTracking = () => {
         const data = await res.json();
 
         if (!res.ok) {
-          if (!cancelled) {
-            setError(data.message || 'Could not load request details.');
-          }
+          if (!cancelled) setError(data.message || 'Could not load request details.');
           return;
         }
 
-        if (!cancelled) {
-          setRequest(data.request || null);
-        }
+        if (!cancelled) setRequest(data.request || null);
       } catch (err) {
         if (!cancelled) setError('Cannot reach the server.');
       } finally {
@@ -113,9 +106,7 @@ const DocumentTracking = () => {
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [requestId]);
 
   const statusLabel = request?.status || '-';
@@ -124,37 +115,22 @@ const DocumentTracking = () => {
   const statusClass = STATUS_CLASS_MAP[normalizedStatus] || 'pending';
   const activeStep = statusStep;
   const statusKey =
-    normalizedStatus === 'waiting for payment'
-      ? 'waiting'
-      : normalizedStatus === 'pending'
-        ? 'pending'
-        : normalizedStatus === 'processing'
-          ? 'processing'
-          : normalizedStatus === 'ready for pickup' || normalizedStatus === 'out for delivery'
-            ? 'ready'
-            : 'released';
+    normalizedStatus === 'waiting for payment' ? 'waiting'
+    : normalizedStatus === 'pending' ? 'pending'
+    : normalizedStatus === 'processing' ? 'processing'
+    : normalizedStatus === 'ready for pickup' || normalizedStatus === 'out for delivery' ? 'ready'
+    : 'released';
   const progressPercent = `${(statusStep / 5) * 100}%`;
   const showDetails = Boolean(request) && !loading && !error;
   const isPaid = Boolean(request?.paymentConfirmed);
   const canProceedToPayment = showDetails && !isPaid && normalizedStatus === 'waiting for payment';
 
   return (
-    <div className="track-page">
-      <header className="track-topbar">
-        <button className="track-menu-btn" aria-label="Menu">
-          <Menu size={30} strokeWidth={2.5} />
-        </button>
-
-        <button type="button" className="track-brand" onClick={() => navigate('/dashboard')}>
-          <img src={logo} alt="NU Logo" className="track-logo" />
-          <span className="track-title">NU Laguna e-Registrar</span>
-        </button>
-      </header>
-
+    <StudentShell activeItem="track">
       <main className="track-main">
         <div className="track-heading-row">
           <h1>Document Tracking</h1>
-          <Link to="/dashboard" className="track-back-link">
+          <Link to="/my-requests" className="track-back-link">
             &lsaquo; Back
           </Link>
         </div>
@@ -310,7 +286,6 @@ const DocumentTracking = () => {
 
                   <div className="detail-label small-gap">Purpose</div>
                   <div className="detail-value strong">{request.purpose || '-'}</div>
-
                 </div>
 
                 <div className="detail-block">
@@ -330,7 +305,7 @@ const DocumentTracking = () => {
           </>
         )}
       </main>
-    </div>
+    </StudentShell>
   );
 };
 

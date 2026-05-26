@@ -5,6 +5,12 @@ const userSchema = new mongoose.Schema({
 
   email: { type: String, required: true, unique: true },
 
+  id_num: { type: String, default: '' },
+
+  department: { type: String, default: '' },
+
+  program: { type: String, default: '' }, 
+
   password: { type: String, required: true },
 
   role: {

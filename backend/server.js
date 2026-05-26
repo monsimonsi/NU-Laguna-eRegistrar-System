@@ -14,7 +14,6 @@ const mockEwallet = require('./services/mockEwallet');
 const { createMockPaymentRouter } = require('./routes/mockPayment');
 const {
   createNotification,
-  createForRole: createNotificationsForRole,
   listForUser: listNotificationsForUser,
   markRead: markNotificationRead,
   markAllRead: markAllNotificationsRead
@@ -256,6 +255,47 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// Current user profile
+app.get('/api/users/me', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.auth?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: 'Authentication required.' });
+    }
+
+    const user = await User.findById(userId)
+      .select('full_name email role id_num department program')
+      .lean();
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    let program = user.program || null;
+
+    if (user.role === 'alumni') {
+      const registration = await AlumniRegistration.findOne({ userId: user._id })
+        .select('course')
+        .lean();
+      program = registration?.course || null;
+    }
+
+    return res.status(200).json({
+      user: {
+        id: user._id,
+        full_name: user.full_name,
+        email: user.email,
+        role: user.role,
+        id_num: user.id_num || null,
+        department: user.department || null,
+        program
+      }
+    });
+  } catch (error) {
+    console.error('Fetch current user error:', error);
+    return res.status(500).json({ message: 'Server error.' });
+  }
+});
+
 // Alumni registration
 app.post('/api/alumni-registrations', async (req, res) => {
   try {
@@ -324,7 +364,7 @@ app.post('/api/alumni-registrations', async (req, res) => {
           reviewedBy: null,
           rejectionReason: ''
         },
-        { new: true, upsert: true }
+        { upsert: true, returnDocument: 'after' }
       );
 
       await AlumniVerification.findOneAndUpdate(
@@ -337,7 +377,7 @@ app.post('/api/alumni-registrations', async (req, res) => {
           reviewed_by: null,
           rejection_reason: ''
         },
-        { new: true, upsert: true }
+        { upsert: true, returnDocument: 'after' }
       );
 
       void Promise.all([
@@ -394,7 +434,7 @@ app.post('/api/alumni-registrations', async (req, res) => {
         reviewed_by: null,
         rejection_reason: ''
       },
-      { new: true, upsert: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     void Promise.all([
@@ -485,7 +525,7 @@ app.patch('/api/alumni-registrations/:id', authMiddleware, requireAdmin, async (
         reviewed_by: reviewerId,
         rejection_reason: normalizedStatus === 'rejected' ? normalizedReason : ''
       },
-      { new: true, upsert: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     const alum = await User.findById(updated.userId).lean();
@@ -574,24 +614,40 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
       paymentConfirmed: false
     });
 
-    void createNotificationsForRole({
-      role: 'admin',
-      category: 'request_created',
-      message: `${newRequest.full_name} created a ${newRequest.documentType} request. Waiting for payment confirmation.`,
-      dedupeKey: `request-created:${newRequest._id}`,
-      meta: {
-        requestId: String(newRequest._id),
-        trackingNumber: newRequest.trackingNumber || '',
-        documentType: newRequest.documentType,
-        requesterName: newRequest.full_name,
-        paymentConfirmed: false
-      }
-    });
+    const notifyRequestSubmitted = () =>
+      (async () => {
+        try {
+          if (newRequest.requesterId) {
+            try {
+              await createNotification({
+                userId: newRequest.requesterId,
+                category: 'request_submitted',
+                message: `Your request for ${newRequest.documentType} was submitted successfully.`,
+                meta: {
+                  requestId: String(newRequest._id),
+                  trackingNumber: newRequest.trackingNumber || ''
+                }
+              });
+            } catch (e) {
+              console.error('[notifications] create on submit failed:', e && e.message ? e.message : e);
+            }
+          }
+        } finally {
+          void mail.notifyDocumentRequestSubmitted({
+            to: newRequest.email,
+            fullName: newRequest.full_name,
+            trackingNumber: newRequest.trackingNumber || '',
+            documentType: newRequest.documentType
+          });
+        }
+      })();
 
     if (skipOnlinePayment) {
       console.warn(
         '[payments] PAYMONGO_SECRET_KEY is not set — complete payment on the Payment page (sandbox mode).'
       );
+
+      void notifyRequestSubmitted();
 
       return res.status(201).json({
         message:
@@ -604,6 +660,8 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
 
     try {
       const intent = await payments.createOrRefreshPaymentIntent(newRequest, null);
+
+      void notifyRequestSubmitted();
 
       return res.status(201).json({
         message:

@@ -21,61 +21,8 @@ body {
   color: #222;
 }
 
-/* TOP BAR */
-.track-topbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 66px;
-  background: #ffd21a;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.18);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
-  display: flex;
-  align-items: center;
-  padding: 0 18px;
-  z-index: 20;
-}
-
-.track-menu-btn {
-  border: 0;
-  background: transparent;
-  color: #4052a6;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  padding: 0;
-  margin-right: 16px;
-}
-
-.track-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-  text-align: left;
-}
-
-.track-logo {
-  width: 42px;
-  height: 42px;
-  object-fit: contain;
-  display: block;
-}
-
-.track-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #4052a6;
-  letter-spacing: -0.4px;
-}
-
-/* MAIN */
 .track-main {
-  padding: 112px 24px 28px;
+  padding: 76px 24px 28px;
 }
 
 .track-heading-row {

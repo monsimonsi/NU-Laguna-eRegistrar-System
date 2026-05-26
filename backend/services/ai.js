@@ -90,6 +90,7 @@ async function generateNotification({ event, recipientName, facts }) {
   const normalizedEvent = String(event || '').trim().toLowerCase();
   const isDocumentRequestEvent = normalizedEvent === 'document_request_submitted'
     || normalizedEvent === 'document_request_status_updated';
+  const isPaymentEvent = normalizedEvent === 'payment_successful';
 
   const trackingNumber = String(facts?.trackingNumber || '').trim();
   const documentType = String(facts?.documentType || '').trim();
@@ -102,6 +103,14 @@ async function generateNotification({ event, recipientName, facts }) {
         documentType ? `Document type: ${documentType}` : null,
         status ? `Status: ${status}` : null,
         deliveryMethod ? `Delivery method: ${deliveryMethod}` : null
+      ].filter(Boolean)
+    : isPaymentEvent
+    ? [
+        String(facts?.amount || '') ? `Amount: ${facts.amount} ${facts.currency || ''}` : null,
+        facts?.referenceNumber ? `Reference number: ${facts.referenceNumber}` : null,
+        facts?.paymentDate ? `Date: ${facts.paymentDate}` : null,
+        facts?.paymentMethod ? `Method: ${facts.paymentMethod}` : null,
+        facts?.receiptUrl ? `Receipt: ${facts.receiptUrl}` : null
       ].filter(Boolean)
     : [];
 
@@ -133,6 +142,16 @@ async function generateNotification({ event, recipientName, facts }) {
           avoidDatesUnlessProvided: true,
           introRule: 'Mention the document type in the intro, not the body.',
           outroRule: 'End the outro with a brief closing sentence. Do not include the mail signature; it is appended separately.'
+        }
+      : isPaymentEvent
+      ? {
+          requiredFacts: ['amount', 'referenceNumber'],
+          includePaymentMethodIfProvided: true,
+          includeReceiptLinkIfProvided: true,
+          avoidDatesUnlessProvided: true,
+          introRule: 'Mention the payment amount and confirm success in the intro.',
+          bodyRule: 'Provide the reference number and short next steps (how to get the receipt or contact support). Do not invent timelines or additional details.',
+          outroRule: 'End with a brief closing sentence. Do not include the mail signature; it is appended separately.'
         }
       : undefined,
     factSlots: factLines
@@ -214,7 +233,23 @@ async function generateNotification({ event, recipientName, facts }) {
       logAiReject('document_in_body');
       return null;
     }
-    if (!requiresFactValue(facts, 'date') && !requiresFactValue(facts, 'requestDate') && hasDateLikeText(combined)) {
+    
+    // Payment-specific adjustments: ensure amount and reference appear, append if missing
+    if (isPaymentEvent) {
+      const needsAmount = requiresFactValue(facts, 'amount');
+      const needsReference = requiresFactValue(facts, 'referenceNumber');
+      if (needsAmount && !textContainsValue(intro, facts.amount)) {
+        intro = appendSentence(intro, `Payment amount: ${facts.amount}${facts.currency ? ` ${facts.currency}` : ''}.`);
+      }
+      if (needsReference && !textContainsValue(body, facts.referenceNumber)) {
+        body = appendSentence(body, `Reference number: ${facts.referenceNumber}.`);
+      }
+      if (String(facts?.receiptUrl || '').trim() && !textContainsValue(`${intro} ${body} ${outro}`, facts.receiptUrl)) {
+        body = appendSentence(body, `You can download your receipt here: ${facts.receiptUrl}.`);
+      }
+      combined = `${intro} ${body} ${outro}`.trim();
+    }
+    if (!requiresFactValue(facts, 'date') && !requiresFactValue(facts, 'requestDate') && !requiresFactValue(facts, 'paymentDate') && hasDateLikeText(combined)) {
       logAiReject('unexpected_date');
       return null;
     }

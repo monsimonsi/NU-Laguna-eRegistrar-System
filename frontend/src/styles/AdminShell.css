@@ -53,6 +53,10 @@ body {
   overflow: hidden;
   transition: width 0.28s ease;
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
 }
 
 .admin-sidebar.open {
@@ -149,6 +153,14 @@ body {
   flex-direction: column;
   gap: var(--sidebar-gap);
   padding: 8px var(--sidebar-padding-x) 12px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .sidebar-link {
@@ -165,10 +177,21 @@ body {
   padding: 0 var(--sidebar-padding-x);
   cursor: pointer;
   overflow: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .sidebar-link.active {
   background: #ffd21a;
+}
+
+.sidebar-link:hover,
+.sidebar-link:focus-visible,
+.logout-btn:hover,
+.logout-btn:focus-visible {
+  background: #ffd21a;
+  color: #33468f;
+  box-shadow: inset 0 0 0 1px rgba(51, 70, 143, 0.1);
+  outline: none;
 }
 
 .sidebar-link svg,
@@ -216,6 +239,9 @@ body {
   gap: 12px;
   padding: 0 var(--sidebar-padding-x);
   cursor: pointer;
+  margin-top: auto;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .logout-btn svg {
@@ -402,10 +428,13 @@ body {
     width: 100%;
     min-height: 0;
     flex-direction: column;
+    position: static;
+    height: auto;
   }
 
   .admin-sidebar.open {
     width: 100%;
+    height: auto;
   }
 
   .sidebar-toggle {

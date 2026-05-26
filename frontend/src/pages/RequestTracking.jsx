@@ -37,6 +37,20 @@ const getStatusLabel = (status) => {
   return STATUS_LABELS[normalized] || String(status || '-');
 };
 
+const getStatusCellClass = (status) => {
+  const normalized = normalizeStatus(status);
+  if (normalized === 'processing') return 'status-pill processing';
+  if (normalized === 'pending') return 'status-pill pending';
+  if (normalized === 'ready' || normalized === 'ready for pickup' || normalized === 'out for delivery') {
+    return 'status-pill ready';
+  }
+  if (normalized === 'released' || normalized === 'completed') return 'status-pill completed';
+  return 'status-pill pending';
+};
+
+const getPaymentCellClass = (paymentConfirmed) =>
+  paymentConfirmed ? 'status-pill payment-paid' : 'status-pill payment-unpaid';
+
 const RequestTracking = () => {
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
@@ -262,8 +276,16 @@ const RequestTracking = () => {
                       >
                         <td className="request-tracking-cell">{request.trackingNumber || '—'}</td>
                         <td>{request.documentType || '—'}</td>
-                        <td>{request.paymentConfirmed ? 'Paid' : 'Unpaid'}</td>
-                        <td>{getStatusLabel(request.status)}</td>
+                        <td>
+                          <span className={getPaymentCellClass(request.paymentConfirmed)}>
+                            {request.paymentConfirmed ? 'Paid' : 'Unpaid'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={getStatusCellClass(request.status)}>
+                            {getStatusLabel(request.status)}
+                          </span>
+                        </td>
                         <td>{formatRequestedDate(request.createdAt)}</td>
                       </tr>
                     ))

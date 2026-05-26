@@ -14,7 +14,6 @@ const mockEwallet = require('./services/mockEwallet');
 const { createMockPaymentRouter } = require('./routes/mockPayment');
 const {
   createNotification,
-  createForRole: createNotificationsForRole,
   listForUser: listNotificationsForUser,
   markRead: markNotificationRead,
   markAllRead: markAllNotificationsRead
@@ -613,20 +612,6 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
     const newRequest = await saveDocumentRequestWithTracking({
       ...requestData,
       paymentConfirmed: false
-    });
-
-    void createNotificationsForRole({
-      role: 'admin',
-      category: 'request_created',
-      message: `${newRequest.full_name} created a ${newRequest.documentType} request. Waiting for payment confirmation.`,
-      dedupeKey: `request-created:${newRequest._id}`,
-      meta: {
-        requestId: String(newRequest._id),
-        trackingNumber: newRequest.trackingNumber || '',
-        documentType: newRequest.documentType,
-        requesterName: newRequest.full_name,
-        paymentConfirmed: false
-      }
     });
 
     const notifyRequestSubmitted = () =>

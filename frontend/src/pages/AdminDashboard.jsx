@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/AdminDashboard.css';
 import { FileText, Clock3, BadgeCheck, UsersRound } from 'lucide-react';
@@ -42,7 +42,6 @@ const formatStatusTitle = (value) => {
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const requestsTableRef = useRef(null);
   const [requests, setRequests] = useState([]);
   const [alumniRegistrations, setAlumniRegistrations] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
@@ -308,15 +307,6 @@ const AdminDashboard = () => {
                   <h3>Request Management</h3>
                   <p>Recent Document Requests</p>
                 </div>
-                <button
-                  type="button"
-                  className="view-all-btn"
-                  onClick={() =>
-                    requestsTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  }
-                >
-                  View All
-                </button>
               </div>
 
               <div className="request-list request-list-small">
@@ -388,43 +378,6 @@ const AdminDashboard = () => {
             </article>
           </section>
 
-          <section className="table-card" ref={requestsTableRef}>
-            <div className="table-header">
-              <div className="table-header-left">
-                <h3>Recent Document Requests</h3>
-                <p>Latest Requests</p>
-              </div>
-            </div>
-
-            <div className="table-wrap">
-              <table className="request-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Document Type</th>
-                    <th>Address</th>
-                    <th>Status</th>
-                    <th>Tracking Number</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {requests.map((r) => (
-                    <tr key={r._id}>
-                      <td>{r.full_name}</td>
-                      <td>{r.documentType}</td>
-                      <td>{r.address || '-'}</td>
-                      <td>
-                        <span className={statusPillClass(r.status)}>
-                          {r.status}
-                        </span>
-                      </td>
-                      <td>{r.trackingNumber || r._id || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
         </main>
     </AdminShell>
   );

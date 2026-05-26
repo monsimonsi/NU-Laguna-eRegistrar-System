@@ -333,6 +333,62 @@ async function notifyDocumentRequestStatus({
   });
 }
 
+async function notifyPaymentSuccessful({
+  to,
+  fullName,
+  documentType,
+  amount,
+  currency = 'PHP',
+  referenceNumber,
+  paymentMethod,
+  receiptUrl = ''
+}) {
+  const amountText = amount ? `${amount}${currency ? ` ${currency}` : ''}` : '';
+  const fallback = {
+    subject: `[e-Registrar] Payment successful — ${documentType || 'your request'}`,
+    text: [
+      `Hello ${fullName},`,
+      '',
+      `Your payment for ${documentType || 'your document request'} was successful.`,
+      amountText ? `Amount paid: ${amountText}` : '',
+      referenceNumber ? `Reference number: ${referenceNumber}` : '',
+      paymentMethod ? `Payment method: ${paymentMethod}` : '',
+      '',
+      'Your request is now ready for the next step in the registrar workflow.',
+      receiptUrl ? `Receipt: ${receiptUrl}` : '',
+      '',
+      'Kind Regards,',
+      'NU Laguna e-Registrar'
+    ].filter(Boolean).join('\n'),
+    html: `<p>Hello ${escapeHtml(fullName)},</p><p>Your payment for ${escapeHtml(
+      documentType || 'your document request'
+    )} was successful.</p><p>${[amountText ? `Amount paid: ${escapeHtml(amountText)}` : '', referenceNumber ? `Reference number: ${escapeHtml(referenceNumber)}` : '', paymentMethod ? `Payment method: ${escapeHtml(paymentMethod)}` : '']
+      .filter(Boolean)
+      .join('<br/>')}</p><p>Your request is now ready for the next step in the registrar workflow.</p>${receiptUrl ? `<p>Receipt: ${escapeHtml(receiptUrl)}</p>` : ''}<p>Kind Regards,<br/>NU Laguna e-Registrar</p>`
+  };
+
+  const message = await withAiCopy({
+    event: 'payment_successful',
+    fullName,
+    facts: {
+      documentType,
+      amount,
+      currency,
+      referenceNumber,
+      paymentMethod,
+      receiptUrl
+    },
+    fallback
+  });
+
+  return sendSafe({
+    to,
+    subject: message.subject,
+    text: message.text,
+    html: message.html
+  });
+}
+
 function escapeHtml(s) {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -349,5 +405,6 @@ module.exports = {
   notifyAlumniApproved,
   notifyAlumniRejected,
   notifyDocumentRequestSubmitted,
-  notifyDocumentRequestStatus
+  notifyDocumentRequestStatus,
+  notifyPaymentSuccessful
 };

@@ -2,9 +2,91 @@ const mongoose = require('mongoose');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
 
+function buildPaymentMessage(meta = {}) {
+  const documentType = meta.documentType || meta.facts?.documentType || '';
+  const amount = meta.amount || meta.facts?.amount || '';
+  const currency = meta.currency || meta.facts?.currency || '';
+  const reference = meta.referenceNumber || meta.facts?.referenceNumber || meta.facts?.reference || '';
+  const method = meta.paymentMethod || meta.facts?.paymentMethod || '';
+  const receipt = meta.receiptUrl || meta.facts?.receiptUrl || '';
+
+  const parts = [];
+  if (documentType) {
+    parts.push(`Your payment for ${documentType} was successful`);
+  } else if (amount) {
+    parts.push(`Payment of ${amount}${currency ? ` ${currency}` : ''} received`);
+  } else {
+    parts.push('Payment received');
+  }
+
+  if (reference) parts.push(`Reference: ${reference}`);
+  if (method) parts.push(`Method: ${method}`);
+
+  let message = parts.join('. ') + '.';
+  if (receipt) {
+    message += ` You can download your receipt here: ${receipt}.`;
+  }
+  return message.trim();
+}
+
+async function notifyPaymentSuccessful({ userId, documentRequest, payment, receiptUrl = '' }) {
+  if (!documentRequest?.documentType || !userId) {
+    console.warn('[notifications] notifyPaymentSuccessful called with missing userId or documentRequest', {
+      userId,
+      documentRequest,
+      payment
+    });
+    return null;
+  }
+
+  const amount = payment?.amountCentavos ? (payment.amountCentavos / 100).toFixed(2) : '';
+  const currency = payment?.currency || 'PHP';
+  const referenceNumber = payment?.receiptNumber || payment?.transactionReference || '';
+  const paymentMethod = payment?.paymentMethod || '';
+
+  return createNotification({
+    userId,
+    category: 'payment_successful',
+    message: buildPaymentMessage({
+      documentType: documentRequest.documentType,
+      amount,
+      currency,
+      referenceNumber,
+      paymentMethod,
+      receiptUrl
+    }),
+    meta: {
+      event: 'payment_successful',
+      requestId: String(documentRequest._id),
+      trackingNumber: documentRequest.trackingNumber || '',
+      documentType: documentRequest.documentType,
+      amount,
+      currency,
+      referenceNumber,
+      paymentMethod,
+      receiptUrl
+    }
+  });
+}
+
 async function createNotification({ userId, message, category = 'general', meta = {} }) {
-  if (!userId || !message) {
-    console.warn('[notifications] createNotification called with missing userId or message', { userId, message, category, meta });
+  if (!userId) {
+    console.warn('[notifications] createNotification called with missing userId', { userId, message, category, meta });
+    return null;
+  }
+
+  // If no explicit message provided, attempt to generate one for known events
+  if (!message && meta && String(meta.event || '').toLowerCase() === 'payment_successful') {
+    message = buildPaymentMessage(meta);
+    if (!message) {
+      console.warn('[notifications] createNotification missing message and unable to generate from meta', { userId, category, meta });
+      return null;
+    }
+    if (!category || category === 'general') category = 'payment';
+  }
+
+  if (!message) {
+    console.warn('[notifications] createNotification called with missing message', { userId, category, meta });
     return null;
   }
   try {
@@ -139,6 +221,7 @@ async function markAllRead(userId) {
 module.exports = {
   createNotification,
   createForRole,
+  notifyPaymentSuccessful,
   listForUser,
   markRead,
   markAllRead

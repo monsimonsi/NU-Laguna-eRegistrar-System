@@ -156,6 +156,44 @@
   font-size: 14px;
 }
 
+.status-pill {
+  display: inline-block;
+  min-width: 72px;
+  text-align: center;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 400;
+  text-transform: none;
+}
+
+.status-pill.pending,
+.status-pill.payment-unpaid {
+  background: #f6c1c6;
+  color: #9c1b26;
+}
+
+.status-pill.processing {
+  background: #ffd6ad;
+  color: #a35600;
+}
+
+.status-pill.ready,
+.status-pill.payment-paid {
+  background: #c4efc3;
+  color: #2e7a32;
+}
+
+.status-pill.completed {
+  background: #ffd21a;
+  color: #7a5600;
+}
+
+.status-pill.payment-paid,
+.status-pill.payment-unpaid {
+  min-width: 64px;
+}
+
 .request-tracking-table tbody tr {
   transition: background-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }

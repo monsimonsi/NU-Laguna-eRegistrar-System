@@ -87,6 +87,14 @@ const PaymentPage = () => {
     return { base, succeeding, delivery, total };
   }, [request]);
 
+  const getTrackingLabel = (item) => {
+    if (String(item?.deliveryMethod || '').trim().toLowerCase() === 'pickup') {
+      return 'N/A';
+    }
+
+    return item?.trackingNumber || item?._id || 'N/A';
+  };
+
   const normalizeMobile = (value) => {
     const digits = String(value || '').replace(/\D/g, '');
     if (digits.length === 11 && digits.startsWith('09')) return digits;
@@ -211,7 +219,7 @@ const PaymentPage = () => {
                     <strong>{request.documentType}</strong>
                   </p>
                   <p className="summary-text">
-                    Tracking: {request.trackingNumber || request._id}
+                    Tracking: {getTrackingLabel(request)}
                   </p>
                   <p className="summary-text">
                     Request Date:{' '}

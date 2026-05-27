@@ -99,9 +99,10 @@ export default function NotificationsPanel() {
         className="notifications-toggle"
         onClick={handleToggle}
         aria-expanded={open}
+        aria-label="Notifications"
       >
         <IoIosNotifications className="notifications-icon" aria-hidden="true" />
-        Notifications
+        <span className="notifications-label">Notifications</span>
         {!open && unreadCount > 0 && (
           <span className="notifications-badge">{unreadCount}</span>
         )}

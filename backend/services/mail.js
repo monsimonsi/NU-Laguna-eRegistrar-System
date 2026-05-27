@@ -51,21 +51,26 @@ async function withAiCopy({ event, fullName, facts, fallback }) {
     return fallback;
   }
 
-  const text = [
-    `Hello ${fullName},`,
-    '',
-    generated.intro,
-    generated.body,
-    '',
-    generated.outro,
-    '',
-    'Kind Regards,',
-    'NU Laguna e-Registrar'
-  ].join('\n');
+  const isInternalRegistrarEvent = String(event || '').trim().toLowerCase() === 'registrar_alumni_pending';
+  const text = isInternalRegistrarEvent
+    ? [generated.intro, generated.body, generated.outro].filter(Boolean).join('\n\n')
+    : [
+        `Hello ${fullName},`,
+        '',
+        generated.intro,
+        generated.body,
+        '',
+        generated.outro,
+        '',
+        'Kind Regards,',
+        'NU Laguna e-Registrar'
+      ].join('\n');
 
-  const html = `<p>Hello ${escapeHtml(fullName)},</p><p>${escapeHtml(
-    generated.intro
-  )}</p><p>${escapeHtml(generated.body)}</p><p>${escapeHtml(generated.outro)}</p><p>Kind Regards,<br/>NU Laguna e-Registrar</p>`;
+  const html = isInternalRegistrarEvent
+    ? `<p>${escapeHtml(generated.intro)}</p><p>${escapeHtml(generated.body)}</p><p>${escapeHtml(generated.outro)}</p>`
+    : `<p>Hello ${escapeHtml(fullName)},</p><p>${escapeHtml(
+        generated.intro
+      )}</p><p>${escapeHtml(generated.body)}</p><p>${escapeHtml(generated.outro)}</p><p>Kind Regards,<br/>NU Laguna e-Registrar</p>`;
 
   return {
     subject: generated.subject,
@@ -138,7 +143,7 @@ async function notifyAlumniRegistrationPending({ to, fullName, isReapplication }
   });
 }
 
-function notifyRegistrarAlumniPending(payload) {
+async function notifyRegistrarAlumniPending(payload) {
   const raw = process.env.MAIL_REGISTRAR_TO || process.env.MAIL_ADMIN_NOTIFY;
   if (!raw || !raw.trim()) return Promise.resolve({ skipped: true });
 
@@ -148,23 +153,47 @@ function notifyRegistrarAlumniPending(payload) {
     .filter(Boolean);
   if (toList.length === 0) return Promise.resolve({ skipped: true });
 
-  const subject = `[e-Registrar] New alumni verification — ${payload.fullName}`;
-  const text = [
-    'A new alumni registration is pending verification.',
-    '',
-    `Name: ${payload.fullName}`,
-    `Email: ${payload.email}`,
-    `Student #: ${payload.studentNumber}`,
-    `Program: ${payload.course}`,
-    `Year graduated: ${payload.yearGraduated}`,
-    payload.isReapplication ? '(Resubmitted after rejection)' : '',
-    '',
-    'Please review this application in the admin dashboard.'
-  ]
-    .filter(Boolean)
-    .join('\n');
+  const applicantName = String(payload.applicantName || payload.fullName || '').trim();
+  const fallback = {
+    subject: `[e-Registrar] New alumni verification — ${applicantName || 'Unknown applicant'}`,
+    text: [
+      'A new alumni registration is pending verification.',
+      '',
+      `Name: ${applicantName || 'N/A'}`,
+      `Email: ${String(payload.email || '').trim() || 'N/A'}`,
+      `Student #: ${String(payload.studentNumber || '').trim() || 'N/A'}`,
+      `Program: ${String(payload.course || '').trim() || 'N/A'}`,
+      `Year graduated: ${String(payload.yearGraduated || '').trim() || 'N/A'}`,
+      payload.isReapplication ? 'Resubmitted after rejection: Yes' : '',
+      '',
+      'Please review this application in the admin dashboard.'
+    ]
+      .filter(Boolean)
+      .join('\n'),
+    html: `<p>A new alumni registration is pending verification.</p><p><strong>Name:</strong> ${escapeHtml(
+      applicantName || 'N/A'
+    )}<br/><strong>Email:</strong> ${escapeHtml(String(payload.email || '').trim() || 'N/A')}<br/><strong>Student #:</strong> ${escapeHtml(
+      String(payload.studentNumber || '').trim() || 'N/A'
+    )}<br/><strong>Program:</strong> ${escapeHtml(String(payload.course || '').trim() || 'N/A')}<br/><strong>Year graduated:</strong> ${escapeHtml(
+      String(payload.yearGraduated || '').trim() || 'N/A'
+    )}</p>${payload.isReapplication ? '<p>Resubmitted after rejection: Yes</p>' : ''}<p>Please review this application in the admin dashboard.</p>`
+  };
 
-  return Promise.all(toList.map((to) => sendSafe({ to, subject, text })));
+  const message = await withAiCopy({
+    event: 'registrar_alumni_pending',
+    fullName: 'Registrar',
+    facts: {
+      applicantName,
+      email: String(payload.email || '').trim(),
+      studentNumber: String(payload.studentNumber || '').trim(),
+      course: String(payload.course || '').trim(),
+      yearGraduated: String(payload.yearGraduated || '').trim(),
+      isReapplication: !!payload.isReapplication
+    },
+    fallback
+  });
+
+  return Promise.all(toList.map((to) => sendSafe({ to, subject: message.subject, text: message.text, html: message.html })));
 }
 
 async function notifyAlumniApproved({ to, fullName }) {
@@ -237,6 +266,32 @@ async function notifyAlumniRejected({ to, fullName, reason }) {
   });
 }
 
+async function notifyPasswordResetRequested({ to, fullName, resetUrl, expiresInMinutes }) {
+  const safeName = String(fullName || '').trim() || 'there';
+  const subject = 'Reset your NU Laguna e-Registrar password';
+  const text = [
+    `Hello ${safeName},`,
+    '',
+    'We received a request to reset your NU Laguna e-Registrar password.',
+    `Use the link below to choose a new password. This link expires in ${expiresInMinutes} minutes and can only be used once.`,
+    '',
+    resetUrl,
+    '',
+    'If you did not request this reset, you can ignore this email.',
+    '',
+    'Kind Regards,',
+    'NU Laguna e-Registrar'
+  ].join('\n');
+  const html = `<p>Hello ${escapeHtml(safeName)},</p><p>We received a request to reset your NU Laguna e-Registrar password.</p><p>Use the link below to choose a new password. This link expires in ${escapeHtml(String(expiresInMinutes))} minutes and can only be used once.</p><p><a href="${escapeHtml(resetUrl)}">Reset your password</a></p><p>If you did not request this reset, you can ignore this email.</p><p>Kind Regards,<br/>NU Laguna e-Registrar</p>`;
+
+  return sendSafe({
+    to,
+    subject,
+    text,
+    html
+  });
+}
+
 async function notifyDocumentRequestSubmitted({ to, fullName, trackingNumber, documentType }) {
   const fallback = {
     subject: `[e-Registrar] Request received — ${trackingNumber}`,
@@ -283,6 +338,7 @@ async function notifyDocumentRequestStatus({
   deliveryMethod = 'pickup'
 }) {
   const method = String(deliveryMethod).toLowerCase();
+  const isReleased = String(status || '').trim().toLowerCase() === 'released';
   const statusLine =
     status === 'Ready for Pickup'
       ? 'Your document is now ready for pickup at the Registrar office.'
@@ -293,30 +349,56 @@ async function notifyDocumentRequestStatus({
             ? 'Your document has been delivered successfully.'
             : 'Your document has been released after pickup.'
           : 'The status of your document request has been updated.';
+  const trackingLine = method === 'pickup' ? null : `Tracking number: ${trackingNumber}`;
+  const trackingHtml = method === 'pickup' ? '' : `<p><strong>Tracking:</strong> ${escapeHtml(trackingNumber)}</p>`;
 
-  const fallback = {
-    subject: `[e-Registrar] Request update — ${trackingNumber}`,
-    text: [
-    `Hello ${fullName},`,
-    '',
-    statusLine,
-    'If you have questions about your request, reply to this email or contact the registrar office.',
-    '',
-    `Tracking number: ${trackingNumber}`,
-    `Document type: ${documentType}`,
-    `New status: ${status}`,
-    '',
-    'Thank you for using NU Laguna e-Registrar.',
-    '',
-    'Kind Regards,',
-    'NU Laguna e-Registrar'
-  ].join('\n'),
-    html: `<p>Hello ${escapeHtml(fullName)},</p><p>Your request status has been updated to <strong>${escapeHtml(
-      status
-    )}</strong>.</p><p>${escapeHtml(statusLine)} If you have questions about your request, reply to this email or contact the registrar office.</p><p>Tracking: ${escapeHtml(
-      trackingNumber
-    )}<br/>Document: ${escapeHtml(documentType)}</p><p>Kind Regards,<br/>NU Laguna e-Registrar</p>`
-  };
+  const fallback = isReleased
+    ? {
+        subject: `[e-Registrar] Request released — ${trackingNumber}`,
+        text: [
+          `Hello ${fullName},`,
+          '',
+          method === 'delivery'
+            ? 'Your document request has been marked as Released and the document has been delivered successfully.'
+            : 'Your document request has been marked as Released and the document has been claimed.',
+          trackingLine,
+          `Document type: ${documentType}`,
+          '',
+          'The request is now closed. If you need another copy, you may submit a new request from your dashboard.',
+          'If you have questions, reply to this email or contact the registrar office.',
+          '',
+          'Kind Regards,',
+          'NU Laguna e-Registrar'
+        ].filter(Boolean).join('\n'),
+        html: `<p>Hello ${escapeHtml(fullName)},</p><p>Your document request has been marked as <strong>Released</strong>${
+          method === 'delivery'
+            ? ' and the document has been delivered successfully.'
+            : ' and the document has been claimed.'
+        }</p>${trackingHtml}<p><strong>Document:</strong> ${escapeHtml(
+          documentType
+        )}</p><p>The request is now closed. If you need another copy, you may submit a new request from your dashboard.</p><p>If you have questions, reply to this email or contact the registrar office.</p><p>Kind Regards,<br/>NU Laguna e-Registrar</p>`
+      }
+    : {
+        subject: `[e-Registrar] Request update — ${trackingNumber}`,
+        text: [
+          `Hello ${fullName},`,
+          '',
+          statusLine,
+          'If you have questions about your request, reply to this email or contact the registrar office.',
+          '',
+          trackingLine,
+          `Document type: ${documentType}`,
+          `New status: ${status}`,
+          '',
+          'Thank you for using NU Laguna e-Registrar.',
+          '',
+          'Kind Regards,',
+          'NU Laguna e-Registrar'
+        ].filter(Boolean).join('\n'),
+        html: `<p>Hello ${escapeHtml(fullName)},</p><p>Your request status has been updated to <strong>${escapeHtml(
+          status
+        )}</strong>.</p><p>${escapeHtml(statusLine)} If you have questions about your request, reply to this email or contact the registrar office.</p>${trackingHtml}<p><strong>Document:</strong> ${escapeHtml(documentType)}</p><p>Kind Regards,<br/>NU Laguna e-Registrar</p>`
+      };
 
   const message = await withAiCopy({
     event: 'document_request_status_updated',
@@ -404,6 +486,7 @@ module.exports = {
   notifyRegistrarAlumniPending,
   notifyAlumniApproved,
   notifyAlumniRejected,
+  notifyPasswordResetRequested,
   notifyDocumentRequestSubmitted,
   notifyDocumentRequestStatus,
   notifyPaymentSuccessful

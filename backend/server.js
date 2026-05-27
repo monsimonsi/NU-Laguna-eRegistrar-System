@@ -4,6 +4,7 @@ const express = require('express');
 const dns = require('dns'); // Lets Node use custom DNS resolvers.
 const mongoose = require('mongoose');
 const cors = require('cors');
+const crypto = require('crypto');
 const User = require('./models/User');
 const AlumniRegistration = require('./models/AlumniRegistration');
 const DocumentRequest = require('./models/DocumentRequest');
@@ -30,6 +31,7 @@ const { generateReceiptPdfBuffer } = require('./services/receiptPdf');
 const { hashPassword, verifyPassword } = require('./services/passwords');
 const {
   validateDocumentRequestInput,
+  normalizeDeliveryMethod,
   validateStatusTransition
 } = require('./utils/requestLogic');
 
@@ -86,6 +88,21 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+function getFrontendBaseUrl() {
+  return String(process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+}
+
+function createPasswordResetToken() {
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  return { token, tokenHash };
+}
+
+function getPasswordResetExpiryMinutes() {
+  const raw = Number(process.env.PASSWORD_RESET_EXPIRES_MINUTES || 60);
+  return Number.isFinite(raw) && raw > 0 ? raw : 60;
+}
+
 function userStatusMessage(request, status) {
   const method = String(request?.deliveryMethod || 'pickup').toLowerCase();
   const doc = request?.documentType || 'document';
@@ -113,10 +130,12 @@ function makeTrackingNumber() {
 }
 
 async function saveDocumentRequestWithTracking(requestData, maxAttempts = 5) {
+  const deliveryMethod = normalizeDeliveryMethod(requestData?.deliveryMethod) || 'pickup';
+
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const request = new DocumentRequest({
       ...requestData,
-      trackingNumber: makeTrackingNumber()
+      trackingNumber: deliveryMethod === 'pickup' ? null : makeTrackingNumber()
     });
 
     try {
@@ -252,6 +271,78 @@ app.post('/api/login', async (req, res) => {
       approved: false,
       message: 'Server error.'
     });
+  }
+});
+
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ message: 'Database is not connected.' });
+    }
+
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required.' });
+    }
+
+    const user = await User.findOne({ email });
+    if (user) {
+      const { token, tokenHash } = createPasswordResetToken();
+      const expiresInMinutes = getPasswordResetExpiryMinutes();
+      user.password_reset_token = tokenHash;
+      user.password_reset_expires_at = new Date(Date.now() + expiresInMinutes * 60 * 1000);
+      await user.save();
+
+      const resetUrl = `${getFrontendBaseUrl()}/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+      void mail.notifyPasswordResetRequested({
+        to: user.email,
+        fullName: user.full_name,
+        resetUrl,
+        expiresInMinutes
+      });
+    }
+
+    return res.status(200).json({
+      message:
+        'If the email address exists in our system, password reset instructions have been sent.'
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    return res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+app.post('/api/reset-password', async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ message: 'Database is not connected.' });
+    }
+
+    const token = String(req.body?.token || '').trim();
+    const password = String(req.body?.password || '');
+    if (!token || !password) {
+      return res.status(400).json({ message: 'Token and new password are required.' });
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({
+      password_reset_token: tokenHash,
+      password_reset_expires_at: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'This reset link is invalid or has expired.' });
+    }
+
+    user.password = await hashPassword(password);
+    user.password_reset_token = '';
+    user.password_reset_expires_at = null;
+    await user.save();
+
+    return res.status(200).json({ message: 'Password updated successfully.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return res.status(500).json({ message: 'Server error.' });
   }
 });
 
@@ -1242,6 +1333,10 @@ mongoose
   })
   .then(async () => {
     console.log('Connected to MongoDB database:', process.env.DB_NAME);
+    const syncedIndexes = await DocumentRequest.syncIndexes();
+    if (syncedIndexes?.length) {
+      console.log('DocumentRequest indexes synchronized:', JSON.stringify(syncedIndexes));
+    }
     const legacy = await DocumentRequest.updateMany(
       { status: 'Completed' },
       { $set: { status: 'Released' } }

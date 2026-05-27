@@ -269,6 +269,8 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px 0 8px;
+  gap: 12px;
+  flex-wrap: nowrap;
 }
 
 .admin-brand {
@@ -280,6 +282,7 @@ body {
   padding: 0;
   cursor: pointer;
   text-align: left;
+  min-width: 0;
 }
 
 .admin-logo {
@@ -294,6 +297,9 @@ body {
   font-weight: 800;
   color: #33468f;
   letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-topbar-actions {
@@ -301,6 +307,7 @@ body {
   align-items: center;
   gap: 12px;
   margin-left: auto;
+  flex: 0 0 auto;
 }
 
 .admin-topbar .notifications-panel {
@@ -319,7 +326,12 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  white-space: nowrap;
   cursor: pointer;
+}
+
+.admin-topbar .notifications-label {
+  display: inline-block;
 }
 
 .admin-topbar .notifications-icon {
@@ -416,6 +428,21 @@ body {
 @media (max-width: 1100px) {
   .admin-page {
     --sidebar-expanded: clamp(200px, 26vw, 280px);
+  }
+
+  .admin-topbar .notifications-toggle {
+    padding: 7px 12px;
+    font-size: 12px;
+    gap: 6px;
+  }
+
+  .admin-topbar .notifications-icon {
+    font-size: 17px;
+  }
+
+  .admin-topbar .notifications-badge {
+    margin-left: 0;
+    padding: 1px 6px;
   }
 }
 
@@ -518,13 +545,30 @@ body {
     height: auto;
     min-height: 56px;
     padding: 8px 12px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .admin-brand {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .admin-topbar-actions {
-    margin-left: 0;
-    width: 100%;
+    margin-left: auto;
+    width: auto;
     justify-content: flex-end;
+    flex-shrink: 0;
+  }
+
+  .admin-topbar .notifications-toggle {
+    padding: 7px 10px;
+    border-radius: 12px;
+    min-height: 40px;
+  }
+
+  .admin-topbar .notifications-label {
+    display: none;
   }
 
   .admin-logo {

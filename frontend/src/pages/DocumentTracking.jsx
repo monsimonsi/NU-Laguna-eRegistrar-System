@@ -62,6 +62,14 @@ const formatDeliveryMethod = (value) => {
   return normalized === 'delivery' ? 'Delivery' : 'Pickup';
 };
 
+const getTrackingDisplay = (request) => {
+  if (String(request?.deliveryMethod || '').trim().toLowerCase() === 'pickup') {
+    return 'N/A';
+  }
+
+  return request?.trackingNumber || request?._id || 'N/A';
+};
+
 const DocumentTracking = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -298,7 +306,7 @@ const DocumentTracking = () => {
 
                 <div className="detail-block">
                   <div className="detail-label">Tracking Number</div>
-                  <div className="detail-value strong">{request.trackingNumber || '-'}</div>
+                  <div className="detail-value strong">{getTrackingDisplay(request)}</div>
                 </div>
               </div>
             </section>

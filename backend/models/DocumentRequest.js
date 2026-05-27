@@ -32,13 +32,17 @@ const DocumentRequestSchema = new mongoose.Schema({
     enum: REQUEST_STATUSES,
     default: 'Waiting for Payment'
   },
-  trackingNumber: { type: String, unique: true, sparse: true, index: true },
+  trackingNumber: { type: String, default: null },
   /** When false, the registrar queue hides this row until PayMongo reports a successful payment. */
   paymentConfirmed: { type: Boolean, default: false }
 }, { timestamps: true });
 
 DocumentRequestSchema.index({ requesterId: 1, documentType: 1, createdAt: -1 });
 DocumentRequestSchema.index({ email: 1, createdAt: -1 });
+DocumentRequestSchema.index(
+  { trackingNumber: 1 },
+  { unique: true, partialFilterExpression: { trackingNumber: { $type: 'string' } } }
+);
 DocumentRequestSchema.index({ status: 1, paymentConfirmed: 1, createdAt: -1 });
 
 const DocumentRequest = mongoose.model('DocumentRequest', DocumentRequestSchema);

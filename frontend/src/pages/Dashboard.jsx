@@ -234,7 +234,7 @@ function App() {
             <NotificationsPanel />
             <button className="new-request-btn" onClick={() => navigate('/document-request')}>
               <img src={pluslogo} alt="Plus Logo" className="btn-plus-asset" />
-              REQUEST A DOCUMENT
+              <span className="new-request-label">REQUEST A DOCUMENT</span>
             </button>
           </div>
 

@@ -370,19 +370,6 @@ const AdminDocumentRequests = () => {
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                   >
-                    <option value="all">All Statuses</option>
-                    {statusFilterOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="select-wrap table-filter">
-                  <select
-                    value={documentTypeFilter}
-                    onChange={(e) => setDocumentTypeFilter(e.target.value)}
-                  >
                     <option value="all">All Document Types</option>
                     {documentTypeOptions.map((option) => (
                       <option key={option} value={option}>
@@ -395,6 +382,19 @@ const AdminDocumentRequests = () => {
                   <select
                     value={deliveryFilter}
                     onChange={(e) => setDeliveryFilter(e.target.value)}
+                  >
+                    <option value="all">All Statuses</option>
+                    {statusFilterOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="select-wrap table-filter">
+                  <select
+                    value={documentTypeFilter}
+                    onChange={(e) => setDocumentTypeFilter(e.target.value)}
                   >
                     <option value="all">All Delivery Methods</option>
                     {deliveryOptions.map(([value, label]) => (

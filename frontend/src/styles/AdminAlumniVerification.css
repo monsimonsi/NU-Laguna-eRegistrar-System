@@ -231,6 +231,11 @@
   color: #1b1b1b;
 }
 
+.records-table th.center,
+.records-table td.center {
+  text-align: center;
+}
+
 .verification-table tbody tr:hover,
 .records-table tbody tr:hover {
   background: #fafafa;

@@ -9,7 +9,6 @@ const User = require('./models/User');
 const AlumniRegistration = require('./models/AlumniRegistration');
 const DocumentRequest = require('./models/DocumentRequest');
 const Payment = require('./models/Payment');
-const AlumniVerification = require('./models/AlumniVerification');
 const payments = require('./services/payments');
 const mockEwallet = require('./services/mockEwallet');
 const { createMockPaymentRouter } = require('./routes/mockPayment');
@@ -458,19 +457,6 @@ app.post('/api/alumni-registrations', async (req, res) => {
         { upsert: true, returnDocument: 'after' }
       );
 
-      await AlumniVerification.findOneAndUpdate(
-        { user_id: existingUser._id },
-        {
-          student_number: normalizedStudentId,
-          course: normalizedCourse,
-          year_graduated: String(normalizedYear),
-          verification_status: 'pending',
-          reviewed_by: null,
-          rejection_reason: ''
-        },
-        { upsert: true, returnDocument: 'after' }
-      );
-
       void Promise.all([
         mail.notifyAlumniRegistrationPending({
           to: normalizedEmail,
@@ -514,19 +500,6 @@ app.post('/api/alumni-registrations', async (req, res) => {
       reviewedBy: null,
       rejectionReason: ''
     });
-
-    await AlumniVerification.findOneAndUpdate(
-      { user_id: newUser._id },
-      {
-        student_number: normalizedStudentId,
-        course: normalizedCourse,
-        year_graduated: String(normalizedYear),
-        verification_status: 'pending',
-        reviewed_by: null,
-        rejection_reason: ''
-      },
-      { upsert: true, returnDocument: 'after' }
-    );
 
     void Promise.all([
       mail.notifyAlumniRegistrationPending({
@@ -608,16 +581,6 @@ app.patch('/api/alumni-registrations/:id', authMiddleware, requireAdmin, async (
     } else if (normalizedStatus === 'rejected') {
       await User.findByIdAndUpdate(updated.userId, { status: 'rejected' });
     }
-
-    await AlumniVerification.findOneAndUpdate(
-      { user_id: updated.userId },
-      {
-        verification_status: normalizedStatus,
-        reviewed_by: reviewerId,
-        rejection_reason: normalizedStatus === 'rejected' ? normalizedReason : ''
-      },
-      { upsert: true, returnDocument: 'after' }
-    );
 
     const alum = await User.findById(updated.userId).lean();
     if (alum) {

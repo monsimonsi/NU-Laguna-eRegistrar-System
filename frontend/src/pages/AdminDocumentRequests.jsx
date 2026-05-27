@@ -300,23 +300,25 @@ const AdminDocumentRequests = () => {
 
           <section className="requests-table-card">
             <div className="requests-table-heading">
-              <div className="table-heading-text">
-                <h2>Pending Document Requests</h2>
-                <p>
-                  {loading
-                    ? 'Loading...'
-                    : `${filteredPendingRequests.length} requests found`}
-                </p>
-              </div>
-              <div className="table-search">
-                <Search className="table-search-icon" size={20} strokeWidth={2.2} />
-                <input
-                  type="text"
-                  className="table-search-input"
-                  placeholder="Search pending requests..."
-                  value={pendingSearchTerm}
-                  onChange={(e) => setPendingSearchTerm(e.target.value)}
-                />
+              <div className="requests-table-heading-top">
+                <div className="table-heading-text">
+                  <h2>Pending Document Requests</h2>
+                  <p>
+                    {loading
+                      ? 'Loading...'
+                      : `${filteredPendingRequests.length} requests found`}
+                  </p>
+                </div>
+                <div className="table-search">
+                  <Search className="table-search-icon" size={20} strokeWidth={2.2} />
+                  <input
+                    type="text"
+                    className="table-search-input"
+                    placeholder="Search pending requests..."
+                    value={pendingSearchTerm}
+                    onChange={(e) => setPendingSearchTerm(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 
@@ -342,13 +344,25 @@ const AdminDocumentRequests = () => {
 
           <section className="requests-table-card">
             <div className="requests-table-heading">
-              <div className="table-heading-text">
-                <h2>All Document Requests</h2>
-                <p>
-                  {loading
-                    ? 'Loading...'
-                    : `${filteredAllRequests.length} requests found`}
-                </p>
+              <div className="requests-table-heading-top">
+                <div className="table-heading-text">
+                  <h2>All Document Requests</h2>
+                  <p>
+                    {loading
+                      ? 'Loading...'
+                      : `${filteredAllRequests.length} requests found`}
+                  </p>
+                </div>
+                <div className="table-search">
+                  <Search className="table-search-icon" size={20} strokeWidth={2.2} />
+                  <input
+                    type="text"
+                    className="table-search-input"
+                    placeholder="Search all requests..."
+                    value={allSearchTerm}
+                    onChange={(e) => setAllSearchTerm(e.target.value)}
+                  />
+                </div>
               </div>
               <div className="table-controls">
                 <div className="select-wrap table-filter">
@@ -389,16 +403,6 @@ const AdminDocumentRequests = () => {
                       </option>
                     ))}
                   </select>
-                </div>
-                <div className="table-search">
-                  <Search className="table-search-icon" size={20} strokeWidth={2.2} />
-                  <input
-                    type="text"
-                    className="table-search-input"
-                    placeholder="Search all requests..."
-                    value={allSearchTerm}
-                    onChange={(e) => setAllSearchTerm(e.target.value)}
-                  />
                 </div>
               </div>
             </div>

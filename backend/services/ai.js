@@ -91,11 +91,23 @@ async function generateNotification({ event, recipientName, facts }) {
   const isDocumentRequestEvent = normalizedEvent === 'document_request_submitted'
     || normalizedEvent === 'document_request_status_updated';
   const isPaymentEvent = normalizedEvent === 'payment_successful';
+  const isAlumniPending = normalizedEvent === 'alumni_registration_pending';
+  const isAlumniApproved = normalizedEvent === 'alumni_approved';
+  const isAlumniRejected = normalizedEvent === 'alumni_rejected';
+  const isRegistrarNotify = normalizedEvent === 'registrar_alumni_pending';
 
   const trackingNumber = String(facts?.trackingNumber || '').trim();
   const documentType = String(facts?.documentType || '').trim();
   const status = String(facts?.status || '').trim();
+  const isReleasedStatus = isDocumentRequestEvent && status.toLowerCase() === 'released';
   const deliveryMethod = String(facts?.deliveryMethod || '').trim();
+  const applicantName = String(facts?.applicantName || '').trim();
+  const email = String(facts?.email || '').trim();
+  const studentNumber = String(facts?.studentNumber || '').trim();
+  const course = String(facts?.course || '').trim();
+  const yearGraduated = String(facts?.yearGraduated || '').trim();
+  const reason = String(facts?.reason || '').trim();
+  const isReapplication = Boolean(facts?.isReapplication);
 
   const factLines = isDocumentRequestEvent
     ? [
@@ -111,6 +123,25 @@ async function generateNotification({ event, recipientName, facts }) {
         facts?.paymentDate ? `Date: ${facts.paymentDate}` : null,
         facts?.paymentMethod ? `Method: ${facts.paymentMethod}` : null,
         facts?.receiptUrl ? `Receipt: ${facts.receiptUrl}` : null
+      ].filter(Boolean)
+    : isAlumniPending
+    ? [
+        isReapplication ? 'Reapplication: Yes' : null
+      ].filter(Boolean)
+    : isAlumniApproved
+    ? []
+    : isAlumniRejected
+    ? [
+        reason ? `Reason: ${reason}` : null
+      ].filter(Boolean)
+    : isRegistrarNotify
+    ? [
+        applicantName ? `Applicant name: ${applicantName}` : null,
+        email ? `Email: ${email}` : null,
+        studentNumber ? `Student number: ${studentNumber}` : null,
+        course ? `Course: ${course}` : null,
+        yearGraduated ? `Year graduated: ${yearGraduated}` : null,
+        isReapplication ? 'Reapplication: Yes' : null
       ].filter(Boolean)
     : [];
 
@@ -140,7 +171,12 @@ async function generateNotification({ event, recipientName, facts }) {
           includeStatusIfProvided: true,
           includeDeliveryMethodIfProvided: true,
           avoidDatesUnlessProvided: true,
-          introRule: 'Mention the document type in the intro, not the body.',
+          introRule: isReleasedStatus
+            ? 'Confirm that the document request has been released and mention the document type in the intro.'
+            : 'Mention the document type in the intro, not the body.',
+          bodyRule: isReleasedStatus
+            ? 'Explain whether the document was delivered or claimed based on the delivery method. Include the tracking number ONLY if the delivery method is Delivery .Add a brief final note. Do not invent timelines.'
+            : undefined,
           outroRule: 'End the outro with a brief closing sentence. Do not include the mail signature; it is appended separately.'
         }
       : isPaymentEvent
@@ -152,6 +188,36 @@ async function generateNotification({ event, recipientName, facts }) {
           introRule: 'Mention the payment amount and confirm success in the intro.',
           bodyRule: 'Provide the reference number and short next steps (how to get the receipt or contact support). Do not invent timelines or additional details.',
           outroRule: 'End with a brief closing sentence. Do not include the mail signature; it is appended separately.'
+        }
+      : isAlumniPending
+      ? {
+          avoidDatesUnlessProvided: true,
+          introRule: 'Acknowledge receipt and note if this is a reapplication.',
+          bodyRule: 'Explain that the alumni account cannot be used to log in until approved and that another email will be sent once a decision is made.',
+          outroRule: 'Thank them for their patience. Do not include a signature.'
+        }
+      : isAlumniApproved
+      ? {
+          avoidDatesUnlessProvided: true,
+          introRule: 'Congratulate the alumni and confirm that the account has been approved.',
+          bodyRule: 'Tell them they can now log in and submit requests. Mention the password reset option if they need help signing in.',
+          outroRule: 'End with a warm welcome. Do not include a signature.'
+        }
+      : isAlumniRejected
+      ? {
+          requiredFacts: ['reason'],
+          avoidDatesUnlessProvided: true,
+          introRule: 'Inform the alumni that the registration could not be approved.',
+          bodyRule: 'State the reason clearly, tell them to reapply with corrected information, and mention the registrar contact option.',
+          outroRule: 'End supportively. Do not include a signature.'
+        }
+      : isRegistrarNotify
+      ? {
+          audience: 'registrar staff (internal)',
+          avoidDatesUnlessProvided: true,
+          introRule: 'Write this as an internal notification and open with a summary that a new alumni registration needs review.',
+          bodyRule: 'List all applicant details clearly and note if this is a resubmission.',
+          outroRule: 'Direct the registrar to the admin dashboard. Do not include a signature.'
         }
       : undefined,
     factSlots: factLines
@@ -232,6 +298,18 @@ async function generateNotification({ event, recipientName, facts }) {
     if (needsDocumentType && textContainsValue(body, facts.documentType)) {
       logAiReject('document_in_body');
       return null;
+    }
+
+    if (isReleasedStatus) {
+      if (!textContainsValue(`${intro} ${body} ${outro}`, 'released')) {
+        intro = appendSentence(intro, `Your ${documentType || 'document request'} has been released.`);
+      }
+      if (deliveryMethod === 'delivery' && !textContainsValue(`${intro} ${body} ${outro}`, 'delivered')) {
+        body = appendSentence(body, 'Your document has been delivered successfully.');
+      }
+      if (deliveryMethod !== 'delivery' && !textContainsValue(`${intro} ${body} ${outro}`, 'claimed')) {
+        body = appendSentence(body, 'Your document has been claimed and the request is now closed.');
+      }
     }
     
     // Payment-specific adjustments: ensure amount and reference appear, append if missing

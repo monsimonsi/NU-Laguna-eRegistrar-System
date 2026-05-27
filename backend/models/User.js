@@ -13,6 +13,10 @@ const userSchema = new mongoose.Schema({
 
   password: { type: String, required: true },
 
+  password_reset_token: { type: String, default: '' },
+
+  password_reset_expires_at: { type: Date, default: null },
+
   role: {
     type: String,
     enum: ["student", "alumni", "admin"],

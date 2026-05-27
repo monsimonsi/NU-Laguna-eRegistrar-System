@@ -156,7 +156,7 @@
   font-size: 14px;
 }
 
-.status-pill {
+.request-track-status-pill {
   display: inline-block;
   min-width: 72px;
   text-align: center;
@@ -167,30 +167,30 @@
   text-transform: none;
 }
 
-.status-pill.pending,
-.status-pill.payment-unpaid {
+.request-track-status-pill.pending,
+.request-track-status-pill.payment-unpaid {
   background: #f6c1c6;
   color: #9c1b26;
 }
 
-.status-pill.processing {
+.request-track-status-pill.processing {
   background: #ffd6ad;
   color: #a35600;
 }
 
-.status-pill.ready,
-.status-pill.payment-paid {
+.request-track-status-pill.ready,
+.request-track-status-pill.payment-paid {
   background: #c4efc3;
   color: #2e7a32;
 }
 
-.status-pill.completed {
+.request-track-status-pill.completed {
   background: #ffd21a;
   color: #7a5600;
 }
 
-.status-pill.payment-paid,
-.status-pill.payment-unpaid {
+.request-track-status-pill.payment-paid,
+.request-track-status-pill.payment-unpaid {
   min-width: 64px;
 }
 

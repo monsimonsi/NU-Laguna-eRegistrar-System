@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
 import AlumniRegistration from './pages/AlumniRegistration';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminAlumniVerification from './pages/AdminAlumniVerification';
 import AdminDocumentRequests from './pages/AdminDocumentRequests';
@@ -22,6 +24,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/alumni-registration" element={<AlumniRegistration />} />
         <Route
           path="/admin-dashboard"

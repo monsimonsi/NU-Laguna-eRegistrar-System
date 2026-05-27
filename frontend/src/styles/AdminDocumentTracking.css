@@ -171,7 +171,6 @@
   justify-content: center;
   font-size: 11px;
   font-weight: 700;
-  text-transform: lowercase;
   white-space: nowrap;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
@@ -746,10 +745,16 @@
 
   .detail-progress-header {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .detail-progress-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .advance-status-btn {
-    align-self: flex-start;
+    align-self: auto;
   }
 
   .status-steps {
@@ -833,8 +838,26 @@
     font-size: 16px;
   }
 
+  .detail-progress-actions {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .rollback-status-btn,
   .advance-status-btn {
-    width: 100%;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .rollback-status-btn {
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .advance-status-btn {
+    padding: 0 12px;
+    font-size: 12px;
     justify-content: center;
   }
 

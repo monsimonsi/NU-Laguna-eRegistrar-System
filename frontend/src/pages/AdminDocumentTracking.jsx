@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import '../styles/AdminDocumentTracking.css';
 import {
   FileText,
@@ -62,6 +62,16 @@ const STATUS_FLOW_BY_METHOD = {
 
 const normalizeStatus = (status) => String(status || '').trim().toLowerCase();
 
+const toTitleCase = (value) =>
+  String(value || '')
+    .trim()
+    .split(/\s+/)
+    .map((word) => {
+      if (!word) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+
 const getStatusStepKey = (status) => {
   const normalized = normalizeStatus(status);
   if (normalized === 'processing') return 'processing';
@@ -72,7 +82,7 @@ const getStatusStepKey = (status) => {
 
 const getStatusLabel = (status) => {
   const normalized = normalizeStatus(status);
-  return STATUS_LABELS[normalized] || String(status || '-');
+  return toTitleCase(STATUS_LABELS[normalized] || status || '-');
 };
 
 const getStatusClass = (status) => {
@@ -111,7 +121,13 @@ const getPreviousStatus = (status, deliveryMethod) => {
   return flow[currentIndex - 1];
 };
 
-const getTrackingNumber = (request) => request?.trackingNumber || request?._id || '-';
+const getTrackingNumber = (request) => {
+  if (String(request?.deliveryMethod || '').trim().toLowerCase() === 'pickup') {
+    return 'N/A';
+  }
+
+  return request?.trackingNumber || request?._id || 'N/A';
+};
 
 const formatDate = (value) => {
   const date = new Date(value);
@@ -153,7 +169,6 @@ const MetaCell = ({ icon: Icon, label, primary, secondary, className = '' }) => 
 );
 
 const AdminDocumentTracking = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
   const [requests, setRequests] = useState([]);

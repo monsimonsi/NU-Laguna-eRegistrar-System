@@ -5,7 +5,8 @@
     "test": "node --test tests/*.test.js",
     "check:paymongo": "node scripts/check-paymongo-env.js",
     "seed:login-users": "node scripts/seedFakeLoginUsers.js",
-    "migrate:statuses": "node scripts/migrateStatuses.js"
+    "migrate:statuses": "node scripts/migrateStatuses.js",
+    "migrate:document-request-indexes": "node scripts/migrateDocumentRequestIndexes.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -1,0 +1,187 @@
+.rejection-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(31, 42, 82, 0.52);
+  backdrop-filter: blur(2px);
+}
+
+.rejection-modal {
+  width: min(560px, 94vw);
+  border: 1px solid #cbd4ee;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%);
+  box-shadow: 0 24px 60px rgba(24, 34, 72, 0.28);
+  padding: 22px;
+}
+
+.rejection-modal-header h4 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #24304f;
+  letter-spacing: -0.2px;
+}
+
+.rejection-modal-header p {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #66729d;
+}
+
+.rejection-modal-subject {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid #d7def2;
+  background: #eef2fd;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.rejection-modal-subject-label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #8d97b8;
+}
+
+.rejection-modal-subject-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2a52;
+}
+
+.rejection-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.rejection-modal-field span {
+  font-size: 12px;
+  font-weight: 800;
+  color: #33468f;
+}
+
+.rejection-modal-field textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 136px;
+  border: 1px solid #c9d0ea;
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px 16px;
+  color: #162144;
+  font: inherit;
+  line-height: 1.5;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.rejection-modal-field textarea::placeholder {
+  color: #9aa5c7;
+}
+
+.rejection-modal-field textarea:focus {
+  border-color: #33468f;
+  box-shadow: 0 0 0 4px rgba(51, 70, 143, 0.14);
+}
+
+.rejection-modal-footnote {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #7582ab;
+}
+
+.rejection-modal-error {
+  margin-top: 12px;
+  border: 1px solid #f1b0b0;
+  background: #fff4f4;
+  color: #b42318;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rejection-modal-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.rejection-modal-cancel,
+.rejection-modal-confirm {
+  min-width: 120px;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+}
+
+.rejection-modal-cancel {
+  background: #eef1fb;
+  color: #33468f;
+}
+
+.rejection-modal-confirm {
+  background: #e51c1c;
+  color: #fff;
+  box-shadow: 0 10px 18px rgba(229, 28, 28, 0.18);
+}
+
+.rejection-modal-cancel:hover,
+.rejection-modal-confirm:hover {
+  transform: translateY(-1px);
+}
+
+.rejection-modal-cancel:hover {
+  background: #dfe5f8;
+}
+
+.rejection-modal-confirm:hover {
+  background: #c91717;
+}
+
+.rejection-modal-cancel:disabled,
+.rejection-modal-confirm:disabled {
+  cursor: not-allowed;
+  opacity: 0.75;
+  transform: none;
+  box-shadow: none;
+}
+
+@media (max-width: 640px) {
+  .rejection-modal-backdrop {
+    padding: 14px;
+    align-items: end;
+  }
+
+  .rejection-modal {
+    width: 100%;
+    padding: 18px;
+    border-radius: 16px;
+  }
+
+  .rejection-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .rejection-modal-cancel,
+  .rejection-modal-confirm {
+    width: 100%;
+  }
+}

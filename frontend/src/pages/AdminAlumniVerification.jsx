@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import '../styles/AdminAlumniVerification.css';
 import approveIcon from '../assets/approve-icon.png';
 import rejectIcon from '../assets/reject-icon.png';
@@ -10,6 +9,7 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../api';
 import AdminShell from '../components/AdminShell';
+import RejectionReasonModal from '../components/RejectionReasonModal';
 
 const formatDateShort = (value) => {
   const date = new Date(value);
@@ -53,12 +53,16 @@ const StatCard = ({ icon: Icon, title, count, subtitle, color = 'blue' }) => (
 );
 
 const AlumniVerification = () => {
-  const navigate = useNavigate();
   const [alumni, setAlumni] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [alumniMessage, setAlumniMessage] = useState('');
   const [alumniIsError, setAlumniIsError] = useState(false);
+  const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
+  const [selectedAlumni, setSelectedAlumni] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionError, setRejectionError] = useState('');
+  const [isRejecting, setIsRejecting] = useState(false);
 
   const pendingAlumni = alumni.filter((item) => item.status === 'pending');
   const resolvedAlumni = alumni.filter(
@@ -94,22 +98,26 @@ const AlumniVerification = () => {
     fetchAlumniRegistrations();
   }, [fetchAlumniRegistrations]);
 
-  const updateAlumniStatus = async (id, newStatus) => {
+  const closeRejectionModal = useCallback(() => {
+    if (isRejecting) return;
+    setRejectionModalOpen(false);
+    setSelectedAlumni(null);
+    setRejectionReason('');
+    setRejectionError('');
+  }, [isRejecting]);
+
+  const openRejectionModal = (alumniRecord) => {
     setAlumniMessage('');
     setAlumniIsError(false);
+    setSelectedAlumni(alumniRecord);
+    setRejectionReason('');
+    setRejectionError('');
+    setRejectionModalOpen(true);
+  };
 
-    let rejectionReason = '';
-    if (newStatus === 'rejected') {
-      const reason = window.prompt('Enter rejection reason');
-      if (reason === null) return;
-
-      rejectionReason = String(reason).trim();
-      if (!rejectionReason) {
-        setAlumniIsError(true);
-        setAlumniMessage('Rejection reason is required.');
-        return;
-      }
-    }
+  const updateAlumniStatus = async (id, newStatus, rejectionReasonValue = '') => {
+    setAlumniMessage('');
+    setAlumniIsError(false);
 
     try {
       const { res, data } = await apiFetch(`/api/alumni-registrations/${id}`, {
@@ -117,24 +125,48 @@ const AlumniVerification = () => {
         auth: true,
         body: JSON.stringify({
           verificationStatus: newStatus,
-          rejectionReason,
+          rejectionReason: rejectionReasonValue,
         }),
       });
 
       if (!res.ok) {
         setAlumniIsError(true);
         setAlumniMessage(data.message || 'Failed to update status.');
-        return;
+        return false;
       }
 
       setAlumni((prev) =>
         prev.map((item) => (item._id === id ? mapAlumniRegistration(data.registration) : item))
       );
       setAlumniMessage('Verification status updated.');
+      return true;
     } catch (error) {
       console.error('Update alumni status error', error);
       setAlumniIsError(true);
       setAlumniMessage('Cannot connect to server.');
+      return false;
+    }
+  };
+
+  const handleRejectSubmit = async () => {
+    const reason = String(rejectionReason || '').trim();
+    if (!reason) {
+      setRejectionError('Rejection reason is required.');
+      return;
+    }
+
+    if (!selectedAlumni) return;
+
+    setIsRejecting(true);
+    setRejectionError('');
+
+    try {
+      const updated = await updateAlumniStatus(selectedAlumni._id, 'rejected', reason);
+      if (updated) {
+        closeRejectionModal();
+      }
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -191,7 +223,7 @@ const AlumniVerification = () => {
                       <th>Name</th>
                       <th>Student ID</th>
                       <th>Program</th>
-                      <th>Year Graduated</th>
+                      <th className="center">Year Graduated</th>
                       <th>Submitted</th>
                       <th>Actions</th>
                     </tr>
@@ -216,7 +248,7 @@ const AlumniVerification = () => {
                           </button>
                           <button
                             className="action-btn reject-btn"
-                            onClick={() => updateAlumniStatus(item._id, 'rejected')}
+                            onClick={() => openRejectionModal(item)}
                           >
                             <img src={rejectIcon} alt="Reject" className="action-icon" />
                             <span>Reject</span>
@@ -238,6 +270,21 @@ const AlumniVerification = () => {
             <h2>All Alumni Records</h2>
             <p className="table-subtitle">Approved and rejected alumni verification records</p>
 
+
+          <RejectionReasonModal
+            open={rejectionModalOpen}
+            title="Reject Alumni Verification"
+            description="Enter a clear reason before rejecting this alumni verification request."
+            subjectLabel="Alumni"
+            subjectValue={selectedAlumni?.name || ''}
+            reason={rejectionReason}
+            onReasonChange={setRejectionReason}
+            onClose={closeRejectionModal}
+            onSubmit={handleRejectSubmit}
+            submitLabel="Reject Alumni"
+            isSubmitting={isRejecting}
+            error={rejectionError}
+          />
             <div className="table-wrapper records-table-wrapper">
               <table className="records-table">
                 <thead>
@@ -245,7 +292,7 @@ const AlumniVerification = () => {
                     <th>Name</th>
                     <th>Student ID</th>
                     <th>Program</th>
-                    <th>Year Graduated</th>
+                    <th className="center">Year Graduated</th>
                     <th>Status</th>
                     <th>Submitted</th>
                   </tr>

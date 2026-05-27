@@ -4,6 +4,7 @@ import '../styles/AdminDashboard.css';
 import { FileText, Clock3, BadgeCheck, UsersRound } from 'lucide-react';
 import { API_BASE, authHeaders } from '../api';
 import AdminShell from '../components/AdminShell';
+import RejectionReasonModal from '../components/RejectionReasonModal';
 
 const STAT_CONFIG = [
   { label: 'Total Document Requests', key: 'totalRequests', sub: 'All-Time', icon: <FileText size={16} strokeWidth={2.2} />, colorClass: 'violet' },
@@ -48,6 +49,11 @@ const AdminDashboard = () => {
   const [loadError, setLoadError] = useState('');
   const [alumniMessage, setAlumniMessage] = useState('');
   const [alumniIsError, setAlumniIsError] = useState(false);
+  const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
+  const [selectedAlumni, setSelectedAlumni] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionError, setRejectionError] = useState('');
+  const [isRejecting, setIsRejecting] = useState(false);
 
   // AdminShell handles active route highlighting and sidebar state
 
@@ -59,8 +65,25 @@ const AdminDashboard = () => {
         : '—',
   }));
 
+  const pendingAlumniCount = alumniRegistrations.filter(
+    (r) => String(r.verificationStatus || '').toLowerCase() === 'pending'
+  ).length;
+
+  const approvedAlumniCount = alumniRegistrations.filter(
+    (r) => String(r.verificationStatus || '').toLowerCase() === 'approved'
+  ).length;
+
+  const statsWithComputed = stats.map((item) => {
+    if (item.key === 'pendingAlumni') return { ...item, value: String(pendingAlumniCount) };
+    if (item.key === 'approvedAlumni') return { ...item, value: String(approvedAlumniCount) };
+    return item;
+  });
+
   const pendingAlumniList = alumniRegistrations.filter(
     (r) => r.verificationStatus === 'pending'
+  );
+  const activeRequests = requests.filter(
+    (request) => String(request.status || '').trim().toLowerCase() !== 'released'
   );
 
   const fetchAdminStats = useCallback(async () => {
@@ -136,22 +159,26 @@ const AdminDashboard = () => {
     }
   };
 
-  const updateAlumniStatus = async (id, newStatus) => {
+  const closeRejectionModal = useCallback(() => {
+    if (isRejecting) return;
+    setRejectionModalOpen(false);
+    setSelectedAlumni(null);
+    setRejectionReason('');
+    setRejectionError('');
+  }, [isRejecting]);
+
+  const openRejectionModal = (alumniRecord) => {
     setAlumniMessage('');
     setAlumniIsError(false);
+    setSelectedAlumni(alumniRecord);
+    setRejectionReason('');
+    setRejectionError('');
+    setRejectionModalOpen(true);
+  };
 
-    let rejectionReason = '';
-    if (newStatus === 'rejected') {
-      const reason = window.prompt('Enter rejection reason');
-      if (reason === null) return;
-
-      rejectionReason = String(reason).trim();
-      if (!rejectionReason) {
-        setAlumniIsError(true);
-        setAlumniMessage('Rejection reason is required.');
-        return;
-      }
-    }
+  const updateAlumniStatus = async (id, newStatus, rejectionReasonValue = '') => {
+    setAlumniMessage('');
+    setAlumniIsError(false);
 
     try {
       const res = await fetch(`${API_BASE}/api/alumni-registrations/${id}`, {
@@ -160,7 +187,7 @@ const AdminDashboard = () => {
         body: JSON.stringify({
           verificationStatus: newStatus,
           reviewedBy: getCurrentAdminId(),
-          rejectionReason,
+          rejectionReason: rejectionReasonValue,
         }),
       });
 
@@ -169,7 +196,7 @@ const AdminDashboard = () => {
       if (!res.ok) {
         setAlumniIsError(true);
         setAlumniMessage(data.message || 'Failed to update status.');
-        return;
+        return false;
       }
 
       setAlumniRegistrations((prev) =>
@@ -178,10 +205,34 @@ const AdminDashboard = () => {
       setAlumniIsError(false);
       setAlumniMessage('Verification status updated.');
       fetchAdminStats();
+      return true;
     } catch (err) {
       console.error('Update alumni status error', err);
       setAlumniIsError(true);
       setAlumniMessage('Cannot connect to server.');
+      return false;
+    }
+  };
+
+  const handleRejectSubmit = async () => {
+    const reason = String(rejectionReason || '').trim();
+    if (!reason) {
+      setRejectionError('Rejection reason is required.');
+      return;
+    }
+
+    if (!selectedAlumni) return;
+
+    setIsRejecting(true);
+    setRejectionError('');
+
+    try {
+      const updated = await updateAlumniStatus(selectedAlumni._id, 'rejected', reason);
+      if (updated) {
+        closeRejectionModal();
+      }
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -205,7 +256,7 @@ const AdminDashboard = () => {
           </section>
 
           <section className="dashboard-stats-grid">
-            {stats.map((item) => (
+            {statsWithComputed.map((item) => (
               <article key={item.label} className={`stat-card ${item.colorClass}`}>
                 <div className="stat-top">
                   <h2>{item.label}</h2>
@@ -278,7 +329,7 @@ const AdminDashboard = () => {
                       </button>
                       <button
                         className="reject-btn"
-                        onClick={() => updateAlumniStatus(item._id, 'rejected')}
+                        onClick={() => openRejectionModal(item)}
                       >
                         Reject
                       </button>
@@ -307,10 +358,17 @@ const AdminDashboard = () => {
                   <h3>Request Management</h3>
                   <p>Recent Document Requests</p>
                 </div>
+                <button
+                  type="button"
+                  className="view-all-btn"
+                  onClick={() => navigate('/admin-document-requests')}
+                >
+                  View All
+                </button>
               </div>
 
               <div className="request-list request-list-small">
-                {requests.map((r) => (
+                {activeRequests.map((r) => (
                   <div className="request-card-compact" key={r._id}>
                     <div className="request-card-top">
                       <div className="request-card-title">
@@ -367,7 +425,7 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                 ))}
-                {requests.length === 0 && (
+                {activeRequests.length === 0 && (
                   <div className="request-card request-card-empty">
                     <div className="request-info">
                       <strong>No recent document requests.</strong>
@@ -377,6 +435,21 @@ const AdminDashboard = () => {
               </div>
             </article>
           </section>
+
+          <RejectionReasonModal
+            open={rejectionModalOpen}
+            title="Reject Alumni Verification"
+            description="Enter a clear reason before rejecting this alumni verification request."
+            subjectLabel="Alumni"
+            subjectValue={selectedAlumni?.full_name || ''}
+            reason={rejectionReason}
+            onReasonChange={setRejectionReason}
+            onClose={closeRejectionModal}
+            onSubmit={handleRejectSubmit}
+            submitLabel="Reject Alumni"
+            isSubmitting={isRejecting}
+            error={rejectionError}
+          />
 
         </main>
     </AdminShell>

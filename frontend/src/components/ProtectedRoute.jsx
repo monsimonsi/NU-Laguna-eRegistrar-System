@@ -11,7 +11,8 @@ export default function ProtectedRoute({ children, roles }) {
   }
 
   if (roles && roles.length > 0 && !roles.includes(payload.role)) {
-    return <Navigate to="/login" replace />;
+    const redirectToAdminLogin = roles.includes('admin');
+    return <Navigate to={redirectToAdminLogin ? '/admin-login' : '/login'} replace />;
   }
 
   return children;

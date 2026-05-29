@@ -32,7 +32,7 @@ const AdminShell = ({ children }) => {
 
   const handleLogout = () => {
     clearSession();
-    navigate('/login');
+    navigate('/admin-login');
   };
 
   useEffect(() => {

@@ -5,9 +5,8 @@ import bg from '../assets/nubg.jpg';
 import { API_BASE, getStoredToken, parseJwtPayload } from '../api';
 import '../styles/Login.css';
 
-const Login = () => {
+const AdminLogin = () => {
   const navigate = useNavigate();
-  const [role, setRole] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isError, setIsError] = useState(false);
@@ -17,10 +16,12 @@ const Login = () => {
     const token = getStoredToken();
     const payload = parseJwtPayload(token);
     const role = String(payload?.role || '').trim().toLowerCase();
+
     if (role === 'admin') {
       navigate('/admin-dashboard', { replace: true });
       return;
     }
+
     if (role === 'student' || role === 'alumni') {
       navigate('/dashboard', { replace: true });
     }
@@ -35,7 +36,7 @@ const Login = () => {
       const response = await fetch(`${API_BASE}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role, email, password })
+        body: JSON.stringify({ role: 'admin', email, password })
       });
 
       const data = await response.json();
@@ -43,38 +44,29 @@ const Login = () => {
       if (!response.ok) {
         setIsError(true);
         setErrorMessage(data.message || 'Login failed. Please try again.');
-        console.log(data.message || 'Login failed.');
         return;
       }
 
-      setIsError(false);
-      console.log('Logged in user:', data.user);
       try {
         if (data.token) {
           localStorage.setItem('token', data.token);
         }
         localStorage.setItem('user', JSON.stringify(data.user));
-      } catch (e) {
-        console.warn('Failed to persist session in localStorage', e);
+      } catch (storageError) {
+        console.warn('Failed to persist session in localStorage', storageError);
       }
 
-      const loggedInRole = String(data.user?.role || role).trim().toLowerCase();
-
+      const loggedInRole = String(data.user?.role || 'admin').trim().toLowerCase();
       if (loggedInRole === 'admin') {
         navigate('/admin-dashboard', { replace: true });
         return;
       }
 
-      if (loggedInRole === 'student' || loggedInRole === 'alumni') {
-        navigate('/dashboard', { replace: true });
-        return;
-      }
-
       setIsError(true);
+      setErrorMessage('This login is reserved for registrar accounts.');
     } catch (error) {
       setIsError(true);
       setErrorMessage('Cannot connect to server.');
-      console.log('Cannot connect to server.');
     }
   };
 
@@ -83,13 +75,13 @@ const Login = () => {
       <div className="login-bg" />
 
       <header className="top-logo">
-          <img src={logo} alt="NU Logo" className="login-logo" />
+        <img src={logo} alt="NU Logo" className="login-logo" />
       </header>
 
       <main className="login-main">
         <section className="login-heading">
           <h1>NU Laguna e-Registrar</h1>
-          <p>Request your academic documents quickly and securely</p>
+          <p>Registrar access for document processing and verification</p>
         </section>
 
         <section className="login-card">
@@ -98,23 +90,10 @@ const Login = () => {
           </div>
 
           <div className="login-form-panel">
-            <h2>WELCOME!</h2>
-            <p className="login-subtitle">
-              Log in using your National University credentials
-            </p>
+            <h2>REGISTRAR LOGIN</h2>
+            <p className="login-subtitle">Log in with your registrar credentials</p>
 
             <form className="login-form" onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Login As:</label>
-                <div className="select-wrap">
-                  <select value={role} onChange={(e) => setRole(e.target.value)} required>
-                    <option value="" disabled>Select student or alumni</option>
-                    <option value="student">Student</option>
-                    <option value="alumni">Alumni</option>
-                  </select>
-                </div>
-              </div>
-
               <div className="form-group">
                 <label>Email:</label>
                 <input
@@ -138,13 +117,9 @@ const Login = () => {
               </div>
 
               <div className="login-options">
-                <label className="remember-me">
-                  <input type="checkbox" />
-                  <span>Remember me</span>
-                </label>
-
-                <Link to="/forgot-password" className="forgot-link">
-                  Forgot Password?
+                <span className="login-options-note">Admin access only</span>
+                <Link to="/login" className="forgot-link">
+                  Student/Alumni login
                 </Link>
               </div>
 
@@ -157,18 +132,6 @@ const Login = () => {
                   {errorMessage || 'Login failed. Please try again.'}
                 </p>
               )}
-
-              <div className="divider">
-                <span>Alumni? Register here</span>
-              </div>
-
-              <Link to="/alumni-registration" className="register-btn">
-                REGISTER
-              </Link>
-
-              <p className="admin-login-hint">
-                Registrar access? <Link to="/admin-login">Go to admin login</Link>
-              </p>
             </form>
           </div>
         </section>
@@ -177,4 +140,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default AdminLogin;

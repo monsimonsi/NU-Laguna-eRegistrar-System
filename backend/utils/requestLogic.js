@@ -77,7 +77,7 @@ function validateStatusTransition({ currentStatus, nextStatus, request }) {
     return { ok: true, status: normalizedNext, noChange: true };
   }
 
-  if (nextIndex !== currentIndex + 1) {
+  if (nextIndex !== currentIndex + 1 && nextIndex !== currentIndex - 1) {
     return {
       ok: false,
       status: normalizedNext,

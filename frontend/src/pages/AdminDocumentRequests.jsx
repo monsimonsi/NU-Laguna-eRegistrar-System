@@ -98,6 +98,8 @@ const shouldHideStatus = (status) => normalizeStatus(status) === 'waiting for pa
 const AdminDocumentRequests = () => {
   const navigate = useNavigate();
   const [pendingSearchTerm, setPendingSearchTerm] = useState('');
+  const [pendingDocumentTypeFilter, setPendingDocumentTypeFilter] = useState('all');
+  const [pendingDeliveryFilter, setPendingDeliveryFilter] = useState('all');
   const [allSearchTerm, setAllSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [documentTypeFilter, setDocumentTypeFilter] = useState('all');
@@ -181,9 +183,44 @@ const AdminDocumentRequests = () => {
     const pendingOnly = visibleRequests.filter(
       (item) => normalizeStatus(item.status) === 'pending'
     );
-    const matched = pendingOnly.filter((item) => matchesSearch(item, q));
+    let list = pendingOnly;
+
+    if (pendingDocumentTypeFilter !== 'all') {
+      list = list.filter((item) => item.documentType === pendingDocumentTypeFilter);
+    }
+
+    if (pendingDeliveryFilter !== 'all') {
+      list = list.filter(
+        (item) => normalizeDeliveryMethod(item.deliveryMethod) === pendingDeliveryFilter
+      );
+    }
+
+    const matched = list.filter((item) => matchesSearch(item, q));
     return sortRequests(matched);
-  }, [pendingSearchTerm, visibleRequests]);
+  }, [pendingDeliveryFilter, pendingDocumentTypeFilter, pendingSearchTerm, visibleRequests]);
+
+  const pendingDocumentTypeOptions = useMemo(() => {
+    const options = new Set();
+    visibleRequests.forEach((item) => {
+      if (normalizeStatus(item.status) === 'pending' && item.documentType) {
+        options.add(item.documentType);
+      }
+    });
+    return Array.from(options).sort((a, b) => a.localeCompare(b));
+  }, [visibleRequests]);
+
+  const pendingDeliveryOptions = useMemo(() => {
+    const options = new Map();
+    visibleRequests.forEach((item) => {
+      if (normalizeStatus(item.status) !== 'pending') return;
+      const normalized = normalizeDeliveryMethod(item.deliveryMethod);
+      if (!normalized) return;
+      if (!options.has(normalized)) {
+        options.set(normalized, normalized === 'delivery' ? 'Delivery' : 'Pickup');
+      }
+    });
+    return Array.from(options.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [visibleRequests]);
 
   const filteredAllRequests = useMemo(() => {
     const q = allSearchTerm.trim().toLowerCase();
@@ -318,6 +355,34 @@ const AdminDocumentRequests = () => {
                     value={pendingSearchTerm}
                     onChange={(e) => setPendingSearchTerm(e.target.value)}
                   />
+                </div>
+              </div>
+              <div className="table-controls">
+                <div className="select-wrap table-filter">
+                  <select
+                    value={pendingDocumentTypeFilter}
+                    onChange={(e) => setPendingDocumentTypeFilter(e.target.value)}
+                  >
+                    <option value="all">All Document Types</option>
+                    {pendingDocumentTypeOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="select-wrap table-filter">
+                  <select
+                    value={pendingDeliveryFilter}
+                    onChange={(e) => setPendingDeliveryFilter(e.target.value)}
+                  >
+                    <option value="all">All Delivery Methods</option>
+                    {pendingDeliveryOptions.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>

@@ -166,9 +166,6 @@ const Login = () => {
                 REGISTER
               </Link>
 
-              <p className="admin-login-hint">
-                Registrar access? <Link to="/admin-login">Go to admin login</Link>
-              </p>
             </form>
           </div>
         </section>

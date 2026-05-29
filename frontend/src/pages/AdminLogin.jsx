@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import logo from '../assets/nu-logo-left.png';
 import bg from '../assets/nubg.jpg';
 import { API_BASE, getStoredToken, parseJwtPayload } from '../api';
@@ -118,9 +118,6 @@ const AdminLogin = () => {
 
               <div className="login-options">
                 <span className="login-options-note">Admin access only</span>
-                <Link to="/login" className="forgot-link">
-                  Student/Alumni login
-                </Link>
               </div>
 
               <button type="submit" className="signin-btn">

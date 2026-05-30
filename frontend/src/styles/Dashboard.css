@@ -275,6 +275,7 @@ label {
   font-weight: 600;
 }
 .new-request-btn { background: #35408f; color: white; padding: 10px 25px; border-radius: 13px; border: none; font-weight: 500; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.dashboard-header-row .new-request-btn { margin-left: auto; }
 .btn-plus-asset { width: 18px; height: auto; object-fit: contain; }
 .view-btn { background: #8086b8; color: #35408f; border: none; padding: 10px 25px; border-radius: 13px; font-weight: 700; cursor: pointer;}
 .delete-btn { background: #8086b8; color: #35408f; border: none; padding: 10px 25px; border-radius: 13px; font-weight: 700; cursor: pointer; }

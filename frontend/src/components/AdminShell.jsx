@@ -11,7 +11,6 @@ import {
   PackageOpen,
 } from 'lucide-react';
 import { apiFetch, clearSession, getStoredUser } from '../api';
-import NotificationsPanel from './NotificationsPanel';
 
 const AdminShell = ({ children }) => {
   const navigate = useNavigate();
@@ -25,6 +24,7 @@ const AdminShell = ({ children }) => {
   const isRequestsActive = location.pathname === '/admin-document-requests';
   const isAlumniVerificationActive = location.pathname === '/admin-alumni-verification';
   const isDocumentTrackingActive = location.pathname === '/admin-document-tracking';
+  const isLogsActive = location.pathname === '/admin-logs';
 
   const handleSidebarToggle = () => {
     setSidebarPinned((prev) => !prev);
@@ -122,6 +122,16 @@ const AdminShell = ({ children }) => {
             <PackageOpen size={24} strokeWidth={2.2} />
             <span className="sidebar-text">Document Tracking</span>
           </button>
+
+          <button
+            type="button"
+            className={`sidebar-link ${isLogsActive ? 'active' : ''}`}
+            aria-label="Logs"
+            onClick={() => navigate('/admin-logs')}
+          >
+            <FileText size={24} strokeWidth={2.2} />
+            <span className="sidebar-text">Logs</span>
+          </button>
         </nav>
 
         <button type="button" className="logout-btn" aria-label="Logout" onClick={handleLogout}>
@@ -140,10 +150,6 @@ const AdminShell = ({ children }) => {
             <img src={logo} alt="NU Logo" className="admin-logo" />
             <span className="admin-title">ADMIN DASHBOARD</span>
           </button>
-
-          <div className="admin-topbar-actions">
-            <NotificationsPanel />
-          </div>
         </header>
 
         {children}

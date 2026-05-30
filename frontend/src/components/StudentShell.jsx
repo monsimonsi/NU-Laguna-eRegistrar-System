@@ -6,6 +6,7 @@ import settingslogo from '../assets/settings-icon.png';
 import tracklogo from '../assets/track-icon.png';
 import submitlogo from '../assets/submit-icon.png';
 import logoutlogo from '../assets/logout-icon.png';
+import { FileText } from 'lucide-react';
 import { clearSession } from '../api';
 
 const StudentShell = ({ activeItem = '', children }) => {
@@ -89,6 +90,14 @@ const StudentShell = ({ activeItem = '', children }) => {
           >
             <img src={settingslogo} alt="Settings Logo" className="sidebar-icon" />
             <span className="sidebar-label">Account Profile</span>
+          </div>
+          <div
+            className={navClass('logs')}
+            tabIndex={-1}
+            onClick={() => handleNavigate('/logs')}
+          >
+            <FileText className="sidebar-icon sidebar-icon-svg" aria-hidden="true" />
+            <span className="sidebar-label">Logs</span>
           </div>
         </nav>
 

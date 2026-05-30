@@ -1,17 +1,17 @@
 {
   "files": {
-    "main.css": "/static/css/main.830bc179.css",
-    "main.js": "/static/js/main.f85cc08f.js",
+    "main.css": "/static/css/main.4ddc4801.css",
+    "main.js": "/static/js/main.4897ae88.js",
     "static/media/nubg.jpg": "/static/media/nubg.fce60a18b6231e46a6af.jpg",
     "static/media/NU_shield.png": "/static/media/NU_shield.ef476e5467cfc8467ec8.png",
     "static/media/profile-icon.png": "/static/media/profile-icon.3dae923a0287feef12d2.png",
     "static/media/nu-logo-left.png": "/static/media/nu-logo-left.82ecb0c707de65d4fd89.png",
     "index.html": "/index.html",
-    "main.830bc179.css.map": "/static/css/main.830bc179.css.map",
-    "main.f85cc08f.js.map": "/static/js/main.f85cc08f.js.map"
+    "main.4ddc4801.css.map": "/static/css/main.4ddc4801.css.map",
+    "main.4897ae88.js.map": "/static/js/main.4897ae88.js.map"
   },
   "entrypoints": [
-    "static/css/main.830bc179.css",
-    "static/js/main.f85cc08f.js"
+    "static/css/main.4ddc4801.css",
+    "static/js/main.4897ae88.js"
   ]
 }

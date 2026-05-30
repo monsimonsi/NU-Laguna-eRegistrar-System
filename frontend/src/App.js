@@ -10,6 +10,8 @@ import AdminDocumentRequests from './pages/AdminDocumentRequests';
 import AdminDocumentTracking from './pages/AdminDocumentTracking';
 import Dashboard from './pages/Dashboard';
 import AccountProfile from './pages/AccountProfile';
+import StudentLogs from './pages/StudentLogs';
+import AdminLogs from './pages/AdminLogs';
 import DocumentRequest from './pages/DocumentRequest';
 import DocumentTracking from './pages/DocumentTracking';
 import Payment from './pages/Payment';
@@ -48,6 +50,14 @@ function App() {
           }
         />
         <Route
+          path="/admin-logs"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <AdminLogs />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin-document-requests"
           element={
             <ProtectedRoute roles={['admin']}>
@@ -76,6 +86,14 @@ function App() {
           element={
             <ProtectedRoute roles={['student', 'alumni']}>
               <AccountProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/logs"
+          element={
+            <ProtectedRoute roles={['student', 'alumni']}>
+              <StudentLogs />
             </ProtectedRoute>
           }
         />

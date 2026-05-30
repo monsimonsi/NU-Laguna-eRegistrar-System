@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../styles/Dashboard.css'
 import StudentShell from '../components/StudentShell'
-import NotificationsPanel from '../components/NotificationsPanel'
 import { API_BASE, authHeaders } from '../api'
 import pluslogo from '../assets/plus-icon.png'
 
@@ -231,7 +230,6 @@ function App() {
         <main className="dashboard-wrapper" key="dashboard">
           <div className="dashboard-header-row">
             <h2 className="page-title">Document Requests Dashboard</h2>
-            <NotificationsPanel />
             <button className="new-request-btn" onClick={() => navigate('/document-request')}>
               <img src={pluslogo} alt="Plus Logo" className="btn-plus-asset" />
               <span className="new-request-label">REQUEST A DOCUMENT</span>

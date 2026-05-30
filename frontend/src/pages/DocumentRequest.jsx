@@ -208,6 +208,10 @@ const DocumentRequest = ({ onBack }) => {
             <img src={settingslogo} alt="" className="sidebar-icon" />
             <span className="sidebar-label">Account Settings</span>
           </div>
+          <div className="sidebar-link" onClick={() => { setIsOpen(false); navigate('/logs'); }}>
+            <FileText className="sidebar-icon sidebar-icon-svg" aria-hidden="true" />
+            <span className="sidebar-label">Logs</span>
+          </div>
         </nav>
 
         <div className="sidebar-footer">

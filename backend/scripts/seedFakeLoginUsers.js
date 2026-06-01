@@ -9,17 +9,7 @@ const { hashPassword } = require('../services/passwords');
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 const fakeUsers = [
-  {
-    full_name: 'John Simon Ray Umadac',
-    email: 'umadacjc@students.nu-laguna.edu.ph',
-    password: '123456',
-    "role": "student",
-    "status": "active",
-    "program": "BS Computer Science",
-    "department": "School of Computer Studies",
-    "id_num": "2023-120694",
-    "year_level": "Year 3",
-  },
+  
   {
     full_name: 'Admin 1',
     email: 'admin1@registrar.nu-laguna.edu.ph',
@@ -39,7 +29,11 @@ const fakeUsers = [
     email: 'student1@students.nu-laguna.edu.ph',
     password: 'Student123!',
     role: 'student',
-    status: 'active'
+    status: 'active',
+    "program": "BS Computer Science",
+    "department": "School of Computer Studies",
+    "id_num": "2023-120694",
+    "year_level": "Year 3"
   },
   {
     full_name: 'Student Two',

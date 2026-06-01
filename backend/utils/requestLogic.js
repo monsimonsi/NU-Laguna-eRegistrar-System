@@ -177,21 +177,21 @@ function validateDocumentRequestInput({ body = {}, auth = {}, price, limits = {}
   });
   if (!copiesResult.ok) return fail(copiesResult.message, 'copies');
 
-  const succeedingPagesResult =
-    documentType === 'Course Description 1st Page'
-      ? parseInteger(body.succeedingPages, {
-          fieldName: 'Succeeding pages',
-          min: 0,
-          max: getLimit('MAX_SUCCEEDING_PAGES', 500, limits),
-          defaultValue: 0
-        })
-      : { ok: true, value: 0 };
+  const perSucceedingPageFee = Number(price.perSucceedingPageFee) || 0;
+  const shouldCollectSucceedingPages = perSucceedingPageFee > 0;
+  const succeedingPagesResult = shouldCollectSucceedingPages
+    ? parseInteger(body.succeedingPages, {
+        fieldName: 'Succeeding pages',
+        min: 0,
+        max: getLimit('MAX_SUCCEEDING_PAGES', 500, limits),
+        defaultValue: 0
+      })
+    : { ok: true, value: 0 };
   if (!succeedingPagesResult.ok) {
     return fail(succeedingPagesResult.message, 'succeedingPages');
   }
 
   const basePrice = Number(price.basePrice) || 0;
-  const perSucceedingPageFee = Number(price.perSucceedingPageFee) || 0;
   const deliveryFee = deliveryMethod === 'delivery' ? Number(price.deliveryFee) || 150 : 0;
   const succeedingPagesFee = succeedingPagesResult.value * perSucceedingPageFee;
   const totalFee = (basePrice + succeedingPagesFee) * copiesResult.value + deliveryFee;

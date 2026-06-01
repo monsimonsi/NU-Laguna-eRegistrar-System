@@ -8,6 +8,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminAlumniVerification from './pages/AdminAlumniVerification';
 import AdminDocumentRequests from './pages/AdminDocumentRequests';
 import AdminDocumentTracking from './pages/AdminDocumentTracking';
+import AdminDocumentPrices from './pages/AdminDocumentPrices';
+import AdminDocumentTypes from './pages/AdminDocumentTypes';
 import Dashboard from './pages/Dashboard';
 import AccountProfile from './pages/AccountProfile';
 import StudentLogs from './pages/StudentLogs';
@@ -62,6 +64,22 @@ function App() {
           element={
             <ProtectedRoute roles={['admin']}>
               <AdminDocumentRequests />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-document-prices"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <AdminDocumentPrices />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-document-types"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <AdminDocumentTypes />
             </ProtectedRoute>
           }
         />

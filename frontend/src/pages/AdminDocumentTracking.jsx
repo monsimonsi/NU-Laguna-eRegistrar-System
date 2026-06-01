@@ -574,12 +574,36 @@ const AdminDocumentTracking = () => {
                     label="Number of Copies"
                     primary={String(selectedRequest.copies ?? 1)}
                   />
-                  <MetaCell
-                    icon={Hash}
-                    label="Tracking Number"
-                    primary={getTrackingNumber(selectedRequest)}
-                  />
+                  {Number(selectedRequest.succeedingPages) > 0 ? (
+                    <MetaCell
+                      icon={Hash}
+                      label="Succeeding Pages"
+                      primary={String(selectedRequest.succeedingPages)}
+                    />
+                  ) : (
+                    <MetaCell
+                      icon={Hash}
+                      label="Tracking Number"
+                      primary={getTrackingNumber(selectedRequest)}
+                    />
+                  )}
                 </div>
+
+                {Number(selectedRequest.succeedingPages) > 0 && (
+                  <div className="detail-row-divider" />
+                )}
+
+                {Number(selectedRequest.succeedingPages) > 0 && (
+                  <div className="detail-row-grid">
+                    <MetaCell
+                      icon={Hash}
+                      label="Tracking Number"
+                      primary={getTrackingNumber(selectedRequest)}
+                    />
+                    <div className="detail-cell detail-cell-empty" aria-hidden="true" />
+                    <div className="detail-cell detail-cell-empty" aria-hidden="true" />
+                  </div>
+                )}
 
                 <div className="detail-row-divider" />
 

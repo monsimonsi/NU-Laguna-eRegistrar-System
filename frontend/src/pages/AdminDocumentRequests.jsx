@@ -40,14 +40,9 @@ const formatDeliveryMethod = (value) => {
 };
 
 const formatSucceedingPages = (request) => {
-  const docType = String(request?.documentType || '').trim();
-  if (!docType) return '-';
-  if (docType === 'Course Description 1st Page') {
-    const value = request?.succeedingPages;
-    if (Number.isFinite(Number(value))) return String(value);
-    return '0';
-  }
-  return '-';
+  const value = Number(request?.succeedingPages);
+  if (!Number.isFinite(value) || value <= 0) return '-';
+  return String(value);
 };
 
 const formatRequestDate = (request) => {

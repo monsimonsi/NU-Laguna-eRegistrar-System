@@ -167,10 +167,10 @@ const DocumentTracking = () => {
                 </div>
 
                 <div className="track-summary-meta">
-                  {request.documentType === 'Course Description 1st Page' && (
+                  {Number(request.succeedingPages) > 0 && (
                     <div className="track-summary-badges">
                       <span className="track-summary-badge">
-                        Succeeding Pages: {request.succeedingPages ?? '-'}
+                        Succeeding Pages: {request.succeedingPages}
                       </span>
                     </div>
                   )}

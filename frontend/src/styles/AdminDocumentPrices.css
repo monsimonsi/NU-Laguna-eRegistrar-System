@@ -1,0 +1,258 @@
+/* MAIN */
+.admin-main {
+  padding: 10px 18px 18px;
+  max-width: 100%;
+}
+
+.prices-header h1 {
+  margin: 0;
+  font-size: 40px;
+  line-height: 1;
+  color: #33468f;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.prices-header p {
+  margin: 6px 0 16px;
+  font-size: 14px;
+  color: #1f1f1f;
+}
+
+.prices-status {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.prices-status.error {
+  color: #c0392b;
+}
+
+/* TOP CARD */
+.prices-top-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.prices-card {
+  background: #fff;
+  border: 1px solid rgba(101, 117, 183, 0.35);
+  border-radius: 12px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  padding: 18px 20px;
+}
+
+.prices-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.prices-card-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #111;
+  font-weight: 800;
+}
+
+.prices-card-header p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #8a93b5;
+}
+
+.fee-preview {
+  font-size: 18px;
+  font-weight: 700;
+  color: #33468f;
+}
+
+.delivery-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.price-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2d3b73;
+  min-width: 240px;
+  flex: 1;
+}
+
+.price-input {
+  width: 100%;
+  height: 44px;
+  border-radius: 8px;
+  border: 1px solid #c9d0ea;
+  background: #f7f7f7;
+  padding: 0 12px;
+  font-size: 14px;
+  color: #2b2b2b;
+}
+
+.price-input:focus {
+  outline: none;
+  border-color: #33468f;
+  box-shadow: 0 0 0 2px rgba(51, 70, 143, 0.15);
+}
+
+.price-action-btn {
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid #c9d0ea;
+  background: #fff;
+  color: #33468f;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.price-action-btn.primary {
+  background: #33468f;
+  color: #fff;
+  border-color: #33468f;
+}
+
+.price-action-btn.ghost {
+  background: #f6f7fb;
+  color: #33468f;
+}
+
+.price-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.price-action-btn:not(:disabled):hover,
+.price-action-btn:not(:disabled):focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px rgba(51, 70, 143, 0.16);
+}
+
+/* TABLE */
+.prices-table-card {
+  background: #fff;
+  border: 1px solid rgba(101, 117, 183, 0.35);
+  border-radius: 12px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  padding: 16px 16px 18px;
+}
+
+.prices-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.prices-table-header h2 {
+  margin: 0;
+  font-size: 22px;
+  color: #111;
+  font-weight: 800;
+}
+
+.prices-table-header p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #8a93b5;
+}
+
+.prices-table-scroll {
+  overflow-x: auto;
+}
+
+.prices-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.prices-table th {
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #8c94b5;
+  padding: 10px 12px;
+}
+
+.prices-table td {
+  padding: 12px;
+  border-top: 1px solid #e3e7f3;
+  vertical-align: middle;
+}
+
+.price-doc {
+  font-weight: 700;
+  color: #1f2a44;
+}
+
+.price-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.prices-empty {
+  margin: 0;
+  padding: 16px 4px;
+  font-size: 14px;
+  color: #6f7898;
+}
+
+@media (max-width: 1024px) {
+  .prices-table {
+    min-width: 660px;
+  }
+}
+
+@media (max-width: 768px) {
+  .prices-header h1 {
+    font-size: 32px;
+  }
+
+  .prices-table-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .delivery-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 560px) {
+  .prices-header h1 {
+    font-size: 28px;
+  }
+
+  .price-action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .price-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

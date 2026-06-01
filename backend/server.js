@@ -164,6 +164,32 @@ function isRequestOwner(req, request) {
   return Boolean(authId && requesterId && authId === requesterId);
 }
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function parseNonNegativeNumber(value) {
+  if (value === '' || value === null || value === undefined) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
+function parseOptionalNonNegativeNumber(value) {
+  if (value === undefined || value === null || value === '') return undefined;
+  return parseNonNegativeNumber(value);
+}
+
+function parseBooleanInput(value) {
+  if (value === true || value === false) return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+  return null;
+}
+
 // Login API
 app.post('/api/login', async (req, res) => {
   try {
@@ -745,6 +771,152 @@ app.post('/api/requests', authMiddleware, requireStudentOrAlumni, async (req, re
     }
   } catch (error) {
     console.error('Create request error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: list all document prices (active + inactive)
+app.get('/api/admin/prices', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const prices = await DocumentPrice.find({})
+      .sort({ documentType: 1 })
+      .lean();
+    return res.status(200).json({ prices });
+  } catch (error) {
+    console.error('Admin list prices error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: create a new document price
+app.post('/api/admin/prices', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const documentType = String(req.body?.documentType || '').trim();
+    if (!documentType) {
+      return res.status(400).json({ message: 'Document type is required.', field: 'documentType' });
+    }
+
+    const basePrice = parseNonNegativeNumber(req.body?.basePrice);
+    if (basePrice === null) {
+      return res.status(400).json({ message: 'Base price must be a non-negative number.', field: 'basePrice' });
+    }
+
+    const perSucceedingPageFeeRaw = parseOptionalNonNegativeNumber(req.body?.perSucceedingPageFee);
+    if (perSucceedingPageFeeRaw === null) {
+      return res.status(400).json({
+        message: 'Succeeding page fee must be a non-negative number.',
+        field: 'perSucceedingPageFee'
+      });
+    }
+
+    const deliveryFeeRaw = parseOptionalNonNegativeNumber(req.body?.deliveryFee);
+    if (deliveryFeeRaw === null) {
+      return res.status(400).json({ message: 'Delivery fee must be a non-negative number.', field: 'deliveryFee' });
+    }
+
+    const existing = await DocumentPrice.findOne({
+      documentType: new RegExp(`^${escapeRegex(documentType)}$`, 'i')
+    });
+    if (existing) {
+      return res.status(409).json({ message: 'Document type already exists.' });
+    }
+
+    let deliveryFee = deliveryFeeRaw;
+    if (deliveryFee === undefined) {
+      const fallback = await DocumentPrice.findOne({}).sort({ createdAt: 1 }).lean();
+      deliveryFee = parseNonNegativeNumber(fallback?.deliveryFee) ?? 150;
+    }
+
+    const price = await DocumentPrice.create({
+      documentType,
+      basePrice,
+      perSucceedingPageFee: perSucceedingPageFeeRaw ?? 0,
+      deliveryFee,
+      active: true
+    });
+
+    return res.status(201).json({ price });
+  } catch (error) {
+    console.error('Admin create price error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: update delivery fee globally
+app.patch('/api/admin/prices/delivery-fee', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const deliveryFee = parseNonNegativeNumber(req.body?.deliveryFee);
+    if (deliveryFee === null) {
+      return res.status(400).json({ message: 'Delivery fee must be a non-negative number.', field: 'deliveryFee' });
+    }
+
+    const result = await DocumentPrice.updateMany({}, { $set: { deliveryFee } });
+    return res.status(200).json({
+      deliveryFee,
+      updatedCount: result?.modifiedCount ?? 0
+    });
+  } catch (error) {
+    console.error('Admin update delivery fee error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: update a document price (base/succeeding/delivery/active)
+app.patch('/api/admin/prices/:id', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const update = {};
+
+    if (Object.prototype.hasOwnProperty.call(req.body, 'basePrice')) {
+      const basePrice = parseNonNegativeNumber(req.body?.basePrice);
+      if (basePrice === null) {
+        return res.status(400).json({ message: 'Base price must be a non-negative number.', field: 'basePrice' });
+      }
+      update.basePrice = basePrice;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(req.body, 'perSucceedingPageFee')) {
+      const perSucceedingPageFee = parseNonNegativeNumber(req.body?.perSucceedingPageFee);
+      if (perSucceedingPageFee === null) {
+        return res.status(400).json({
+          message: 'Succeeding page fee must be a non-negative number.',
+          field: 'perSucceedingPageFee'
+        });
+      }
+      update.perSucceedingPageFee = perSucceedingPageFee;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(req.body, 'deliveryFee')) {
+      const deliveryFee = parseNonNegativeNumber(req.body?.deliveryFee);
+      if (deliveryFee === null) {
+        return res.status(400).json({ message: 'Delivery fee must be a non-negative number.', field: 'deliveryFee' });
+      }
+      update.deliveryFee = deliveryFee;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(req.body, 'active')) {
+      const active = parseBooleanInput(req.body?.active);
+      if (active === null) {
+        return res.status(400).json({ message: 'Active must be true or false.', field: 'active' });
+      }
+      update.active = active;
+    }
+
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ message: 'No updates provided.' });
+    }
+
+    const price = await DocumentPrice.findByIdAndUpdate(req.params.id, update, {
+      new: true,
+      runValidators: true
+    });
+
+    if (!price) {
+      return res.status(404).json({ message: 'Price not found.' });
+    }
+
+    return res.status(200).json({ price });
+  } catch (error) {
+    console.error('Admin update price error:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 });

@@ -176,8 +176,8 @@ function App() {
 
   const handleDeleteClick = () => {
     if (!selectedRequest) return;
-    if (!['Waiting for Payment', 'Pending'].includes(String(selectedRequest.status || '').trim())) {
-      setActionError('Only waiting-for-payment or pending requests can be deleted.');
+    if (String(selectedRequest.status || '').trim() !== 'Waiting for Payment') {
+      setActionError('Only waiting-for-payment requests can be deleted.');
       return;
     }
 
@@ -222,7 +222,7 @@ function App() {
   const isViewDisabled = !selectedRequest;
   const isDeleteDisabled =
     !selectedRequest ||
-    !['Waiting for Payment', 'Pending'].includes(String(selectedRequest.status || '').trim()) ||
+    String(selectedRequest.status || '').trim() !== 'Waiting for Payment' ||
     isDeleting;
 
   return (
@@ -366,7 +366,7 @@ function App() {
               <div className="confirm-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
                 <h3 className="confirm-title">Delete this request?</h3>
                 <p className="confirm-text">
-                  This will remove the request from your list. You can only delete pending requests.
+                  This will remove the request from your list. You can only delete waiting-for-payment requests.
                 </p>
                 <div className="confirm-actions">
                   <button className="confirm-btn cancel" type="button" onClick={handleCancelDelete}>

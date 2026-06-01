@@ -41,10 +41,23 @@ const DocumentRequest = ({ onBack }) => {
     })();
   }, []);
 
-  const feeEstimate = useMemo(() => {
-    const row = findPriceForType(prices, documentType);
-    return estimateFees(row, { copies, succeedingPages, deliveryMethod });
-  }, [prices, documentType, copies, succeedingPages, deliveryMethod]);
+  const selectedPrice = useMemo(
+    () => findPriceForType(prices, documentType),
+    [prices, documentType]
+  );
+
+  const feeEstimate = useMemo(
+    () => estimateFees(selectedPrice, { copies, succeedingPages, deliveryMethod }),
+    [selectedPrice, copies, succeedingPages, deliveryMethod]
+  );
+
+  const showSucceedingPages =
+    Number(selectedPrice?.perSucceedingPageFee) > 0;
+
+  const sortedPrices = useMemo(
+    () => prices.slice().sort((a, b) => a.documentType.localeCompare(b.documentType)),
+    [prices]
+  );
 
   const decreaseCopies = () => {
     setCopies((prev) => Math.max(1, prev - 1));
@@ -130,7 +143,7 @@ const DocumentRequest = ({ onBack }) => {
       notes
     };
 
-    if (documentType === 'Course Description 1st Page') {
+    if (showSucceedingPages) {
       payload.succeedingPages = succeedingPages;
     }
 
@@ -251,18 +264,15 @@ const DocumentRequest = ({ onBack }) => {
                 <div className="select-wrap">
                   <select value={documentType} onChange={(e) => { setDocumentType(e.target.value); setSucceedingPages(0); }} required>
                     <option value="" disabled>Select document</option>
-                    <option>Transcript of Records (TOR)</option>
-                    <option>Certificate of Registration (COR)</option>
-                    <option>Certificates</option>
-                    <option>Certificate of Good Moral Character</option>
-                    <option>Completion of Grades</option>
-                    <option>Copy of Grades</option>
-                    <option>Course Curriculum</option>
-                    <option>Course Description 1st Page</option>
-                    <option>Load Revision Form & Processing</option>
-                    <option>Shifting Form</option>
-                    <option>SHS Report Card</option>
-                    <option>SHS SF10 / Form 137A</option>
+                    {sortedPrices.length === 0 ? (
+                      <option value="" disabled>No document types available</option>
+                    ) : (
+                      sortedPrices.map((price) => (
+                        <option key={price._id} value={price.documentType}>
+                          {price.documentType}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
               </div>
@@ -310,7 +320,7 @@ const DocumentRequest = ({ onBack }) => {
               </div>
             </div>
 
-            {documentType === 'Course Description 1st Page' && (
+            {showSucceedingPages && (
               <div className="doc-grid-top doc-grid-top--spaced">
                 <div className="doc-field copies-field">
                   <label>Succeeding Pages</label>

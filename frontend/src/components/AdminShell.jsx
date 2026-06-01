@@ -9,6 +9,8 @@ import {
   Users,
   LogOut,
   PackageOpen,
+  PhilippinePeso,
+  FilePlus,
 } from 'lucide-react';
 import { apiFetch, clearSession, getStoredUser } from '../api';
 
@@ -22,6 +24,8 @@ const AdminShell = ({ children }) => {
   const isSidebarOpen = sidebarPinned || sidebarHover;
   const isDashboardActive = location.pathname === '/admin-dashboard';
   const isRequestsActive = location.pathname === '/admin-document-requests';
+  const isPricesActive = location.pathname === '/admin-document-prices';
+  const isDocumentTypesActive = location.pathname === '/admin-document-types';
   const isAlumniVerificationActive = location.pathname === '/admin-alumni-verification';
   const isDocumentTrackingActive = location.pathname === '/admin-document-tracking';
   const isLogsActive = location.pathname === '/admin-logs';
@@ -102,6 +106,24 @@ const AdminShell = ({ children }) => {
           >
             <FileText size={24} strokeWidth={2.2} />
             <span className="sidebar-text">Document Requests</span>
+          </button>
+
+          <button
+            className={`sidebar-link ${isPricesActive ? 'active' : ''}`}
+            aria-label="Manage Document Prices"
+            onClick={() => navigate('/admin-document-prices')}
+          >
+            <PhilippinePeso size={24} strokeWidth={2.2} />
+            <span className="sidebar-text">Manage Prices</span>
+          </button>
+
+          <button
+            className={`sidebar-link ${isDocumentTypesActive ? 'active' : ''}`}
+            aria-label="Add or Remove Documents"
+            onClick={() => navigate('/admin-document-types')}
+          >
+            <FilePlus size={24} strokeWidth={2.2} />
+            <span className="sidebar-text">Add/Remove Docs</span>
           </button>
 
           <button
